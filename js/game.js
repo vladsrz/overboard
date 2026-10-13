@@ -185,7 +185,20 @@
           break;
         case 'fall': if (e.id === G.me) myFall = e; sfx('fall', 0, 80); break;
         case 'go': ui.go(); sfx('go'); break;
-        case 'round': ui.newRound(); break;
+        case 'round': {
+          ui.newRound();
+          // Match point: someone is one round from winning it. Said as the round
+          // counts in, so everyone knows who has to go in the water first.
+          const close = state.players.filter((p) => p.wins === C.WINS - 1);
+          if (!match || !close.length) break;
+          const names = close.map((p) => (p.id === G.me ? 'You' : p.name));
+          names.sort((a, b) => (a === 'You' ? -1 : b === 'You' ? 1 : 0));
+          const who = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+          ui.banner('Match point', names.length > 1 ? who + ' each need just this round.'
+            : who === 'You' ? 'Win this round and the match is yours.' : who + ' wins the match with this round.', C.COUNTDOWN_T + 1.2);
+          sfx('matchPoint');
+          break;
+        }
         case 'roundEnd': {
           if (!match) break;
           clearInput();

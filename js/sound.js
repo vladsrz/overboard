@@ -93,6 +93,7 @@
     bomb: () => { tone(130, 0.45, { gain: 0.7, to: 32 }); noise(0.4, { gain: 0.5, from: 3200, to: 180 }); },
     roundWon: () => tune([523, 659, 784], 0.1, { type: 'triangle', gain: 0.18 }),
     roundLost: () => tune([330, 262], 0.14, { type: 'triangle', gain: 0.16 }),
+    matchPoint: () => tune([392, 392, 587], 0.13, { type: 'square', gain: 0.1 }),
     matchWon: () => tune([523, 659, 784, 1047, 1319], 0.12, { type: 'triangle', gain: 0.2 }),
     matchLost: () => tune([392, 330, 262, 196], 0.18, { type: 'triangle', gain: 0.18 }),
   };
