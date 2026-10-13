@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Overboard</title>
 <meta name="description" content="Bumper sumo on a raft. Knock the others off, and if you fall in, wreck the raft for whoever is left.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -35,6 +35,16 @@
 
 <div class="count" id="count" hidden aria-hidden="true"></div>
 
+<!-- touch controls: only shown on a phone or tablet, during a match -->
+<div class="pad" id="pad" hidden>
+  <div class="stick-zone" id="stick-zone">
+    <div class="stick" id="stick" hidden><b id="knob"></b></div>
+    <span class="stick-hint" id="stick-hint">drag here to move</span>
+  </div>
+  <button class="act" id="act" type="button">Dash</button>
+  <button class="pause" id="pause" type="button" aria-label="Pause"><i></i><i></i></button>
+</div>
+
 <section class="cover menu" id="menu" hidden>
   <h2>Paused</h2>
   <button id="resume" type="button">Resume</button>
@@ -47,7 +57,7 @@
       <path class="off" d="M16 9.5l5 5M21 9.5l-5 5"/>
     </svg>
   </button>
-  <p class="fine"><kbd>Esc</kbd> resume &nbsp; <kbd>M</kbd> mute</p>
+  <p class="fine no-touch"><kbd>Esc</kbd> resume &nbsp; <kbd>M</kbd> mute</p>
 </section>
 
 <footer class="keys" id="keys" hidden>
@@ -70,10 +80,11 @@
   <h1 id="cover-title">Overboard</h1>
   <p class="lede" id="cover-lede">Last one on the raft wins.</p>
   <button id="start" type="button" autofocus>Start match</button>
-  <p class="how" id="cover-how"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span><kbd>Space</kbd> dash</span></p>
+  <p class="how" id="cover-how">
+    <span class="no-touch"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span class="no-touch"><kbd>Space</kbd> dash</span>
+    <span class="touch-only">Drag on the left to move</span><span class="touch-only">Dash button on the right</span>
+  </p>
   <p class="fine" id="cover-fine">You against three bots. First to win 3 rounds.</p>
-  <p class="needs touch">Overboard needs a keyboard and a mouse. Open this page on a computer to play.</p>
-  <button id="anyway" type="button" class="anyway touch">I have a keyboard, start anyway</button>
 </section>
 
 <script src="js/sim.js"></script>

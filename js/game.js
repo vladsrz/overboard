@@ -28,6 +28,8 @@
   let paused = false;
 
   const keys = {}, mouse = { x: 0, y: 0, down: false };
+  // the on-screen stick: which finger has it, where it started, and how far it is pushed (-1..1)
+  const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
   let spaceQueued = false, clickBuf = 0;
   // last frame's values, to catch the moment something becomes ready or wears off
   const was = { ult: 0, worn: 0, wave: 1 };
@@ -57,8 +59,10 @@
     const view = G.view;
     const l = keys.KeyA || keys.ArrowLeft, r = keys.KeyD || keys.ArrowRight;
     const u = keys.KeyW || keys.ArrowUp, d = keys.KeyS || keys.ArrowDown;
+    // the stick stands in for the direction keys while a thumb is on it
+    const held = stick.id !== null && Math.hypot(stick.x, stick.y) > 0.25;
     return {
-      mx: (r ? 1 : 0) - (l ? 1 : 0), my: (d ? 1 : 0) - (u ? 1 : 0),
+      mx: held ? stick.x : (r ? 1 : 0) - (l ? 1 : 0), my: held ? stick.y : (d ? 1 : 0) - (u ? 1 : 0),
       dash: spaceQueued, wave: spaceQueued, drop: mouse.down || clickBuf > 0,
       cx: (mouse.x - view.ox) / view.scale, cy: (mouse.y - view.oy) / view.scale,
     };
@@ -88,7 +92,7 @@
           sfx(e.thorns ? 'thorns' : 'bump', e.power, 60);
           break;
         case 'dash': sfx(e.slam ? 'slamDash' : 'dash', 0, 60); break;
-        case 'nodash': if (state.players[e.id].human) teach('nodash', 'Dash needs a direction', 'Hold a movement key, then press Space.'); break;
+        case 'nodash': if (state.players[e.id].human) teach('nodash', 'Dash needs a direction', G.touch ? 'Drag the stick, then press Dash.' : 'Hold a movement key, then press Space.'); break;
         case 'spawn': fx.ring(e.x, e.y, 4, 22, 0.3, PAL.PLANK, 3, true); sfx('spawn', 0, 80); break;
         case 'stall': if (match) ui.banner('The raft is breaking up', 'Nobody has gone in for a while.', 2.4); sfx('shrink'); break;
         case 'warn': sfx('warn', 0, 40); break;
@@ -110,7 +114,15 @@
           fx.ring(e.x, e.y, 20, C.ULT_R * 0.8, 0.3, PAL.WATER, 4, true);
           fx.shake(0.24); sfx('slam');
           break;
-        case 'ghost': fx.ring(e.x, e.y, 10, 54, 0.55, PAL.FOAM, 3, false); sfx('splash', 0, 80); break;
+        case 'ghost':
+          fx.ring(e.x, e.y, 10, 54, 0.55, PAL.FOAM, 3, false); sfx('splash', 0, 80);
+          // On touch there is no hovering cursor, so your aim starts where you went in
+          // and then follows your taps. The water controls get one explanation.
+          if (G.touch && state.players[e.id].human) {
+            mouse.x = G.view.ox + e.x * G.view.scale; mouse.y = G.view.oy + e.y * G.view.scale;
+            teach('water', 'In the water', 'Tap a plank to pull it. The stick tips the raft. Wave pushes toward your last tap.');
+          }
+          break;
         case 'fall': if (state.players[e.id].human) myFall = e; sfx('fall', 0, 80); break;
         case 'go': ui.go(); sfx('go'); break;
         case 'round': ui.newRound(); break;
@@ -158,6 +170,7 @@
   function clearInput() {
     for (const k in keys) keys[k] = false;
     mouse.down = false; spaceQueued = false; clickBuf = 0;
+    stick.id = null; stick.x = 0; stick.y = 0; $('stick').hidden = true;
   }
 
   function startMatch() {
@@ -217,17 +230,49 @@
   });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });
   window.addEventListener('blur', () => { clearInput(); setPaused(true); });
-  window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
-  // a click shorter than one tick, or a hair early, still pulls the plank
-  G.canvas.addEventListener('mousedown', (e) => { if (e.button === 0) { mouse.x = e.clientX; mouse.y = e.clientY; mouse.down = true; clickBuf = 0.3; } });
-  window.addEventListener('mouseup', () => { mouse.down = false; });
+  // Pointer events cover a mouse and a finger alike. A mouse moves the aim by
+  // hovering; a finger only moves it by touching the raft, never from the stick.
+  window.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; } });
+  // a click or tap shorter than one tick, or a hair early, still pulls the plank
+  G.canvas.addEventListener('pointerdown', (e) => { if (e.button === 0) { mouse.x = e.clientX; mouse.y = e.clientY; mouse.down = true; clickBuf = 0.3; } });
+  G.canvas.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' && mouse.down) { mouse.x = e.clientX; mouse.y = e.clientY; } });
+  window.addEventListener('pointerup', () => { mouse.down = false; });
+  window.addEventListener('pointercancel', () => { mouse.down = false; });
   G.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // The stick: it appears where the thumb lands and reads how far it is dragged.
+  const zone = $('stick-zone'), REACH = 46;
+  function stickTo(e) {
+    let dx = (e.clientX - stick.ox) / REACH, dy = (e.clientY - stick.oy) / REACH;
+    const m = Math.hypot(dx, dy);
+    if (m > 1) { dx /= m; dy /= m; }
+    stick.x = dx; stick.y = dy;
+    $('knob').style.transform = 'translate(' + dx * REACH + 'px,' + dy * REACH + 'px)';
+  }
+  function stickOff(e) {
+    if (e.pointerId !== stick.id) return;
+    stick.id = null; stick.x = 0; stick.y = 0;
+    $('stick').hidden = true; $('stick-hint').hidden = false;
+  }
+  zone.addEventListener('pointerdown', (e) => {
+    if (stick.id !== null || paused) return;
+    e.preventDefault();
+    stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY;
+    try { zone.setPointerCapture(e.pointerId); } catch (err) { /* the finger is already gone */ }
+    const box = zone.getBoundingClientRect();
+    $('stick').style.left = e.clientX - box.left + 'px'; $('stick').style.top = e.clientY - box.top + 'px';
+    $('stick').hidden = false; $('stick-hint').hidden = true;
+    stickTo(e);
+  });
+  zone.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) stickTo(e); });
+  zone.addEventListener('pointerup', stickOff);
+  zone.addEventListener('pointercancel', stickOff);
+  // The one button: dash on the raft, wave in the water (the same as Space).
+  $('act').addEventListener('pointerdown', (e) => { e.preventDefault(); if (inMatch() && !paused) spaceQueued = true; $('act').classList.add('down'); });
+  for (const up of ['pointerup', 'pointercancel', 'pointerleave']) $('act').addEventListener(up, () => $('act').classList.remove('down'));
+  $('pause').addEventListener('click', () => { Sfx.play('click'); setPaused(true); });
   window.addEventListener('resize', G.resize);
   $('start').addEventListener('click', startMatch);
-  // On a phone or tablet with no keyboard the start screen says so where the button
-  // would be. Someone who does have a keyboard can still get in.
-  if (matchMedia('(hover: none) and (pointer: coarse)').matches) document.body.classList.add('touch-only');
-  $('anyway').addEventListener('click', () => { document.body.classList.remove('touch-only'); startMatch(); });
   $('resume').addEventListener('click', () => { Sfx.play('click'); setPaused(false); });
   $('restart').addEventListener('click', startMatch);
   $('menu-mute').addEventListener('click', toggleSound);

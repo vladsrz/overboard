@@ -157,13 +157,62 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
-/* a phone or tablet with no keyboard: say so plainly where the Start button would be */
-.touch { display: none; }
-.touch-only .touch { display: block; }
-.touch-only #start, .touch-only #cover-how, .touch-only #cover-fine { display: none; }
-.needs { max-width: 20em; margin: 28px 0 0; padding: 14px 18px; border: 2px solid var(--plank); border-radius: 6px; font-size: 17px; font-weight: 600; }
-.cover button.anyway { margin-top: 18px; padding: 8px 14px; border: 0; background: transparent; color: var(--plank); font: 500 13px/1.2 var(--ui); text-decoration: underline; opacity: 0.75; }
-.cover button.anyway:hover { background: transparent; opacity: 1; }
+/* ── touch: a phone or tablet ── */
+.touch-only { display: none !important; }
+body.touch .touch-only { display: inline-flex !important; }
+body.touch .no-touch { display: none !important; }
+body.touch { touch-action: none; overscroll-behavior: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+/* the key strip is for keyboards; on touch the stick and the button say what they do */
+body.touch .keys { display: none; }
+
+.pad { position: fixed; inset: 0; pointer-events: none; }
+/* the stick appears wherever the thumb lands in this zone */
+.stick-zone {
+  position: absolute; left: 0; bottom: 0; width: 62%; height: 215px;
+  pointer-events: auto; touch-action: none;
+}
+.stick {
+  position: absolute; width: 116px; height: 116px; margin: -58px 0 0 -58px;
+  border: 2px solid var(--plank); border-radius: 50%; opacity: 0.75;
+}
+.stick b {
+  position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px;
+  border-radius: 50%; background: var(--plank);
+}
+.stick-hint {
+  position: absolute; left: 26px; bottom: calc(40px + env(safe-area-inset-bottom));
+  padding: 10px 14px; border: 1.5px dashed var(--plank); border-radius: 999px;
+  font-size: 13px; opacity: 0.6;
+}
+.act {
+  position: absolute; right: calc(22px + env(safe-area-inset-right)); bottom: calc(40px + env(safe-area-inset-bottom));
+  width: 104px; height: 104px; border-radius: 50%;
+  border: 2.5px solid var(--plank); background: rgba(11, 57, 54, 0.6); color: var(--plank);
+  font: 900 15px/1 var(--display);
+  pointer-events: auto; touch-action: none;
+}
+.act.down { background: var(--foam); color: var(--ink); }
+/* loaded: the slam is charged, or the wave is back */
+.act.ready { background: var(--plank); color: var(--ink); }
+.act.wait { opacity: 0.45; }
+.pause {
+  position: absolute; right: calc(10px + env(safe-area-inset-right)); top: 60px;
+  width: 44px; height: 44px; border-radius: 6px;
+  border: 1.5px solid var(--plank); background: transparent;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  pointer-events: auto;
+}
+.pause i { width: 5px; height: 16px; background: var(--plank); border-radius: 1px; }
+/* held sideways there is no room under the raft: the stick takes the left side, the button the right */
+@media (orientation: landscape) {
+  .stick-zone { width: 32%; height: calc(100% - 56px); }
+  .act { bottom: calc(24px + env(safe-area-inset-bottom)); width: 92px; height: 92px; }
+}
+/* the banner shares its strip with the pause button */
+body.touch .banner { max-width: calc(100vw - 120px); }
+@media (orientation: landscape) {
+  body.touch .banner { left: calc(12px + env(safe-area-inset-left)); top: 60px; transform: none; width: auto; max-width: 28vw; text-align: left; }
+}
 
 /* the labels next to each name need the room more than the wordmark does */
 @media (max-width: 1180px) {

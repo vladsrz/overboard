@@ -16,6 +16,9 @@
   const canvas = (G.canvas = document.getElementById('sea'));
   const ctx = canvas.getContext('2d');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // a phone or tablet: no keyboard, no hovering mouse
+  G.touch = matchMedia('(hover: none) and (pointer: coarse)').matches;
+  if (G.touch) document.body.classList.add('touch');
   // must match the banner's media query in overboard.css
   const NARROW = matchMedia('(max-width: 1080px), (max-aspect-ratio: 11/10)');
   const view = (G.view = { w: 0, h: 0, dpr: 1, scale: 1, ox: 0, oy: 0 });
@@ -37,7 +40,12 @@
     canvas.width = Math.round(view.w * view.dpr); canvas.height = Math.round(view.h * view.dpr);
     // Top bar, then on a narrow window a lane for the banner so it never covers the
     // raft (on a wide one the banner sits in the water beside it), then the key strip.
-    const top = 56 + (NARROW.matches ? 74 : 0), bottom = 56;
+    // On touch there is no key strip. Held upright, the space under the raft is for
+    // the stick and the button; held sideways they sit beside it.
+    const upright = view.h > view.w;
+    // (a phone held sideways has no height to spare: there the banner sits over the stick's side instead)
+    const top = 56 + (NARROW.matches && !(G.touch && !upright) ? 74 : 0);
+    const bottom = !G.touch ? 56 : upright ? 215 : 12;
     view.scale = Math.max(0.2, Math.min(view.w / 700, (view.h - top - bottom) / 680));
     view.ox = view.w / 2; view.oy = top + (view.h - top - bottom) / 2;
   };
@@ -53,8 +61,10 @@
     ctx.closePath();
   }
 
-  // small text that stays readable on planks and on water
+  // Small text that stays readable on planks and on water. On a small screen the
+  // raft is drawn small, so labels are scaled back up to stay legible.
   function label(text, x, y, size, align) {
+    if (view.scale < 0.8) size = Math.round((size * 0.8) / view.scale);
     ctx.font = '700 ' + size + 'px ' + FONT; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     ctx.strokeStyle = PLANK; ctx.lineWidth = 4; ctx.strokeText(text, x, y);
     ctx.fillStyle = WATER; ctx.fillText(text, x, y);

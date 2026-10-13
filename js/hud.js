@@ -93,6 +93,14 @@
     const inWater = me.state !== 'alive';
     $('keys-aboard').hidden = inWater; $('keys-water').hidden = !inWater;
     G.canvas.classList.toggle('water', me.state === 'ghost' && state.phase === 'play');
+    if (G.touch) {
+      // one button: Dash on the raft (Slam once it is charged), Wave in the water
+      const act = $('act');
+      act.textContent = inWater ? 'Wave' : me.ult >= 1 ? 'Slam' : 'Dash';
+      act.classList.toggle('ready', inWater ? me.waveCd <= 0 : me.ult >= 1);
+      act.classList.toggle('wait', inWater ? me.waveCd > 0 : me.dashCd > 0);
+      $('stick-hint').textContent = inWater ? 'drag here to tip the raft' : 'drag here to move';
+    }
     $('dash-word').textContent = me.ult >= 1 ? 'slam dash, charged' : 'dash';
     $('dash-key').classList.toggle('ready', me.ult >= 1);
     const tm = Math.hypot(state.tilt.x, state.tilt.y);
@@ -117,7 +125,7 @@
       clearOverlays();
       buildCrew();
       $('cover').hidden = true; $('menu').hidden = true;
-      $('top').hidden = false; $('keys').hidden = false;
+      $('top').hidden = false; $('keys').hidden = false; $('pad').hidden = !G.touch;
       $('start').blur();
     },
     showEnd(winner) {
@@ -127,7 +135,7 @@
       $('cover-how').hidden = true; $('cover-fine').hidden = true;
       $('start').textContent = 'Play again';
       $('cover').classList.add('end');
-      $('cover').hidden = false;
+      $('cover').hidden = false; $('pad').hidden = true;
     },
     showStart() {
       clearOverlays();
@@ -136,7 +144,7 @@
       $('start').textContent = 'Start match';
       $('cover').classList.remove('end');
       $('cover').hidden = false; $('menu').hidden = true;
-      $('top').hidden = true; $('keys').hidden = true;
+      $('top').hidden = true; $('keys').hidden = true; $('pad').hidden = true;
     },
     showMenu(on) {
       $('menu').hidden = !on;

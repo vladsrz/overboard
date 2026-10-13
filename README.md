@@ -2,7 +2,7 @@
 
 Bumper sumo on a raft. Knock the others off. If you fall in, you are not out: you get to wreck the raft for whoever is left, by pulling planks, tipping it and sending waves.
 
-**Play it:** https://vladsrz.github.io/overboard/ (needs a keyboard and a mouse)
+**Play it:** https://vladsrz.github.io/overboard/ (on a computer, or on a phone held upright)
 
 You against three bots, drawn each match from a cast of twelve with their own habits. First to win 3 rounds. Online multiplayer is the plan and is not built yet.
 
@@ -13,6 +13,8 @@ You against three bots, drawn each match from a cast of twelve with their own ha
 | **On the raft** | `W` `A` `S` `D` move · `Space` dash |
 | **In the water** | click a plank to pull it · `W` `A` `S` `D` tip the raft that way for 2 seconds · `Space` send a wave toward your cursor |
 | **Any time** | `Esc` pause · `M` mute |
+
+On a phone or tablet: drag on the left to move (in the water, to tip the raft), the round button on the right dashes (in the water, sends a wave toward your last tap), tap a plank to pull it, and the button in the corner pauses.
 
 A few things worth knowing:
 
