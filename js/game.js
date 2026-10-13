@@ -30,6 +30,7 @@
   G.mode = 'attract'; // 'attract' = bots playing behind the start screen, 'match' = you are in it
   G.colors = [];      // one per seat, rebuilt each match
   let paused = false;
+  let installOffered = false;
 
   const keys = {}, mouse = { x: 0, y: 0, down: false };
   // the on-screen stick: which finger has it, where it started, and how far it is pushed (-1..1)
@@ -191,6 +192,20 @@
     ui.banner('Up against', cast.slice(0, -1).join(', ') + ' and ' + cast[cast.length - 1], C.COUNTDOWN_T + 1.5);
   }
 
+  function requestStart() {
+    const guide = $('install-guide');
+    if (guide.open) return;
+    if (G.touch && !document.body.classList.contains('standalone') && !installOffered) {
+      installOffered = true;
+      const apple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      guide.classList.toggle('apple', apple);
+      guide.showModal();
+      $('install-continue').focus();
+      return;
+    }
+    startMatch();
+  }
+
   const inMatch = () => G.mode === 'match' && !ui.coverOpen();
 
   function setPaused(on) {
@@ -237,11 +252,12 @@
   window.addEventListener('touchstart', () => setTouch(true), { capture: true, passive: true });
 
   window.addEventListener('keydown', (e) => {
+    if ($('install-guide').open) return;
     if (e.code === 'Escape' && inMatch()) { e.preventDefault(); Sfx.play('click'); setPaused(!paused); return; }
     if (e.code === 'KeyM' && inMatch() && !e.repeat) { toggleSound(); return; }
     if (paused) return;
     if (!inMatch()) {
-      if (e.code === 'Enter') { e.preventDefault(); startMatch(); }
+      if (e.code === 'Enter') { e.preventDefault(); requestStart(); }
       return;
     }
     if (/^(Key[WASD]|Arrow|Space)/.test(e.code)) setTouch(false);
@@ -334,7 +350,9 @@
   // Rotation changes the thumb's coordinates. Release the old hold before laying
   // out the new view so a finger from the previous orientation cannot keep moving.
   window.addEventListener('resize', () => { clearInput(); G.resize(); });
-  $('start').addEventListener('click', startMatch);
+  $('start').addEventListener('click', requestStart);
+  $('install-continue').addEventListener('click', () => { $('install-guide').close(); startMatch(); });
+  $('install-back').addEventListener('click', () => $('install-guide').close());
   $('resume').addEventListener('click', () => { Sfx.play('click'); setPaused(false); });
   $('restart').addEventListener('click', startMatch);
   $('menu-mute').addEventListener('click', toggleSound);

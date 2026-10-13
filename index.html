@@ -91,9 +91,14 @@
   <p class="lede" id="cover-lede">Last one on the raft wins.</p>
   <button id="start" type="button" autofocus>Start match</button>
   <p class="rotate-hint" id="rotate-hint">
-    <svg viewBox="0 0 48 48" aria-hidden="true">
-      <rect x="17" y="12" width="16" height="28" rx="3" transform="rotate(-20 25 26)"/>
-      <path d="M23 35l4-1.5M8 21A17 17 0 0 1 37 11M37 4v7h-7"/>
+    <svg viewBox="0 0 72 48" aria-hidden="true">
+      <g opacity="0.45">
+        <rect x="4" y="8" width="16" height="30" rx="3"/>
+        <path d="M9 12h6"/>
+      </g>
+      <path d="M27 7a17 17 0 0 1 17 17m-5-5 5 5 5-5"/>
+      <rect x="34" y="28" width="32" height="18" rx="3"/>
+      <path d="M61 34v6"/>
     </svg>
     <span>Rotate your phone for a better experience.</span>
   </p>
@@ -103,6 +108,23 @@
   </p>
   <p class="fine" id="cover-fine">You against three bots. First to win 3 rounds.</p>
 </section>
+
+<dialog class="install-guide" id="install-guide" aria-labelledby="install-title">
+  <h2 id="install-title">Better from your Home Screen</h2>
+  <p>Add Overboard to play without browser bars. Open its icon, then turn your phone sideways.</p>
+  <ol class="install-apple">
+    <li>Tap <strong>Share</strong> in Safari <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m-4 4 4-4 4 4M6 10H4v11h16V10h-2"/></svg></li>
+    <li>Choose <strong>Add to Home Screen</strong>. Keep <strong>Open as Web App</strong> on if shown.</li>
+    <li>Tap <strong>Add</strong>, then open the new Overboard icon.</li>
+  </ol>
+  <ol class="install-other">
+    <li>Open your browser’s menu.</li>
+    <li>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
+    <li>Open the new Overboard icon.</li>
+  </ol>
+  <button id="install-continue" type="button">Continue in browser</button>
+  <button id="install-back" class="install-back" type="button">Back</button>
+</dialog>
 
 <script src="js/sim.js"></script>
 <script src="js/bots.js"></script>
