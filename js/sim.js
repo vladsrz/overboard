@@ -46,6 +46,8 @@
     THORN_T: 5, THORN_PUSH: 350, THORN_GUARD: 0.3,
     // slam: charges on its own; when full, your next dash ends in a blast
     ULT_T: 14, ULT_START: 0.3, ULT_R: 165, ULT_PUSH: 620,
+    // this long on the raft without touching the controls and bots take you for an easy target
+    AFK_T: 3,
   };
   const NONE = 0, SOLID = 1, WARN = 2, GONE = 3;
   const N = C.GRID * C.GRID;
@@ -99,7 +101,7 @@
       tiles: new Uint8Array(N), tileT: new Float32Array(N), tileBy: new Int8Array(N),
       players: roster.map((d, i) => ({
         id: i, name: d.name, human: !!d.human, type: d.type || null, wins: 0,
-        x: 0, y: 0, vx: 0, vy: 0, state: 'alive', fallT: 0, offT: 0,
+        x: 0, y: 0, vx: 0, vy: 0, state: 'alive', fallT: 0, offT: 0, idleT: 0,
         dashCd: 0, dashT: 0, dashX: 0, dashY: 0, faceX: 0, faceY: -1,
         bigT: 0, powerT: 0, hideT: 0, seenT: 0, thornT: 0, ult: 0, slam: false,
         lastHitBy: -1, lastHitT: -99, lastHitHow: '', lastHitPower: 0,
@@ -140,7 +142,7 @@
       p.x = Math.cos(a) * 150; p.y = Math.sin(a) * 150;
       p.vx = 0; p.vy = 0;
       p.faceX = -Math.cos(a); p.faceY = -Math.sin(a);
-      p.state = 'alive'; p.fallT = 0; p.offT = 0;
+      p.state = 'alive'; p.fallT = 0; p.offT = 0; p.idleT = 0;
       p.dashCd = 0; p.dashT = 0;
       p.bigT = 0; p.powerT = 0; p.hideT = 0; p.seenT = 0; p.thornT = 0; p.ult = C.ULT_START; p.slam = false;
       p.lastHitBy = -1; p.lastHitT = -99; p.lastHitHow = '';
@@ -274,6 +276,8 @@
         if (m > 1) { mx /= m; my /= m; }
         const fm = Math.hypot(mx, my);
         if (fm > 0.01) { p.faceX = mx / fm; p.faceY = my / fm; }
+        // how long since they last steered or pressed dash; being shoved around does not count
+        if (live) p.idleT = fm > 0.01 || inp.dash ? 0 : p.idleT + dt;
         p.vx += (mx * C.ACCEL + state.tilt.x * C.TILT_ACCEL) * dt;
         p.vy += (my * C.ACCEL + state.tilt.y * C.TILT_ACCEL) * dt;
         // A dash goes the way you are steering. With no direction held there is no

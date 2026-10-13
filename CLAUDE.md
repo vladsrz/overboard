@@ -49,6 +49,8 @@ To add one, add a row in each file. `pick` takes combined traits (`'grudge near'
 
 What a bot is holding changes its mood: with Thorns it drops its plan and runs straight at the nearest player; Power, Big or a loaded slam make it press the attack.
 
+A player who has not steered or dashed for 3 seconds (`AFK_T`, counted by `idleT` in `sim.js`; being shoved does not reset it) is the easy target: every bot drops whoever it was after and goes for them, the nearest if there are several, on the raft and from the water. Steering again ends it at once. Bots never sit still that long themselves, so bot-only matches are unchanged.
+
 Bots cannot see an Unseen player, but they guess (`trackOrGuess`): a bot that was after you keeps heading for where it last saw you for 1.5 to 4 seconds depending on its skill, with a guess that drifts further off the longer you stay hidden. It never reads the hidden player's real position, so moving away shakes it off.
 
 ## With friends

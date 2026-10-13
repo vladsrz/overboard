@@ -91,6 +91,17 @@
       && (!fighting || p.thornT > 0 || o.thornT <= 0));
     if (!others.length) { b.target = -1; return null; }
     const cur = others.find((o) => o.id === b.target);
+    // Someone who has not touched their controls for a few seconds is the easiest
+    // hit on the raft. Whoever this bot was after, it drops them and goes for that
+    // player instead (the nearest one, if several have wandered off).
+    const away = others.filter((o) => o.idleT >= C.AFK_T);
+    if (away.length) {
+      if (cur && cur.idleT >= C.AFK_T && b.retargetT > 0) return cur;
+      let pick = away[0];
+      for (const o of away) if (Math.hypot(o.x - p.x, o.y - p.y) < Math.hypot(pick.x - p.x, pick.y - p.y)) pick = o;
+      b.target = pick.id; b.retargetT = 2;
+      return pick;
+    }
     if (cur && b.retargetT > 0) return cur;
     b.retargetT = T.wild ? 0.8 + Sim.rand(state) : 2.5 + Sim.rand(state) * 2.5;
     let want = preferred, sure = 0.6;
