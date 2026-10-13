@@ -197,6 +197,10 @@ kbd {
 .cover button.plain { margin-top: 18px; padding: 6px 10px; background: transparent; color: var(--plank); font: 500 13px/1.2 var(--ui); text-decoration: underline; text-underline-offset: 3px; opacity: 0.75; }
 .cover button.plain:hover { background: transparent; opacity: 1; }
 .room { display: flex; flex-direction: column; align-items: center; margin-top: 28px; }
+/* the room's code, big enough to read out across a room; it can be selected and copied */
+.room-code { display: flex; align-items: baseline; gap: 12px; margin: 0 0 24px; font-size: 14px; }
+.room-code, .room-code * { -webkit-user-select: text; user-select: text; }
+.room-code b { font: 900 30px/1 var(--display); letter-spacing: 0.14em; }
 /* four seats in the colours they will play in; an empty one is a dashed ring a bot will fill */
 .seats { display: flex; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .seats li { width: 108px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -332,6 +336,8 @@ body.touch .banner { max-width: calc(100vw - 120px); }
   .lede { margin-top: 12px; font-size: 16px; }
   .cover button { margin-top: 18px; }
   .more, .code-row, .cover.room #start { margin-top: 8px; }
+  .room-code { margin-bottom: 10px; }
+  .room-code b { font-size: 22px; }
   .results { row-gap: 5px; margin-top: 12px; }
   .results li { font-size: 15px; }
   .results .disc { width: 24px; height: 24px; font-size: 11px; border-width: 2px; }

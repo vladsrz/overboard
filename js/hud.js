@@ -178,7 +178,9 @@
       else if (!mine && field.parentNode === li) $('room').appendChild(field);
     }
     ol.hidden = !Net.ready;
-    $('invite').hidden = !(Net.ready && Net.code) || Net.open;
+    // a private room shows its code, to read out or type in; the link carries the same one
+    $('invite').hidden = $('room-code').hidden = !(Net.ready && Net.code) || Net.open;
+    $('room-code-text').textContent = Net.code;
     if (!$('cover').hidden) cover(face);
   }
 
