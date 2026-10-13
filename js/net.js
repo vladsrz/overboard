@@ -91,15 +91,16 @@
 
   // ── the room ──
 
-  // The game server's address once it is deployed, e.g. 'wss://overboard.example.workers.dev'.
-  // Empty means there is none and rooms run in the host's browser. A page opened on
-  // this machine or the home network uses a server on the same machine (`npm run dev`
-  // in server/), so a change can be tried before it is deployed.
-  const SERVER = '';
+  // The game server's address. Empty would mean there is none, and rooms run in the
+  // host's browser. A page opened on this machine or the home network uses a server
+  // on the same machine (`npm run dev` in server/), so a change can be tried before
+  // it is deployed; add ?server=live to the address to use the real one from there.
+  const SERVER = 'wss://overboard.overboard-server.workers.dev';
   const LOCAL = /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)$/;
   function serverUrl() {
     const host = root.location ? root.location.hostname : '';
-    return LOCAL.test(host) ? 'ws://' + host + ':8787' : SERVER;
+    const live = root.location && /[?&]server=live\b/.test(root.location.search);
+    return LOCAL.test(host) && !live ? 'ws://' + host + ':8787' : SERVER;
   }
 
   const PREFIX = 'overboard-room-', SEATS = 4, QUIET = 6000;
