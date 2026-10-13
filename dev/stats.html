@@ -1,0 +1,114 @@
+<!doctype html>
+<!-- What has been played on this device, from the record js/stats.js keeps in this
+     browser. Open it on the same address you played on: each address has its own record. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overboard: play stats</title>
+<style>
+  body { margin: 0; padding: 24px; background: #fff; color: #14211f; font: 14px/1.45 system-ui, -apple-system, sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  h2 { margin: 30px 0 8px; font-size: 15px; }
+  p { margin: 4px 0; max-width: 60em; }
+  .muted { color: #5c6b68; }
+  table { border-collapse: collapse; margin-top: 4px; }
+  th, td { padding: 4px 14px 4px 0; text-align: right; border-bottom: 1px solid #e3e6e5; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-weight: 600; border-bottom: 2px solid #14211f; }
+  .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; border: 1.5px solid #14211f; vertical-align: -1px; }
+  button { margin: 10px 8px 0 0; padding: 7px 12px; font: inherit; cursor: pointer; }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>Overboard: play stats</h1>
+<p class="muted" id="about"></p>
+<button id="export">Export as JSON</button><button id="clear">Clear the record</button>
+<div id="out"></div>
+<script src="../js/cast.js"></script>
+<script>
+  const KEY = 'overboard-stats';
+  let all = [];
+  try { all = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { all = []; }
+  const out = document.getElementById('out');
+  const pct = (a, b) => (b ? Math.round((100 * a) / b) + '%' : '–');
+  const avg = (list) => (list.length ? (list.reduce((a, v) => a + v, 0) / list.length).toFixed(1) : '–');
+  function el(tag, text, parent) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; (parent || out).appendChild(e); return e; }
+  function table(title, head, rows, note) {
+    el('h2', title);
+    if (note) el('p', note).className = 'muted';
+    const wrap = el('div'); wrap.className = 'wrap';
+    const t = el('table', undefined, wrap), hr = el('tr', undefined, t);
+    head.forEach((h) => el('th', h, hr));
+    rows.forEach((r) => { const tr = el('tr', undefined, t); r.forEach((c) => { if (c && c.nodeType) el('td', undefined, tr).appendChild(c); else el('td', String(c), tr); }); });
+  }
+  function who(key) {
+    const c = Cast.BY_KEY[key], span = document.createElement('span');
+    if (c) { const d = document.createElement('i'); d.className = 'dot'; d.style.background = c.color; span.appendChild(d); }
+    span.appendChild(document.createTextNode(c ? c.name : key));
+    return span;
+  }
+
+  const rounds = all.flatMap((m) => m.rounds.map((r) => ({ m: m, r: r })));
+  document.getElementById('about').textContent = all.length
+    ? all.length + ' matches and ' + rounds.length + ' rounds on this device at this address, ' + new Date(all[0].at).toLocaleDateString() + ' to ' + new Date(all[all.length - 1].at).toLocaleDateString() + '. Kept in this browser only; the last 400 matches.'
+    : 'Nothing recorded yet on this device at this address. Play a match here first.';
+
+  if (all.length) {
+    const done = all.filter((m) => m.done);
+    const modes = ['solo', 'host', 'guest'].map((k) => {
+      const ms = all.filter((m) => m.mode === k), fin = ms.filter((m) => m.done), rs = ms.flatMap((m) => m.rounds.map((r) => ({ m: m, r: r })));
+      return [k, ms.length, fin.length, pct(fin.filter((m) => m.winner === m.me).length, fin.length), rs.length, pct(rs.filter((x) => x.r.winner === x.m.me).length, rs.length)];
+    });
+    modes.push(['all', all.length, done.length, pct(done.filter((m) => m.winner === m.me).length, done.length), rounds.length, pct(rounds.filter((x) => x.r.winner === x.m.me).length, rounds.length)]);
+    table('Matches', ['mode', 'started', 'finished', 'you won', 'rounds', 'rounds you won'], modes, 'With four seats, 25% is even.');
+
+    const secs = rounds.map((x) => x.r.secs), first = rounds.filter((x) => x.r.falls.length).map((x) => x.r.falls[0][3]);
+    const mine = rounds.map((x) => x.r.falls.find((f) => f[0] === x.m.me)).filter(Boolean);
+    const firstOut = rounds.filter((x) => x.r.falls.length && x.r.falls[0][0] === x.m.me).length;
+    table('Rounds', ['', 'value'], [
+      ['average length', avg(secs) + 's'], ['shortest / longest', secs.length ? Math.min(...secs) + 's / ' + Math.max(...secs) + 's' : '–'],
+      ['first fall at, average', avg(first) + 's'], ['you fell at, average', avg(mine.map((f) => f[3])) + 's'],
+      ['rounds you were first out', firstOut + ' (' + pct(firstOut, rounds.length) + ')'],
+      ['rounds where the raft pulled its own planks (it starts sooner once every person is out)', rounds.filter((x) => x.r.stall).length + ' (' + pct(rounds.filter((x) => x.r.stall).length, rounds.length) + ')'],
+      ['rounds with a meteor shower', rounds.filter((x) => x.r.picks.some((p) => p[1] === 'meteor')).length + ' (' + pct(rounds.filter((x) => x.r.picks.some((p) => p[1] === 'meteor')).length, rounds.length) + ')'],
+      ['rounds nobody won', rounds.filter((x) => x.r.winner < 0).length],
+    ]);
+
+    const hows = ['bump', 'slam', 'thorns', 'bomb', 'wave', 'plank', 'slip'];
+    const falls = rounds.flatMap((x) => x.r.falls.map((f) => ({ me: f[0] === x.m.me, how: f[2] })));
+    const yours = falls.filter((f) => f.me);
+    table('Falls by cause', ['cause', 'everyone', 'share', 'you', 'share'],
+      hows.map((h) => [h, falls.filter((f) => f.how === h).length, pct(falls.filter((f) => f.how === h).length, falls.length), yours.filter((f) => f.how === h).length, pct(yours.filter((f) => f.how === h).length, yours.length)])
+        .concat([['all', falls.length, '', yours.length, '']]), 'slip: went in with nobody having touched them. plank: the plank under them was pulled.');
+
+    const rows = Cast.LIST.map((c) => {
+      const met = all.filter((m) => m.seats.indexOf(c.key) >= 0), fin = met.filter((m) => m.done);
+      if (!met.length) return null;
+      let rw = 0, rn = 0, gotYou = 0, youGot = 0, selfOut = 0;
+      for (const m of met) {
+        const seat = m.seats.indexOf(c.key);
+        for (const r of m.rounds) {
+          rn++; if (r.winner === seat) rw++;
+          for (const f of r.falls) { if (f[0] === m.me && f[1] === seat) gotYou++; if (f[0] === seat && f[1] === m.me) youGot++; if (f[0] === seat && f[2] === 'slip') selfOut++; }
+        }
+      }
+      return [who(c.key), met.length, pct(fin.filter((m) => m.winner === m.seats.indexOf(c.key)).length, fin.length), pct(rw, rn), gotYou, youGot, selfOut];
+    }).filter(Boolean);
+    table('By bot', ['bot', 'matches met', 'won the match', 'rounds won', 'knocked you off', 'you knocked off', 'went in alone'], rows);
+
+    const kinds = ['bomb', 'big', 'power', 'hide', 'thorns', 'charge', 'meteor'];
+    const picks = rounds.flatMap((x) => x.r.picks.map((p) => ({ me: p[0] === x.m.me, kind: p[1] })));
+    table('Pickups taken', ['pickup', 'everyone', 'share', 'you'], kinds.map((k) => [k, picks.filter((p) => p.kind === k).length, pct(picks.filter((p) => p.kind === k).length, picks.length), picks.filter((p) => p.me && p.kind === k).length]));
+  }
+
+  document.getElementById('export').onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(all, null, 1)], { type: 'application/json' }));
+    a.download = 'overboard-stats.json'; a.click();
+  };
+  document.getElementById('clear').onclick = () => { if (confirm('Delete the record of ' + all.length + ' matches on this device?')) { localStorage.removeItem(KEY); location.reload(); } };
+</script>
+</body>
+</html>

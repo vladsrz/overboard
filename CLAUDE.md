@@ -70,6 +70,13 @@ Bots cannot see an Unseen player, but they guess (`trackOrGuess`): a bot that wa
 
 To check it: serve the folder, open the page in two separate browser profiles, host in one and open the invite link in the other. The node test covers the snapshot round trip only.
 
+## Play stats
+`js/stats.js` keeps a record of every match played on a device, in that browser's localStorage (`overboard-stats`, the last 400 matches). Nothing is sent anywhere and no names are kept: a seat is `person` or a bot's key. Per round it holds the length, the winner, every fall (who, by whom, how, when), every pickup taken and whether the raft pulled its own planks. A match is written after each round, so an abandoned one still counts as started.
+
+`dev/stats.html` reads that record and shows it as plain tables (win rates by mode, round lengths, falls by cause, each bot's record against the player, pickups), with an export to JSON. It only sees matches played on the same device at the same address, because a browser keeps a separate store per address. Gathering stats from other people's devices would need somewhere to send them, which this game does not have; it would also mean telling players.
+
+For numbers that do not depend on anyone playing, `node test/sim.test.js` already prints bot-against-bot statistics.
+
 ## Icon and link preview
 `favicon.svg` is the tab icon. `og.png` (1200 x 630) is what a pasted link shows; its source is `dev/og.html`. To redo it, serve the folder, screenshot that page at 1200 x 630 with headless Chrome and crop to size.
 

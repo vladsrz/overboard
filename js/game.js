@@ -138,6 +138,7 @@
     const state = G.state, match = G.mode === 'match';
     let myFall = null;
     for (const e of events) {
+      if (match) Stats.event(e, state);
       switch (e.type) {
         case 'bump':
           if (e.power < 25) break;
@@ -243,6 +244,7 @@
     paused = false;
     G.mode = 'match';
     newMatch(roster, me, seed);
+    Stats.begin(G.state, me, Net.role || 'solo');
     outbox = []; sendN = 0; steer = null; ahead = 0;
     clearInput();
     ui.showMatch();
