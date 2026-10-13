@@ -412,6 +412,38 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   assert(steps > 100 && chased > steps * 0.6 && chased < steps, 'most bots, not all, should be after the idle player: ' + chased + ' of ' + steps);
 }
 
+// Meteors: whoever grabs it sets off a couple of seconds in which planks come out
+// all over the raft, in their colour, but never right under them. One a round at most.
+{
+  const s = Sim.createMatch({ seed: 19, players: [{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D' }] });
+  while (s.phase !== 'play') Sim.step(s, [], DT);
+  const solid = () => s.tiles.reduce((n, v) => n + (v === Sim.SOLID ? 1 : 0), 0);
+  const start = solid(), me = s.players[0];
+  // nobody moves; put the pickup under A and keep the others off the pickup timer's way
+  s.pickups.push({ kind: 'meteor', tile: Sim.tileIndexAt(me.x, me.y), x: me.x, y: me.y, age: 1 });
+  s.pickupT = 99;
+  let mine = 0, near = 0;
+  for (let t = 0; t < (Sim.C.METEOR_T + 0.2) * 60; t++) {
+    for (const p of s.players) { p.vx = 0; p.vy = 0; p.offT = 0; }
+    s.lastFallT = s.time;
+    Sim.step(s, [], DT);
+    for (const e of s.events) if (e.type === 'warn') { mine += e.by === 0 ? 1 : 0; if (Math.hypot(Sim.tileX(e.tile) - me.x, Sim.tileY(e.tile) - me.y) < Sim.C.METEOR_SAFE) near++; }
+  }
+  stats.meteor = mine + ' of ' + start;
+  assert(s.meteorBy === 0 && s.meteorT <= 0, 'the shower should have started and finished');
+  assert(mine >= 30 && mine <= 45, 'a meteor shower should pull a few dozen planks: ' + mine);
+  assert(near === 0, 'no plank should go right under whoever set it off');
+  const again = Sim.createMatch({ seed: 23 });
+  let seen = 0, early = 0;
+  for (let t = 0; t < 60 * 40 && again.round === 1 && again.phase !== 'roundEnd'; t++) {
+    for (const p of again.players) { p.x = 0; p.y = 0; p.vx = 0; p.vy = 0; p.state = 'alive'; }
+    again.pickups.length = 0; again.pickupT = 0; again.lastFallT = again.time;
+    Sim.step(again, [], DT);
+    for (const e of again.events) if (e.type === 'spawn' && e.kind === 'meteor') { seen++; if (again.time < Sim.C.METEOR_FROM) early++; }
+  }
+  assert(seen === 1 && early === 0, 'one meteor pickup a round, and not at the start: ' + seen + ' seen, ' + early + ' early');
+}
+
 console.log('ok', MATCHES, 'matches');
 console.log('rounds', stats.rounds, '| avg round', (stats.time / stats.rounds).toFixed(1) + 's', '| longest', stats.longest.toFixed(1) + 's', '| draws', stats.draws);
 console.log('falls by cause', stats.how, '| credited to a ghost', stats.ghostKills, 'of', stats.falls);
@@ -419,5 +451,6 @@ console.log('bots after a player who let go:', stats.afk, '| idle player knocked
 console.log('knockback at 80 / 230 / 520 speed', stats.knock);
 console.log('first fall at', (stats.firstFall / stats.rounds).toFixed(1) + 's avg', '| then', (stats.afterFirst / stats.rounds).toFixed(1) + 's with someone in the water', '| slams', stats.slams, '| dashes per round', (stats.dashes / stats.rounds).toFixed(1));
 console.log('by character (played / won / walked off):', Object.keys(stats.type).map((k) => k + ' ' + stats.type[k].played + '/' + stats.type[k].won + '/' + stats.type[k].slipped).join(', '));
+console.log('planks pulled by one meteor shower:', stats.meteor);
 console.log('pickups spawned', stats.spawned);
 console.log('match wins by seat', stats.wins, '| pickups taken', stats.picked);

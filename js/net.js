@@ -13,12 +13,13 @@
 
   // every field of the match and of a player that the rules read; a bot's memory stays with the host
   const MATCH = ['rng', 'phase', 'phaseT', 'round', 'time', 'tiltBy', 'tiltT', 'tiltGap', 'tiltX', 'tiltY',
-    'pickupT', 'lastPickup', 'lastFallT', 'stallT', 'stallCalled', 'roundWinner', 'matchWinner'];
+    'pickupT', 'lastPickup', 'lastFallT', 'stallT', 'stallCalled', 'meteorT', 'meteorNext', 'meteorBy', 'meteorSeen',
+    'roundWinner', 'matchWinner'];
   const PLAYER = ['human', 'wins', 'x', 'y', 'vx', 'vy', 'state', 'fallT', 'offT', 'idleT', 'dashCd', 'dashT', 'dashX', 'dashY', 'faceX', 'faceY',
     'bigT', 'powerT', 'hideT', 'seenT', 'thornT', 'ult', 'slam', 'lastHitBy', 'lastHitT', 'lastHitHow', 'lastHitPower',
     'killer', 'dropCd', 'waveCd', 'tiltCd', 'tiltLast', 'tiltX', 'tiltY', 'tiltWait', 'cx', 'cy'];
   const PHASES = ['countdown', 'play', 'roundEnd', 'matchEnd'], STATES = ['alive', 'falling', 'ghost'];
-  const KINDS = ['bomb', 'big', 'power', 'hide', 'thorns', 'charge'];
+  const KINDS = ['bomb', 'big', 'power', 'hide', 'thorns', 'charge', 'meteor'];
 
   function pack(state) {
     const marks = [];
@@ -54,7 +55,7 @@
     if (!d || !Array.isArray(d.p) || d.p.length !== n || typeof d.tiles !== 'string' || d.tiles.length !== N) throw new Error('bad snapshot');
     MATCH.forEach((k, i) => { state[k] = like(state[k], d.f[i]); });
     if (PHASES.indexOf(state.phase) < 0) state.phase = 'countdown';
-    state.tiltBy = seat(state.tiltBy, n);
+    state.tiltBy = seat(state.tiltBy, n); state.meteorBy = seat(state.meteorBy, n);
     state.roundWinner = seat(state.roundWinner, n); state.matchWinner = seat(state.matchWinner, n);
     state.tilt.x = num(d.tilt[0]); state.tilt.y = num(d.tilt[1]);
     state.players.forEach((p, i) => {

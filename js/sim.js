@@ -26,7 +26,7 @@
     FALL_T: 0.45,
     // If nobody goes in the water for STALL_T, the raft starts pulling its own planks,
     // one every STALL_EVERY, until somebody does. Then the clock starts again.
-    STALL_T: 8, STALL_EVERY: 0.45,
+    STALL_T: 8, STALL_EVERY: 0.9,
     // with every real player already in the water it is quicker on both counts, so
     // nobody sits waiting for bots to finish each other off
     STALL_T_BOTS: 3, STALL_EVERY_BOTS: 0.25,
@@ -44,6 +44,10 @@
     HIDE_T: 5, SEEN_T: 0.45,
     // thorns: anyone who touches you is thrown back, and you barely feel it
     THORN_T: 5, THORN_PUSH: 350, THORN_GUARD: 0.3,
+    // Meteors: for METEOR_T planks come out all over the raft, one every METEOR_EVERY,
+    // except within METEOR_SAFE of whoever set it off. At most one a round, and not
+    // before METEOR_FROM seconds in.
+    METEOR_T: 2.6, METEOR_EVERY: 0.065, METEOR_SAFE: 95, METEOR_FROM: 6,
     // slam: charges on its own; when full, your next dash ends in a blast
     ULT_T: 14, ULT_START: 0.3, ULT_R: 165, ULT_PUSH: 620,
     // this long on the raft without touching the controls and bots take you for an easy target
@@ -51,7 +55,7 @@
   };
   const NONE = 0, SOLID = 1, WARN = 2, GONE = 3;
   const N = C.GRID * C.GRID;
-  const KINDS = ['bomb', 'big', 'power', 'hide', 'thorns', 'charge'];
+  const KINDS = ['bomb', 'big', 'power', 'hide', 'thorns', 'charge', 'meteor'];
 
   function rand(state) {
     state.rng = (state.rng + 0x6D2B79F5) | 0;
@@ -112,6 +116,7 @@
       waves: [],
       pickups: [], pickupT: 0, lastPickup: '', lastPickupAt: null,
       lastFallT: 0, stallT: 0, stallCalled: false,
+      meteorT: 0, meteorNext: 0, meteorBy: -1, meteorSeen: false,
       events: [],
       roundWinner: -1, matchWinner: -1,
     };
@@ -129,6 +134,7 @@
     state.pickups.length = 0;
     state.pickupT = C.PICKUP_FIRST; state.lastPickup = ''; state.lastPickupAt = null;
     state.lastFallT = 0; state.stallT = 0; state.stallCalled = false;
+    state.meteorT = 0; state.meteorNext = 0; state.meteorBy = -1; state.meteorSeen = false;
     state.roundWinner = -1;
     for (let i = 0; i < N; i++) {
       const dx = (i % C.GRID) - C.HALF, dy = Math.floor(i / C.GRID) - C.HALF;
@@ -393,6 +399,23 @@
       }
     } else state.stallT = 0;
 
+    // a meteor shower: planks go all over the raft, in the colour of whoever set it off
+    if (live && state.meteorT > 0) {
+      state.meteorT -= dt; state.meteorNext -= dt;
+      const safe = ps[state.meteorBy] && ps[state.meteorBy].state === 'alive' ? ps[state.meteorBy] : null;
+      while (state.meteorNext <= 0) {
+        state.meteorNext += C.METEOR_EVERY;
+        for (let tries = 0; tries < 8; tries++) {
+          const i = Math.floor(rand(state) * N);
+          if (state.tiles[i] !== SOLID) continue;
+          if (safe && Math.hypot(tileX(i) - safe.x, tileY(i) - safe.y) < C.METEOR_SAFE) continue;
+          state.tiles[i] = WARN; state.tileT[i] = C.WARN_T; state.tileBy[i] = state.meteorBy;
+          state.events.push({ type: 'warn', tile: i, by: state.meteorBy });
+          break;
+        }
+      }
+    }
+
     if (live) pickups(state, dt);
 
     // falls
@@ -471,6 +494,7 @@
         else if (u.kind === 'hide') { p.hideT = C.HIDE_T; p.seenT = 0; }
         else if (u.kind === 'thorns') p.thornT = C.THORN_T;
         else if (u.kind === 'charge') { p.ult = 1; p.dashCd = 0; }
+        else if (u.kind === 'meteor') { state.meteorT = C.METEOR_T; state.meteorNext = 0; state.meteorBy = p.id; }
         else blast(state, p, C.BOMB_R, C.BOMB_PUSH, 'bomb'); // goes off on whoever grabs it; everyone else nearby pays
         break;
       }
@@ -500,8 +524,9 @@
     }
     if (best < 0) return;
     // never the kind that spawned last; two of a kind can be out at once, just not back to back
-    const kinds = KINDS.filter((k) => k !== state.lastPickup);
+    const kinds = KINDS.filter((k) => k !== state.lastPickup && (k !== 'meteor' || (!state.meteorSeen && state.time >= C.METEOR_FROM)));
     const kind = kinds[Math.floor(rand(state) * kinds.length)];
+    if (kind === 'meteor') state.meteorSeen = true;
     const x = tileX(best), y = tileY(best);
     state.lastPickup = kind; state.lastPickupAt = [x, y];
     state.pickups.push({ kind: kind, tile: best, x: x, y: y, age: 0 });

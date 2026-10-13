@@ -193,6 +193,10 @@
       for (const dy of [-1, 5]) { ctx.beginPath(); ctx.moveTo(-5.5, dy); ctx.lineTo(0, dy - 5.5); ctx.lineTo(5.5, dy); ctx.stroke(); }
     } else if (kind === 'thorns') {
       spikes(0, 0, 8, 3.6, 8); ctx.fill();
+    } else if (kind === 'meteor') {
+      // a rock coming down, with its trail behind it
+      circle(-3, 3.5, 3.6); ctx.fill();
+      for (const k of [0, 3.4, -3.4]) { ctx.beginPath(); ctx.moveTo(1 + k * 0.7, -0.5 - k * 0.7); ctx.lineTo(5.5 + k, -5 - k); ctx.stroke(); }
     } else if (kind === 'charge') {
       ctx.beginPath(); ctx.moveTo(1.5, -8); ctx.lineTo(-4.5, 1); ctx.lineTo(-0.5, 1); ctx.lineTo(-1.5, 8); ctx.lineTo(4.5, -1); ctx.lineTo(0.5, -1); ctx.closePath(); ctx.fill();
     } else {

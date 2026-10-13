@@ -21,6 +21,7 @@
     hide: { name: 'Unseen', tip: 'The others cannot see you.', sound: 'hide' },
     thorns: { name: 'Thorns', tip: 'Anyone you touch gets thrown back.', sound: 'armour' },
     charge: { name: 'Charge', tip: 'Your slam is ready.', sound: 'charge' },
+    meteor: { name: 'Meteors', tip: 'Planks are coming out all over the raft, but not under you.', sound: 'bomb' },
   };
   // The start screen only says how to move. Everything else is explained once,
   // the first time it happens to you.
@@ -157,9 +158,14 @@
           const kind = G.PICKUP[e.kind];
           fx.float(e.x, e.y - 26, kind.name);
           if (e.kind === 'bomb') { fx.ring(e.x, e.y, 20, C.BOMB_R, 0.32, PAL.WATER, 6, true); fx.shake(0.2); }
+          else if (e.kind === 'meteor') {
+            // news for everyone: the whole raft is about to come apart
+            fx.ring(e.x, e.y, 20, 330, 0.5, G.colors[e.id].fill, 6, true); fx.shake(0.3);
+            if (match) ui.banner('Meteor shower', e.id === G.me ? 'You set it off. Keep moving.' : state.players[e.id].name + ' set it off. Keep moving.', 2.6);
+          }
           else fx.ring(e.x, e.y, 14, 34, 0.3, G.colors[e.id].fill, 4, true);
           sfx(kind.sound);
-          if (e.id === G.me) teach(e.kind, kind.name, kind.tip);
+          if (e.id === G.me && e.kind !== 'meteor') teach(e.kind, kind.name, kind.tip);
           break;
         }
         case 'slam':
