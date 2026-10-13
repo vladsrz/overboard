@@ -45,7 +45,7 @@ These are decisions the owner has already made, mostly by trying something and r
 ## The cast
 Twelve characters, three drawn at random each match. Who they are (name, score-bar label, disc colour, hue) is in `js/cast.js`; how they play is in `js/bots.js` under the same key (`BRAINS`). The test fails if the two lists differ.
 
-Each has a style on the raft (who it targets, how much it dashes, how badly it wants pickups, how careful it is at the edge) and a favourite thing to do in the water (tilt, waves, planks, or all). The label next to its name says which and switches when it falls in.
+Each has a style on the raft (who it targets, how much it dashes, how badly it wants pickups, how careful it is at the edge) and a favourite thing to do in the water (tilt, waves, planks, or all). The label next to its name says which and switches when it falls in. In the water the favourite is what a bot uses first and fastest, but most bots (`BUSY` in `bots.js`, 75%, rolled each time one goes in) also do what a person there does: keep tipping, pulling planks and sending waves about as soon as each recharges. The rest stick to the favourite. Bots that only ever used their favourite looked idle next to a person in the water. It shortened the stretch with someone in the water from about 12s to 10s a round.
 
 To add one, add a row in each file. `pick` takes combined traits (`'grudge near'`), and the flags `shy`, `patient` and `wild` stack with it. Names must keep different first letters, because the letter is drawn on the disc, and a match never draws two of the same `hue`.
 

@@ -44,7 +44,7 @@
         react: 0.5 - 0.3 * T.skill,
         dazeT: 0, dazedAt: -99, sawHitT: -99,
         centerX: 0, centerY: 0,
-        tiltAsked: false, tiltWant: false, tiltWait: 0, waterAge: 0,
+        tiltAsked: false, tiltWant: false, tiltWait: 0, waterAge: 0, busy: null,
         sawX: 0, sawY: 0, guessing: false, guessT: 0, guessAge: 0, reguessT: 0, guess: { id: -1, x: 0, y: 0, vx: 0, vy: 0 },
         cx: p.x, cy: p.y, dropDelay: 0.6, waveDelay: 1 + Sim.rand(state) * 3,
       };
@@ -84,6 +84,8 @@
 
   // how often a bot that notices an idle player goes for them
   const AFK_PULL = 0.75;
+  // the share of bots that, once in the water, use everything they have and not only their favourite
+  const BUSY = 0.75;
   function has(T, trait) { return T.pick.indexOf(trait) >= 0; }
 
   function pickTarget(state, p, b, preferred) {
@@ -365,8 +367,14 @@
     if (d <= sp) { b.cx = gx; b.cy = gy; } else { b.cx += (dx / d) * sp; b.cy += (dy / d) * sp; }
     inp.cx = b.cx; inp.cy = b.cy;
 
-    // each has a favourite way to wreck the raft and mostly sticks to it
+    // Each has a favourite way to wreck the raft, and that one it uses the moment it
+    // is back. Most of them (BUSY, decided afresh each time they go in) also do what
+    // a person in the water does: keep tipping, pulling planks and sending waves,
+    // each about as soon as it has recharged. The rest stick to the favourite and
+    // only now and then reach for anything else.
     const W = b.T.water;
+    if (b.busy === null) b.busy = Sim.rand(state) < BUSY;
+    const keen = b.busy || W === 'all';
     const ox = t.x - b.centerX, oy = t.y - b.centerY, od = Math.hypot(ox, oy);
     // tipping is one player at a time, so each decides whether to ask for the raft
     // (not in its first moments in the water: a tip only counts once you have let go)
@@ -374,7 +382,7 @@
     if (b.waterAge < 0.3) { /* still surfacing */ } else if (p.tiltCd <= 0 || state.tiltBy === p.id) {
       if (state.tiltBy !== p.id && !b.tiltAsked) {
         b.tiltAsked = true; b.tiltWait = 2;
-        b.tiltWant = Sim.rand(state) < (W === 'tilt' ? 0.95 : W === 'all' ? 0.4 : 0.12);
+        b.tiltWant = Sim.rand(state) < (W === 'tilt' ? 0.95 : keen ? 0.75 : 0.12);
       }
       if (b.tiltWant && od > 30) { inp.mx = ox / od; inp.my = oy / od; }
       else { b.tiltWait -= dt; if (b.tiltWait <= 0) b.tiltAsked = false; }
@@ -384,14 +392,14 @@
       b.dropDelay -= dt;
       if (b.dropDelay <= 0 && d < 30) {
         inp.drop = true;
-        b.dropDelay = W === 'planks' ? 0.05 + Sim.rand(state) * 0.3 : W === 'all' ? 0.3 + Sim.rand(state) * 0.9 : 1.5 + Sim.rand(state) * 2;
+        b.dropDelay = W === 'planks' ? 0.05 + Sim.rand(state) * 0.3 : keen ? 0.3 + Sim.rand(state) * 0.9 : 1.5 + Sim.rand(state) * 2;
       }
     }
     if (p.waveCd <= 0) {
       b.waveDelay -= dt;
       if (b.waveDelay <= 0 && od > 60) {
         inp.wave = true;
-        b.waveDelay = W === 'wave' ? 0.1 + Sim.rand(state) * 0.5 : W === 'all' ? 1 + Sim.rand(state) * 4 : 4 + Sim.rand(state) * 5;
+        b.waveDelay = W === 'wave' ? 0.1 + Sim.rand(state) * 0.5 : keen ? 0.4 + Sim.rand(state) * 1.6 : 4 + Sim.rand(state) * 5;
       }
     }
   }
