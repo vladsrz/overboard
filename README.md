@@ -30,7 +30,7 @@ A few things worth knowing:
 
 ## Run it locally
 
-Open `index.html` in a browser. There is no build step and no server. The one dependency is a copy of [PeerJS](https://peerjs.com) in `vendor/`, used only when you play with friends (which needs the page served over `http://localhost` or HTTPS, not opened as a file). Fonts come from Google Fonts and fall back if you are offline; every sound is synthesised, so there are no audio files.
+Open `index.html` in a browser to play solo. There is no build step. To try rooms locally, run `npm run dev` in `server/` and serve the game folder over `http://localhost`; the deployed game uses the Cloudflare room server. [PeerJS](https://peerjs.com) is included in `vendor/` for the browser-hosted room fallback. Fonts come from Google Fonts and fall back if you are offline; every sound is synthesised, so there are no audio files.
 
 ```
 node test/sim.test.js
@@ -46,7 +46,7 @@ Plain scripts, loaded in this order by `index.html`:
 - `js/bots.js` — how each bot thinks. A bot produces the same input a person does, so any seat can be either.
 - `js/cast.js` — who the bots are: names, labels and colours.
 - `js/sound.js` — sound effects, made with Web Audio.
-- `js/net.js` — the room you share with friends. The host's browser runs the match; guests send their input and get the match back about 30 times a second, directly between browsers over WebRTC. PeerJS's public broker is only used to find each other.
+- `js/net.js` — the room you share with friends. The deployed game connects to the Cloudflare room server over WebSocket. A browser-hosted WebRTC path remains as a fallback when no game server is configured.
 - `js/stats.js` — a local record of matches played on this device. It also reports visits and finished solo matches to the server for shared play statistics. `dev/stats.html` shows the local record.
 - `js/draw.js` — everything on the canvas.
 - `js/hud.js` — the words around the raft and the start, end and pause screens.
