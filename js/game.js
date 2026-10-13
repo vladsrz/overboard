@@ -29,7 +29,7 @@
 
   const keys = {}, mouse = { x: 0, y: 0, down: false };
   // the on-screen stick: which finger has it, where it started, and how far it is pushed (-1..1)
-  const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
+  const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0, lx: 0, ly: 0, seen: 0 };
   let spaceQueued = false, clickBuf = 0;
   // last frame's values, to catch the moment something becomes ready or wears off
   const was = { ult: 0, worn: 0, wave: 1 };
@@ -261,46 +261,63 @@
   G.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   // The stick: it appears where the thumb lands and reads how far it is dragged.
-  // Letting go is listened for three ways, because a phone does not always deliver
-  // the "finger lifted" event to the element the touch started on: on the zone, on
-  // the whole window, and by checking after any touch ends that a finger is still
-  // near where the stick started. Without that the stick could stay pushed over.
-  const zone = $('stick-zone'), REACH = 46;
-  function stickTo(e) {
-    let dx = (e.clientX - stick.ox) / REACH, dy = (e.clientY - stick.oy) / REACH;
+  //
+  // On an iPhone it twice stayed pushed over after the thumb had left, so it is
+  // built to recover whatever the phone fails to report:
+  //   - on a touchscreen it runs on touch events and follows its finger by identity,
+  //     checking on every touch event anywhere that the finger is still down;
+  //   - a new thumb in the zone always takes the stick, even from a touch that
+  //     never reported lifting;
+  //   - a touch that has not moved at all for STALE ms is treated as gone. A real
+  //     thumb is never that still; a touch the phone has lost track of is.
+  const zone = $('stick-zone'), REACH = 46, STALE = 2500;
+  const hasTouch = 'ontouchstart' in window;
+  function stickTo(p) {
+    let dx = (p.clientX - stick.ox) / REACH, dy = (p.clientY - stick.oy) / REACH;
     const m = Math.hypot(dx, dy);
     if (m > 1) { dx /= m; dy /= m; }
     stick.x = dx; stick.y = dy;
+    stick.lx = p.clientX; stick.ly = p.clientY; stick.seen = performance.now();
     $('knob').style.transform = 'translate(' + dx * REACH + 'px,' + dy * REACH + 'px)';
+  }
+  function stickGrab(id, p) {
+    stick.id = id; stick.ox = p.clientX; stick.oy = p.clientY;
+    const box = zone.getBoundingClientRect();
+    $('stick').style.left = p.clientX - box.left + 'px'; $('stick').style.top = p.clientY - box.top + 'px';
+    $('stick').hidden = false; $('stick-hint').style.visibility = 'hidden';
+    stickTo(p);
   }
   function stickDrop() {
     stick.id = null; stick.x = 0; stick.y = 0;
     $('stick').hidden = true; $('stick-hint').style.visibility = '';
   }
+  setInterval(() => { if (typeof stick.id === 'string' && performance.now() - stick.seen > STALE) stickDrop(); }, 250);
+
+  if (hasTouch) {
+    // fingers: ids are strings ('t' + the touch's identifier)
+    const follow = (e) => {
+      if (typeof stick.id !== 'string') return;
+      let mine = null;
+      for (const t of e.touches) if ('t' + t.identifier === stick.id) mine = t;
+      if (!mine) stickDrop();
+      else if (mine.clientX !== stick.lx || mine.clientY !== stick.ly) stickTo(mine);
+    };
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) window.addEventListener(type, follow, { capture: true, passive: true });
+    zone.addEventListener('touchstart', (e) => {
+      if (paused) return;
+      e.preventDefault();
+      stickGrab('t' + e.changedTouches[0].identifier, e.changedTouches[0]);
+    }, { passive: false });
+  }
+  // a mouse or a pen (and touch, on a browser with no touch events): ids are numbers
   zone.addEventListener('pointerdown', (e) => {
-    if (stick.id !== null || paused) return;
+    if ((hasTouch && e.pointerType === 'touch') || stick.id !== null || paused) return;
     e.preventDefault();
-    stick.id = e.pointerId; stick.ox = e.clientX; stick.oy = e.clientY;
-    try { zone.setPointerCapture(e.pointerId); } catch (err) { /* the finger is already gone */ }
-    const box = zone.getBoundingClientRect();
-    $('stick').style.left = e.clientX - box.left + 'px'; $('stick').style.top = e.clientY - box.top + 'px';
-    $('stick').hidden = false; $('stick-hint').style.visibility = 'hidden';
-    stickTo(e);
+    try { zone.setPointerCapture(e.pointerId); } catch (err) { /* the pointer is already gone */ }
+    stickGrab(e.pointerId, e);
   });
   window.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) stickTo(e); });
-  for (const end of ['pointerup', 'pointercancel']) {
-    window.addEventListener(end, (e) => { if (e.pointerId === stick.id) stickDrop(); });
-    zone.addEventListener(end, (e) => { if (e.pointerId === stick.id) stickDrop(); });
-  }
-  zone.addEventListener('lostpointercapture', (e) => { if (e.pointerId === stick.id && e.pointerType !== 'touch') stickDrop(); });
-  for (const end of ['touchend', 'touchcancel']) {
-    window.addEventListener(end, (e) => {
-      if (stick.id === null) return;
-      let near = false;
-      for (const t of e.touches) if (Math.hypot(t.clientX - stick.ox, t.clientY - stick.oy) < 170) near = true;
-      if (!near) stickDrop();
-    }, { passive: true });
-  }
+  for (const end of ['pointerup', 'pointercancel']) window.addEventListener(end, (e) => { if (e.pointerId === stick.id) stickDrop(); });
   // The one button: dash on the raft, wave in the water (the same as Space).
   $('act').addEventListener('pointerdown', (e) => { e.preventDefault(); if (inMatch() && !paused) spaceQueued = true; $('act').classList.add('down'); });
   for (const up of ['pointerup', 'pointercancel', 'pointerleave']) $('act').addEventListener(up, () => $('act').classList.remove('down'));

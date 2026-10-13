@@ -72,6 +72,8 @@
   // 3, 2, 1, GO!
   function updateCount(state, dt) {
     const count = $('count');
+    // centred on the raft, which on a phone sits above the middle of the screen
+    count.style.left = G.view.ox + 'px'; count.style.top = G.view.oy + 'px';
     if (state.phase === 'countdown') {
       const n = Math.max(1, Math.min(3, Math.ceil(state.phaseT / (C.COUNTDOWN_T / 3))));
       if (n !== countN) { countN = n; count.textContent = n; count.classList.remove('go'); count.hidden = false; G.sfx('tick'); }

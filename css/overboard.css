@@ -171,7 +171,7 @@ body.touch .keys { display: none; }
 .pad { position: fixed; inset: 0; pointer-events: none; }
 /* the stick appears wherever the thumb lands in this zone */
 .stick-zone {
-  position: absolute; left: 0; bottom: 0; width: 62%; height: 215px;
+  position: absolute; left: 0; bottom: 0; width: 62%; height: 240px;
   pointer-events: auto; touch-action: none;
 }
 .stick, .stick-hint { pointer-events: none; }
@@ -184,12 +184,12 @@ body.touch .keys { display: none; }
   border-radius: 50%; background: var(--plank);
 }
 .stick-hint {
-  position: absolute; left: 26px; bottom: calc(40px + env(safe-area-inset-bottom));
+  position: absolute; left: 26px; bottom: calc(70px + env(safe-area-inset-bottom));
   padding: 10px 14px; border: 1.5px dashed var(--plank); border-radius: 999px;
   font-size: 13px; opacity: 0.6;
 }
 .act {
-  position: absolute; right: calc(22px + env(safe-area-inset-right)); bottom: calc(40px + env(safe-area-inset-bottom));
+  position: absolute; right: calc(22px + env(safe-area-inset-right)); bottom: calc(52px + env(safe-area-inset-bottom));
   width: 104px; height: 104px; border-radius: 50%;
   border: 2.5px solid var(--plank); background: rgba(11, 57, 54, 0.6); color: var(--plank);
   font: 900 15px/1 var(--display);

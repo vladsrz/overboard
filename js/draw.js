@@ -45,7 +45,7 @@
     const upright = view.h > view.w;
     // (a phone held sideways has no height to spare: there the banner sits over the stick's side instead)
     const top = 56 + (NARROW.matches && !(G.touch && !upright) ? 74 : 0);
-    const bottom = !G.touch ? 56 : upright ? 215 : 12;
+    const bottom = !G.touch ? 56 : upright ? 240 : 12;
     view.scale = Math.max(0.2, Math.min(view.w / 700, (view.h - top - bottom) / 680));
     view.ox = view.w / 2; view.oy = top + (view.h - top - bottom) / 2;
   };
