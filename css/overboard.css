@@ -191,6 +191,8 @@ kbd {
 .field input:focus-visible { outline: 3px solid var(--foam); outline-offset: 2px; }
 .cover .room button { margin-top: 22px; max-width: 92vw; overflow-wrap: anywhere; }
 .cover.room #start { margin-top: 14px; }
+/* the link shown to copy by hand, when the browser would not copy it */
+.cover .room button.typed, .cover .room button.typed * { -webkit-user-select: text; user-select: text; cursor: text; font: 600 14px/1.3 var(--ui); }
 body.touch .cover.room { touch-action: pan-y; overflow-y: auto; }
 @media (max-width: 420px) { .seats { gap: 2px; } .seats li { width: 78px; } }
 .rotate-hint { display: none; margin: 18px 0 0; color: var(--foam); font-size: 13px; }

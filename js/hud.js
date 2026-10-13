@@ -125,7 +125,7 @@
 
   // The big screen over the raft has three faces: 'start', 'room' (you and your
   // friends, before a match) and 'end'. In a room only the host has a Start button.
-  let face = 'start';
+  let face = 'start', copiedT = 0;
   function cover(to, why) {
     face = to;
     const net = !!Net.role, host = Net.role === 'host';
@@ -203,13 +203,20 @@
     },
     showLobby() {
       $('cover-title').textContent = START.title; $('cover-lede').textContent = 'Up to four of you on one raft.';
-      $('invite').textContent = 'Copy invite link';
+      clearTimeout(copiedT);
+      $('invite').textContent = 'Copy invite link'; $('invite').classList.remove('typed');
       cover('room');
       lobby();
     },
     lobby,
     // the link went to the clipboard, or could not, in which case it is shown to copy by hand
-    copied(ok, url) { $('invite').textContent = ok ? 'Link copied' : url; },
+    copied(ok, url) {
+      clearTimeout(copiedT);
+      $('invite').classList.toggle('typed', !ok);
+      $('invite').textContent = ok ? 'Link copied!' : url;
+      if (ok) copiedT = setTimeout(() => { $('invite').textContent = 'Copy invite link'; }, 2000);
+      else { $('net-note').textContent = 'Could not copy it for you. Select the link above and copy it.'; $('net-note').hidden = false; }
+    },
     showMenu(on) {
       $('restart').hidden = !!Net.role;
       $('quit').textContent = Net.role === 'host' ? 'End match and close room' : Net.role ? 'Leave match' : 'Quit to start screen';

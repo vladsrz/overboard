@@ -353,7 +353,7 @@
   }
   window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') setTouch(true); }, true);
   // belt and braces against a phone's own gestures: no text selection, no long-press menu, no pinch zoom
-  document.addEventListener('selectstart', (e) => { if (e.target !== $('my-name')) e.preventDefault(); });
+  document.addEventListener('selectstart', (e) => { if (!/^(INPUT|TEXTAREA)$/.test(e.target.tagName || '') && !(e.target.closest && e.target.closest('.typed'))) e.preventDefault(); });
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('gesturestart', (e) => e.preventDefault());
   window.addEventListener('touchstart', () => setTouch(true), { capture: true, passive: true });
@@ -475,9 +475,22 @@
   });
   $('invite').addEventListener('click', () => {
     const url = location.origin + location.pathname + '#' + Net.code;
-    const done = (ok) => ui.copied(ok, url);
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => done(true), () => done(false));
-    else done(false);
+    // The clipboard API only exists on https and localhost. Anywhere else (a preview
+    // over the home network), copy the old way: select the text in a field and ask
+    // the browser to copy the selection.
+    const byHand = () => {
+      const box = document.createElement('textarea');
+      box.value = url; box.readOnly = true;
+      box.style.cssText = 'position:fixed;left:0;top:0;opacity:0;-webkit-user-select:text;user-select:text';
+      document.body.appendChild(box);
+      box.select(); box.setSelectionRange(0, url.length);
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { /* not allowed here */ }
+      box.remove();
+      return ok;
+    };
+    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => ui.copied(true, url), () => ui.copied(byHand(), url));
+    else ui.copied(byHand(), url);
   });
   // a guest never presses Start, so any press in the room is what lets their sound play
   window.addEventListener('pointerdown', () => { if (Net.role) Sfx.unlock(); }, true);
