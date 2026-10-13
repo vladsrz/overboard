@@ -59,6 +59,8 @@ Portrait and landscape are supported. CSS uses safe-area insets for the score, b
 
 `manifest.webmanifest` uses `display: standalone` and `orientation: any`, with relative start URL and scope for GitHub Pages. The Apple web-app metadata in `index.html` supports Home Screen launch. This hides Safari's toolbar when opened from the Home Screen icon; system status and home indicators are controlled by iOS. The pause menu gives installation instructions only on touch devices outside standalone mode. No service worker is used, so this is not offline support.
 
+Test Home Screen launch over HTTPS. A LAN HTTP preview played in Safari but its Home Screen launch failed with “HTTP URL with HTTPS-Only enabled”; browser play alone does not verify installation. For an HTTPS tunnel, serve a temporary copy of only the game assets, never the repository root, so `.git` and agent notes are not exposed. A plain LAN preview is still useful for layout and controls.
+
 `apple-touch-icon.png` (180), `icon-192.png` and `icon-512.png` are browser renders of `favicon.svg` at their named sizes, with the water colour as the full square background. Re-render all three after an icon change.
 
 ## Before calling a change done
