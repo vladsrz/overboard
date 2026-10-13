@@ -212,6 +212,21 @@
 
   // ── input ──
 
+  // Touch or keyboard is decided by what the player actually uses, not only by what
+  // the device says about itself: the first finger on the screen brings up the stick
+  // and the button, and the first game key puts the key strip back. (A browser's
+  // phone preview, and laptops with touchscreens, report themselves unreliably.)
+  function setTouch(on) {
+    if (G.touch === on) return;
+    G.touch = on;
+    document.body.classList.toggle('touch', on);
+    $('pad').hidden = !(on && inMatch());
+    stick.id = null; stick.x = 0; stick.y = 0; $('stick').hidden = true; $('stick-hint').hidden = false;
+    G.resize();
+  }
+  window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') setTouch(true); }, true);
+  window.addEventListener('touchstart', () => setTouch(true), { capture: true, passive: true });
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Escape' && inMatch()) { e.preventDefault(); Sfx.play('click'); setPaused(!paused); return; }
     if (e.code === 'KeyM' && inMatch() && !e.repeat) { toggleSound(); return; }
@@ -220,6 +235,7 @@
       if (e.code === 'Enter') { e.preventDefault(); startMatch(); }
       return;
     }
+    if (/^(Key[WASD]|Arrow|Space)/.test(e.code)) setTouch(false);
     keys[e.code] = true;
     if (!e.repeat && /^(Key[WASD]|Arrow)/.test(e.code)) {
       const me = G.human();
