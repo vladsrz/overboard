@@ -1,6 +1,6 @@
 # Overboard — agent notes
 
-Raft sumo where knocked-out players wreck the raft for whoever is left, alone against bots or with up to three others. The game is a static site at https://overboard-game.vercel.app/ (Vercel project `playoverboard`). Rooms and shared stats run on a Cloudflare Worker in `server/`; its address is for the API, not a game page. GitHub Pages is unpublished. Deploy changes to Vercel and, when the server changes, to Cloudflare. `README.md` is for visitors; this file is for whoever changes the game.
+Raft sumo where knocked-out players wreck the raft for whoever is left, alone against bots or with up to three others. The game is a static site at https://overboard-game.vercel.app/ (Vercel project `playoverboard`). Rooms and shared stats run on a Cloudflare Worker in `server/`; its address is for the API, not a game page. GitHub Pages is unpublished. Deploy to Vercel or Cloudflare only after Vlad explicitly approves deployment; give him a local test link first. Why: a test request does not authorize changing the live game. `README.md` is for visitors; this file is for whoever changes the game.
 
 ## The brief
 **Least complicated, most fun.** Check every addition against that line. Cutting is allowed.

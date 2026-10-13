@@ -260,7 +260,7 @@
   // A press is never swallowed silently. One that cannot do anything right now (the
   // dash, wave, tip or plank is still recharging, or a dash has no direction) gets
   // a short low note, judged from the match as this machine last saw it.
-  const nope = () => sfx('nope', 0, 120);
+  const nope = () => sfx('nope', 0, 250);
   function pressAct() {
     spaceQueued = true;
     const me = G.human();

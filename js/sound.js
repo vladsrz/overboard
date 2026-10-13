@@ -89,7 +89,7 @@
     ko: () => { noise(0.05, { gain: 0.22, from: 6000, to: 2500, type: 'highpass' }); tune([1047, 1568], 0.07, { type: 'square', gain: 0.13 }); },
     warnMe: () => { tone(880, 0.07, { type: 'square', gain: 0.18 }); tone(660, 0.1, { type: 'square', gain: 0.18, delay: 0.08 }); },
     // a press that can do nothing yet: still recharging, or a dash with no direction
-    nope: () => tone(210, 0.09, { type: 'square', gain: 0.12, to: 150 }),
+    nope: () => tone(360, 0.055, { type: 'triangle', gain: 0.075, to: 260 }),
     creak: () => { tone(80, 0.5, { type: 'sawtooth', gain: 0.28, to: 125 }); tone(73, 0.5, { type: 'sawtooth', gain: 0.22, to: 110, delay: 0.05 }); },
     shrink: () => tune([196, 147, 196, 147], 0.16, { type: 'square', gain: 0.1 }),
     spawn: () => tone(880, 0.09, { gain: 0.1, to: 1320 }),
