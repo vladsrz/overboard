@@ -22,6 +22,7 @@
     bannerT = b.secs;
   }
   function banner(title, sub, secs, hint) {
+    if (hint && G.state.phase !== 'play') return;
     const b = { title: title, sub: sub, secs: secs, hint: !!hint };
     if (b.hint && bannerT > 0) { waiting.push(b); return; }
     if (!b.hint && showing && showing.hint && bannerT > showing.secs * 0.4) waiting.unshift(showing);
@@ -98,8 +99,11 @@
     if (G.touch) {
       // one button: Dash on the raft (Slam once it is charged), Wave in the water
       const act = $('act');
-      act.classList.toggle('ready', inWater ? me.waveCd <= 0 : me.ult >= 1);
-      act.classList.toggle('wait', inWater ? me.waveCd > 0 : me.dashCd > 0);
+      const usable = state.phase === 'play' && (me.state === 'alive' || me.state === 'ghost');
+      act.disabled = !usable;
+      act.classList.toggle('ready', usable && (inWater ? me.waveCd <= 0 : me.ult >= 1));
+      act.classList.toggle('wait', !usable || (inWater ? me.waveCd > 0 : me.dashCd > 0));
+      if (!usable) act.classList.remove('down');
       const hint = inWater ? 'drag here to tip the raft' : 'drag here to move';
       if ($('stick-hint').textContent !== hint) $('stick-hint').textContent = hint;
       const word = inWater ? 'Wave' : me.ult >= 1 ? 'Slam' : 'Dash';
@@ -121,6 +125,11 @@
 
   G.ui = {
     banner, update,
+    endRound(title, secs) {
+      // Queued teaching belongs to live play, never to the result or next round.
+      clearOverlays();
+      banner(title, '', secs);
+    },
     newRound: () => { countN = 0; },
     go: () => { goT = 0.45; },
     coverOpen: () => !$('cover').hidden,

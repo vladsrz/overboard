@@ -24,7 +24,7 @@
   // The start screen only says how to move. Everything else is explained once,
   // the first time it happens to you.
   const told = {};
-  function teach(key, title, tip) { if (!told[key] && G.mode === 'match') { told[key] = true; ui.banner(title, tip, 3, true); } }
+  function teach(key, title, tip) { if (!told[key] && G.mode === 'match' && G.state.phase === 'play') { told[key] = true; ui.banner(title, tip, 3, true); } }
 
   G.state = null;
   G.mode = 'attract'; // 'attract' = bots playing behind the start screen, 'match' = you are in it
@@ -132,8 +132,9 @@
         case 'round': ui.newRound(); break;
         case 'roundEnd': {
           if (!match) break;
+          clearInput();
           const w = e.winner < 0 ? null : state.players[e.winner];
-          ui.banner(!w ? 'Nobody takes round ' + e.round : w.human ? 'Round ' + e.round + ' is yours' : w.name + ' takes round ' + e.round, '', C.ROUND_END_T);
+          ui.endRound(!w ? 'Nobody takes round ' + e.round : w.human ? 'Round ' + e.round + ' is yours' : w.name + ' takes round ' + e.round, C.ROUND_END_T);
           if (state.matchWinner < 0) sfx(w && w.human ? 'roundWon' : 'roundLost');
           break;
         }
@@ -323,7 +324,11 @@
   window.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) stickTo(e); });
   for (const end of ['pointerup', 'pointercancel']) window.addEventListener(end, (e) => { if (e.pointerId === stick.id) stickDrop(); });
   // The one button: dash on the raft, wave in the water (the same as Space).
-  $('act').addEventListener('pointerdown', (e) => { e.preventDefault(); if (inMatch() && !paused) spaceQueued = true; $('act').classList.add('down'); });
+  $('act').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (!inMatch() || paused || G.state.phase !== 'play' || $('act').disabled) return;
+    spaceQueued = true; $('act').classList.add('down');
+  });
   for (const up of ['pointerup', 'pointercancel', 'pointerleave']) $('act').addEventListener(up, () => $('act').classList.remove('down'));
   $('pause').addEventListener('click', () => { Sfx.play('click'); setPaused(true); });
   // Rotation changes the thumb's coordinates. Release the old hold before laying
