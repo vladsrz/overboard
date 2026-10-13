@@ -26,7 +26,7 @@
     FALL_T: 0.45,
     // If nobody goes in the water for STALL_T, the raft starts pulling its own planks,
     // one every STALL_EVERY, until somebody does. Then the clock starts again.
-    STALL_T: 8, STALL_EVERY: 0.9,
+    STALL_T: 8, STALL_EVERY: 0.6,
     // with every real player already in the water it is quicker on both counts, so
     // nobody sits waiting for bots to finish each other off
     STALL_T_BOTS: 3, STALL_EVERY_BOTS: 0.25,
