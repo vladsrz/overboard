@@ -244,6 +244,21 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   assert(owners.length >= 3 && owners[0] !== owners[1], 'they should take turns: ' + owners);
 }
 
+// A direction you were holding as you fell in is steering, not a tip: nothing happens
+// until you let go and press again.
+{
+  const s = Sim.createMatch({ seed: 3 });
+  const me = s.players[0];
+  const step = (mx) => { s.pickupT = 99; s.players.slice(1).forEach((o, k) => { o.x = -80 + k * 80; o.y = -100; o.vx = 0; o.vy = 0; }); Sim.step(s, s.players.map((p, i) => (i === 0 ? { mx: mx, my: 0, cx: 0, cy: 0 } : { mx: 0, my: 0 })), DT); };
+  while (s.phase !== 'play') step(0);
+  me.x = 260; me.y = 0;
+  for (let t = 0; t < 200; t++) { step(1); assert(s.tiltBy !== 0, 'the key you fell in holding tipped the raft'); }
+  assert.strictEqual(me.state, 'ghost');
+  assert.strictEqual(me.tiltCd, 0, 'and it must not have used up your tip');
+  step(0); step(1);
+  assert.strictEqual(s.tiltBy, 0, 'letting go and pressing again should tip it');
+}
+
 // a person's tip always goes through, even over a bot that is mid-tip
 {
   const s = Sim.createMatch({ seed: 23 });

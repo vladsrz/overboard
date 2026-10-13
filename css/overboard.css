@@ -69,9 +69,12 @@ kbd {
   border-radius: 6px;
   pointer-events: none;
 }
-/* no spare water beside the raft: sit over its top edge instead */
+/* no spare water beside the raft: it gets its own lane under the score bar, and the
+   raft is drawn lower to make room (the same query is in draw.js) */
 @media (max-width: 1080px), (max-aspect-ratio: 11/10) {
-  .banner { left: 50%; top: 60px; transform: translateX(-50%); max-width: min(92vw, 520px); text-align: center; }
+  .banner { left: 50%; top: 58px; transform: translateX(-50%); width: max-content; max-width: 94vw; padding: 8px 16px 9px; text-align: center; }
+  .banner strong { font-size: 17px; }
+  .banner span { margin-top: 1px; font-size: 13px; }
 }
 .banner strong { display: block; font: 900 clamp(17px, 1.9vw, 24px)/1.15 var(--display); }
 .banner span { display: block; margin-top: 4px; font-weight: 500; }
@@ -154,8 +157,13 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
-.fine.touch { display: none; }
-@media (hover: none) and (pointer: coarse) { .fine.touch { display: block; } }
+/* a phone or tablet with no keyboard: say so plainly where the Start button would be */
+.touch { display: none; }
+.touch-only .touch { display: block; }
+.touch-only #start, .touch-only #cover-how, .touch-only #cover-fine { display: none; }
+.needs { max-width: 20em; margin: 28px 0 0; padding: 14px 18px; border: 2px solid var(--plank); border-radius: 6px; font-size: 17px; font-weight: 600; }
+.cover button.anyway { margin-top: 18px; padding: 8px 14px; border: 0; background: transparent; color: var(--plank); font: 500 13px/1.2 var(--ui); text-decoration: underline; opacity: 0.75; }
+.cover button.anyway:hover { background: transparent; opacity: 1; }
 
 /* the labels next to each name need the room more than the wordmark does */
 @media (max-width: 1180px) {

@@ -103,7 +103,7 @@
         dashCd: 0, dashT: 0, dashX: 0, dashY: 0, faceX: 0, faceY: -1,
         bigT: 0, powerT: 0, hideT: 0, seenT: 0, thornT: 0, ult: 0, slam: false,
         lastHitBy: -1, lastHitT: -99, lastHitHow: '', lastHitPower: 0,
-        killer: -1, dropCd: 0, waveCd: 0, tiltCd: 0, tiltLast: -99, tiltX: 0, tiltY: 0, cx: 0, cy: 0,
+        killer: -1, dropCd: 0, waveCd: 0, tiltCd: 0, tiltLast: -99, tiltX: 0, tiltY: 0, tiltWait: false, cx: 0, cy: 0,
         bot: null,
       })),
       tilt: { x: 0, y: 0 }, tiltBy: -1, tiltT: 0, tiltGap: 0, tiltX: 0, tiltY: 0,
@@ -145,7 +145,7 @@
       p.bigT = 0; p.powerT = 0; p.hideT = 0; p.seenT = 0; p.thornT = 0; p.ult = C.ULT_START; p.slam = false;
       p.lastHitBy = -1; p.lastHitT = -99; p.lastHitHow = '';
       p.killer = -1; p.dropCd = 0; p.waveCd = 0;
-      p.tiltX = 0; p.tiltY = 0; p.tiltCd = 0; p.tiltLast = -99; p.cx = p.x; p.cy = p.y;
+      p.tiltX = 0; p.tiltY = 0; p.tiltCd = 0; p.tiltLast = -99; p.tiltWait = false; p.cx = p.x; p.cy = p.y;
       p.bot = null;
     });
     state.events.push({ type: 'round', round: state.round });
@@ -202,8 +202,11 @@
       p.cx = inp.cx; p.cy = inp.cy;
       let mx = inp.mx || 0, my = inp.my || 0;
       const m = Math.hypot(mx, my);
-      // which way this player is asking the raft to tip, if at all
-      if (m > 0.2) { p.tiltX = mx / m; p.tiltY = my / m; } else { p.tiltX = 0; p.tiltY = 0; }
+      // Which way this player is asking the raft to tip, if at all. A direction they
+      // were already holding when they went in does not count: they were steering,
+      // not tipping. They have to let go and press again.
+      if (m <= 0.2) p.tiltWait = false;
+      if (m > 0.2 && !p.tiltWait) { p.tiltX = mx / m; p.tiltY = my / m; } else { p.tiltX = 0; p.tiltY = 0; }
       if (inp.drop && p.dropCd <= 0) {
         const i = tileIndexAt(p.cx, p.cy);
         if (i >= 0 && state.tiles[i] === SOLID) {
@@ -392,7 +395,7 @@
         if (p.fallT <= 0) {
           p.state = 'ghost';
           p.cx = p.x; p.cy = p.y;
-          p.dropCd = 0.8; p.waveCd = 3;
+          p.dropCd = 0.8; p.waveCd = 3; p.tiltWait = true;
           state.events.push({ type: 'ghost', id: p.id, x: p.x, y: p.y });
         }
       } else if (live && p.state === 'alive') {

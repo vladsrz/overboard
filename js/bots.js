@@ -44,7 +44,7 @@
         react: 0.5 - 0.3 * T.skill,
         dazeT: 0, dazedAt: -99, sawHitT: -99,
         centerX: 0, centerY: 0,
-        tiltAsked: false, tiltWant: false, tiltWait: 0,
+        tiltAsked: false, tiltWant: false, tiltWait: 0, waterAge: 0,
         sawX: 0, sawY: 0, guessing: false, guessT: 0, guessAge: 0, reguessT: 0, guess: { id: -1, x: 0, y: 0, vx: 0, vy: 0 },
         cx: p.x, cy: p.y, dropDelay: 0.6, waveDelay: 1 + Sim.rand(state) * 3,
       };
@@ -352,7 +352,9 @@
     const W = b.T.water;
     const ox = t.x - b.centerX, oy = t.y - b.centerY, od = Math.hypot(ox, oy);
     // tipping is one player at a time, so each decides whether to ask for the raft
-    if (p.tiltCd <= 0 || state.tiltBy === p.id) {
+    // (not in its first moments in the water: a tip only counts once you have let go)
+    b.waterAge += dt;
+    if (b.waterAge < 0.3) { /* still surfacing */ } else if (p.tiltCd <= 0 || state.tiltBy === p.id) {
       if (state.tiltBy !== p.id && !b.tiltAsked) {
         b.tiltAsked = true; b.tiltWait = 2;
         b.tiltWant = Sim.rand(state) < (W === 'tilt' ? 0.95 : W === 'all' ? 0.4 : 0.12);

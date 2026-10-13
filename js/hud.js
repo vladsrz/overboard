@@ -9,11 +9,23 @@
 
   let bannerT = 0, crewSig = '', countN = 0, goT = 0;
 
-  function banner(title, sub, secs) {
-    $('banner-title').textContent = title;
-    $('banner-sub').textContent = sub;
+  // One banner at a time. News (a fall, a round result, the raft breaking up) shows
+  // at once. A hint (what a pickup does, the slam being ready) waits its turn, and
+  // comes back afterwards if news cut it short.
+  const waiting = [];
+  let showing = null;
+  function show(b) {
+    showing = b;
+    $('banner-title').textContent = b.title;
+    $('banner-sub').textContent = b.sub;
     $('banner').hidden = false;
-    bannerT = secs;
+    bannerT = b.secs;
+  }
+  function banner(title, sub, secs, hint) {
+    const b = { title: title, sub: sub, secs: secs, hint: !!hint };
+    if (b.hint && bannerT > 0) { waiting.push(b); return; }
+    if (!b.hint && showing && showing.hint && bannerT > showing.secs * 0.4) waiting.unshift(showing);
+    show(b);
   }
 
   // one entry per player: disc, name, a pip per round won, and for a bot what it is like
@@ -70,7 +82,10 @@
 
   // called every frame; dt is 0 while paused
   function update(dt) {
-    if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').hidden = true; }
+    if (bannerT > 0) {
+      bannerT -= dt;
+      if (bannerT <= 0) { showing = null; if (waiting.length) show(waiting.shift()); else $('banner').hidden = true; }
+    }
     if (G.mode !== 'match') return;
     const state = G.state, me = G.human();
     updateCount(state, dt);
@@ -87,7 +102,7 @@
   }
 
   function clearOverlays() {
-    $('banner').hidden = true; bannerT = 0;
+    $('banner').hidden = true; bannerT = 0; showing = null; waiting.length = 0;
     $('count').hidden = true; countN = 0; goT = 0;
     G.canvas.classList.remove('water');
   }

@@ -9,6 +9,7 @@ Raft sumo where knocked-out players wreck the raft for whoever is left. Static s
 These are decisions the owner has already made, mostly by trying something and rejecting it. Do not bring a rejected version back.
 
 - **One action button.** A separate slam key was confusing, so the slam is folded into the dash.
+- **A key you were already holding does not count as a new press.** A direction held while falling in used to tip the raft the instant you hit the water and start the tip's cooldown, so the first deliberate tip did nothing. You have to let go and press again (`tiltWait` in `sim.js`).
 - **A key press always does the thing.** Tips used to be refused silently while a bot was tipping, which read as "sometimes works and sometimes doesn't". Never add a rule that can swallow the player's input without saying so.
 - **Anything on screen explains itself while you play.** Tilt and the wave were not understood until they drew their direction on the raft.
 - **The start screen says how to move and nothing else.** Three rows of instructions were too much text. Everything else is taught by a one-off banner the first time it happens to the player (`teach` in `game.js`).
@@ -19,6 +20,8 @@ These are decisions the owner has already made, mostly by trying something and r
 - **Tipping is a tap, not a hold.** Hold-to-tip with turn-taking was the most complicated rule in the game.
 - **Everything that happens makes a sound,** and pausing is silent at once, including the automatic pause when the window loses focus. Check sound changes in Firefox as well as Chrome: a gentle fade on pause was not enough there.
 - **Bots have to look like they want something.** Standing next to each other shoving read as illogical; so did a bot with Thorns not chasing anyone.
+- **One banner at a time, and on a narrow window it has its own lane.** News (a fall, a round result, the raft breaking up) shows at once; a hint waits its turn and comes back if news cut it short (`banner` in `hud.js`). Below about 1080 wide the raft is drawn lower to leave room for it under the score bar; that width is written twice, in `overboard.css` and in `draw.js`, and the two must match.
+- **A phone gets told, not a broken game.** With no keyboard or mouse the start screen replaces the Start button with a line saying so, plus a small way in for anyone who does have a keyboard.
 - **Mute lives in the pause menu** (a speaker icon) and on `M`. There is no mute button on the play screen.
 
 ## How the rules work
@@ -31,7 +34,7 @@ These are decisions the owner has already made, mostly by trying something and r
 
 **When the raft breaks up.** There is no timer shrinking the raft. If nobody goes in the water for 8 seconds (`STALL_T`), the raft pulls its own planks, one every 0.45s, half the time under someone and otherwise anywhere. The moment somebody falls it stops and the clock restarts. Once every real player is in the water it waits 3 seconds and pulls one every 0.25s (`STALL_T_BOTS`, `STALL_EVERY_BOTS`), so nobody waits long for bots to finish. That is meant to be only slightly faster: being in the water is half the game.
 
-**In the water.** Click pulls a plank (1s warning blink). A direction tips the raft that way for 2 seconds, then recharges for 4. One tip at a time; a person's tip always starts at once, even over a bot mid-tip, and bots take turns. Space sends a wave toward the cursor.
+**In the water.** Click pulls a plank (1s warning blink). A direction tips the raft that way for 2 seconds, then recharges for 4. One tip at a time; a person's tip always starts at once, even over a bot mid-tip, and bots take turns. The arrows keep the tipper's colour while they fade out. Space sends a wave toward the cursor.
 
 **Pickups.** Bomb (blasts everyone near you), Big (heavier and larger), Power (hits and slam land 1.7x harder), Unseen (bots lose you; a hit reveals you briefly), Thorns (anyone who touches you is thrown back), Charge (fills the slam bar). The first appears 1.5s into a round, then one every 2.5s, up to five at once. The kind is random but never the same twice in a row; duplicates on the raft are allowed. Each lands at least 150 units from the others and from the last one, and planks in the outer ring are only kept 30% of the time (`PICKUP_RIM_CHANCE`), because an even pick on a round raft put 59% of them at the rim. It is about 35% now.
 
@@ -45,6 +48,9 @@ To add one, add a row in each file. `pick` takes combined traits (`'grudge near'
 What a bot is holding changes its mood: with Thorns it drops its plan and runs straight at the nearest player; Power, Big or a loaded slam make it press the attack.
 
 Bots cannot see an Unseen player, but they guess (`trackOrGuess`): a bot that was after you keeps heading for where it last saw you for 1.5 to 4 seconds depending on its skill, with a guess that drifts further off the longer you stay hidden. It never reads the hidden player's real position, so moving away shakes it off.
+
+## Icon and link preview
+`favicon.svg` is the tab icon. `og.png` (1200 x 630) is what a pasted link shows; its source is `dev/og.html`. To redo it, serve the folder, screenshot that page at 1200 x 630 with headless Chrome and crop to size.
 
 ## Before calling a change done
 1. `node test/sim.test.js`. Read the "by character" line after touching a brain: each character plays 32 matches, so about 8 wins is even. The numbers are noisy at that size (the same brains have ranged from 3 to 13 between runs), so only react to one that is far out.

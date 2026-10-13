@@ -20,7 +20,7 @@
   // The start screen only says how to move. Everything else is explained once,
   // the first time it happens to you.
   const told = {};
-  function teach(key, title, tip) { if (!told[key] && G.mode === 'match') { told[key] = true; ui.banner(title, tip, 3); } }
+  function teach(key, title, tip) { if (!told[key] && G.mode === 'match') { told[key] = true; ui.banner(title, tip, 3, true); } }
 
   G.state = null;
   G.mode = 'attract'; // 'attract' = bots playing behind the start screen, 'match' = you are in it
@@ -147,7 +147,7 @@
     if (state.phase === 'play') {
       if (me.state === 'alive' && me.ult >= 1 && was.ult < 1) { sfx('slamReady'); teach('slam', 'Slam ready', 'Your next dash blasts everyone near you.'); }
       if (me.state === 'alive' && G.worn(me).length < was.worn) sfx('wearOff');
-      if (me.state === 'ghost' && me.waveCd <= 0 && was.wave > 0) sfx('slamReady');
+      if (me.state === 'ghost' && me.waveCd <= 0 && was.wave > 0) sfx('waveReady');
     }
     was.ult = me.ult; was.worn = me.state === 'alive' ? G.worn(me).length : 0; was.wave = me.waveCd;
   }
@@ -223,6 +223,10 @@
   G.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   window.addEventListener('resize', G.resize);
   $('start').addEventListener('click', startMatch);
+  // On a phone or tablet with no keyboard the start screen says so where the button
+  // would be. Someone who does have a keyboard can still get in.
+  if (matchMedia('(hover: none) and (pointer: coarse)').matches) document.body.classList.add('touch-only');
+  $('anyway').addEventListener('click', () => { document.body.classList.remove('touch-only'); startMatch(); });
   $('resume').addEventListener('click', () => { Sfx.play('click'); setPaused(false); });
   $('restart').addEventListener('click', startMatch);
   $('menu-mute').addEventListener('click', toggleSound);

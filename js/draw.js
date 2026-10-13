@@ -16,6 +16,8 @@
   const canvas = (G.canvas = document.getElementById('sea'));
   const ctx = canvas.getContext('2d');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // must match the banner's media query in overboard.css
+  const NARROW = matchMedia('(max-width: 1080px), (max-aspect-ratio: 11/10)');
   const view = (G.view = { w: 0, h: 0, dpr: 1, scale: 1, ox: 0, oy: 0 });
 
   const rings = [], floats = [];
@@ -33,9 +35,11 @@
     view.dpr = Math.min(2, window.devicePixelRatio || 1);
     view.w = window.innerWidth; view.h = window.innerHeight;
     canvas.width = Math.round(view.w * view.dpr); canvas.height = Math.round(view.h * view.dpr);
-    const bar = 56;
-    view.scale = Math.max(0.2, Math.min(view.w / 700, (view.h - bar * 2) / 680));
-    view.ox = view.w / 2; view.oy = bar + (view.h - bar * 2) / 2;
+    // Top bar, then on a narrow window a lane for the banner so it never covers the
+    // raft (on a wide one the banner sits in the water beside it), then the key strip.
+    const top = 56 + (NARROW.matches ? 74 : 0), bottom = 56;
+    view.scale = Math.max(0.2, Math.min(view.w / 700, (view.h - top - bottom) / 680));
+    view.ox = view.w / 2; view.oy = top + (view.h - top - bottom) / 2;
   };
 
   function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0, r), 0, Math.PI * 2); }
@@ -140,11 +144,14 @@
     ctx.strokeStyle = color; ctx.lineWidth = width;
     ctx.beginPath(); ctx.moveTo(-26, 0); ctx.lineTo(25, 0); ctx.moveTo(11, -14); ctx.lineTo(25, 0); ctx.lineTo(11, 14); ctx.stroke();
   }
+  let tipColor = PLANK;
   function drawTilt(state) {
     const tx = state.tilt.x, ty = state.tilt.y, m = Math.hypot(tx, ty);
     if (m < 0.08) return;
     const ux = tx / m, uy = ty / m, a = Math.atan2(ty, tx);
-    const color = state.tiltBy >= 0 ? G.colors[state.tiltBy].fill : PLANK;
+    // the tip is over a moment before the raft has levelled; the arrows keep its colour until then
+    if (state.tiltBy >= 0) tipColor = G.colors[state.tiltBy].fill;
+    const color = tipColor;
     ctx.globalAlpha = Math.min(0.35, m * 0.45);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const spot of TILT_SPOTS) {

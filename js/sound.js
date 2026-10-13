@@ -71,6 +71,7 @@
     dash: () => noise(0.17, { gain: 0.16, from: 500, to: 2800, type: 'bandpass' }),
     slamDash: () => { noise(0.3, { gain: 0.26, from: 300, to: 3400, type: 'bandpass' }); tone(90, 0.3, { type: 'sawtooth', gain: 0.12, to: 260 }); },
     slamReady: () => tune([392, 523, 784], 0.06, { type: 'square', gain: 0.1 }),
+    waveReady: () => { noise(0.35, { gain: 0.14, from: 500, to: 1500, attack: 0.15 }); tone(294, 0.2, { type: 'triangle', gain: 0.1, to: 392 }); },
     slam: () => { tone(95, 0.6, { gain: 0.8, to: 28 }); noise(0.5, { gain: 0.55, from: 4200, to: 140 }); tone(300, 0.18, { type: 'square', gain: 0.1, to: 80 }); },
     thorns: () => { tone(1400, 0.07, { type: 'square', gain: 0.12, to: 500 }); noise(0.09, { gain: 0.25, from: 5000, to: 2000, type: 'highpass' }); },
     fall: () => tone(720, 0.42, { type: 'triangle', gain: 0.16, to: 140 }),
