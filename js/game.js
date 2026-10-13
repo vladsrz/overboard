@@ -225,6 +225,10 @@
     G.resize();
   }
   window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') setTouch(true); }, true);
+  // belt and braces against a phone's own gestures: no text selection, no long-press menu, no pinch zoom
+  document.addEventListener('selectstart', (e) => e.preventDefault());
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
   window.addEventListener('touchstart', () => setTouch(true), { capture: true, passive: true });
 
   window.addEventListener('keydown', (e) => {

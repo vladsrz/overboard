@@ -9,6 +9,9 @@
 }
 
 * { box-sizing: border-box; }
+/* Nothing here is text to copy. Without the -webkit- form, an iPhone starts selecting
+   words (and can swallow the touch) when a thumb rests on a label. */
+html, body, body * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html, body { height: 100%; }
 body {
   margin: 0;
