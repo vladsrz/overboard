@@ -162,6 +162,12 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
+.rotate-hint { display: none; margin: 18px 0 0; color: var(--foam); font-size: 13px; }
+.rotate-hint svg { flex: none; width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rotate-hint span { max-width: 220px; text-align: left; }
+@media (orientation: portrait) and (max-width: 600px) {
+  body.touch .cover:not(.end) .rotate-hint { display: flex; align-items: center; gap: 10px; }
+}
 .browser-help { display: none; width: 300px; max-width: 86vw; font-size: 12px; }
 body.touch:not(.standalone) .browser-help { display: block; }
 .browser-help summary { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
