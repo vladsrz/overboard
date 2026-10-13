@@ -4,7 +4,8 @@
 // pointed at that address. Run by `npm run deploy`.
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
-const SITE = 'https://overboard.overboard-server.workers.dev/';
+const SITE = process.env.OVERBOARD_SITE_URL || 'https://overboard.overboard-server.workers.dev/';
+if (!/^https:\/\/[^/]+\/$/.test(SITE)) throw new Error('OVERBOARD_SITE_URL must be an HTTPS origin ending in /');
 const root = new URL('../', import.meta.url), out = new URL('./site/', import.meta.url);
 
 rmSync(out, { recursive: true, force: true });

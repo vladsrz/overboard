@@ -38,4 +38,4 @@ new_sqlite_classes = ["Stats"]
 [vars]
 # Pages allowed to connect, by the start of their address. Anything on your own
 # machine or home network is always allowed, for testing.
-ALLOWED_ORIGINS = "https://overboard.overboard-server.workers.dev,https://vladsrz.github.io"
+ALLOWED_ORIGINS = "https://overboard.overboard-server.workers.dev,https://vladsrz.github.io,https://playoverboard.vercel.app"
