@@ -170,7 +170,7 @@
   function clearInput() {
     for (const k in keys) keys[k] = false;
     mouse.down = false; spaceQueued = false; clickBuf = 0;
-    stick.id = null; stick.x = 0; stick.y = 0; $('stick').hidden = true;
+    stickDrop();
   }
 
   function startMatch() {
@@ -221,7 +221,7 @@
     G.touch = on;
     document.body.classList.toggle('touch', on);
     $('pad').hidden = !(on && inMatch());
-    stick.id = null; stick.x = 0; stick.y = 0; $('stick').hidden = true; $('stick-hint').hidden = false;
+    stickDrop();
     G.resize();
   }
   window.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') setTouch(true); }, true);
@@ -257,6 +257,10 @@
   G.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   // The stick: it appears where the thumb lands and reads how far it is dragged.
+  // Letting go is listened for three ways, because a phone does not always deliver
+  // the "finger lifted" event to the element the touch started on: on the zone, on
+  // the whole window, and by checking after any touch ends that a finger is still
+  // near where the stick started. Without that the stick could stay pushed over.
   const zone = $('stick-zone'), REACH = 46;
   function stickTo(e) {
     let dx = (e.clientX - stick.ox) / REACH, dy = (e.clientY - stick.oy) / REACH;
@@ -265,10 +269,9 @@
     stick.x = dx; stick.y = dy;
     $('knob').style.transform = 'translate(' + dx * REACH + 'px,' + dy * REACH + 'px)';
   }
-  function stickOff(e) {
-    if (e.pointerId !== stick.id) return;
+  function stickDrop() {
     stick.id = null; stick.x = 0; stick.y = 0;
-    $('stick').hidden = true; $('stick-hint').hidden = false;
+    $('stick').hidden = true; $('stick-hint').style.visibility = '';
   }
   zone.addEventListener('pointerdown', (e) => {
     if (stick.id !== null || paused) return;
@@ -277,12 +280,23 @@
     try { zone.setPointerCapture(e.pointerId); } catch (err) { /* the finger is already gone */ }
     const box = zone.getBoundingClientRect();
     $('stick').style.left = e.clientX - box.left + 'px'; $('stick').style.top = e.clientY - box.top + 'px';
-    $('stick').hidden = false; $('stick-hint').hidden = true;
+    $('stick').hidden = false; $('stick-hint').style.visibility = 'hidden';
     stickTo(e);
   });
-  zone.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) stickTo(e); });
-  zone.addEventListener('pointerup', stickOff);
-  zone.addEventListener('pointercancel', stickOff);
+  window.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) stickTo(e); });
+  for (const end of ['pointerup', 'pointercancel']) {
+    window.addEventListener(end, (e) => { if (e.pointerId === stick.id) stickDrop(); });
+    zone.addEventListener(end, (e) => { if (e.pointerId === stick.id) stickDrop(); });
+  }
+  zone.addEventListener('lostpointercapture', (e) => { if (e.pointerId === stick.id && e.pointerType !== 'touch') stickDrop(); });
+  for (const end of ['touchend', 'touchcancel']) {
+    window.addEventListener(end, (e) => {
+      if (stick.id === null) return;
+      let near = false;
+      for (const t of e.touches) if (Math.hypot(t.clientX - stick.ox, t.clientY - stick.oy) < 170) near = true;
+      if (!near) stickDrop();
+    }, { passive: true });
+  }
   // The one button: dash on the raft, wave in the water (the same as Space).
   $('act').addEventListener('pointerdown', (e) => { e.preventDefault(); if (inMatch() && !paused) spaceQueued = true; $('act').classList.add('down'); });
   for (const up of ['pointerup', 'pointercancel', 'pointerleave']) $('act').addEventListener(up, () => $('act').classList.remove('down'));

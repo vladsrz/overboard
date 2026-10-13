@@ -171,6 +171,7 @@ body.touch .keys { display: none; }
   position: absolute; left: 0; bottom: 0; width: 62%; height: 215px;
   pointer-events: auto; touch-action: none;
 }
+.stick, .stick-hint { pointer-events: none; }
 .stick {
   position: absolute; width: 116px; height: 116px; margin: -58px 0 0 -58px;
   border: 2px solid var(--plank); border-radius: 50%; opacity: 0.75;

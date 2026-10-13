@@ -96,10 +96,12 @@
     if (G.touch) {
       // one button: Dash on the raft (Slam once it is charged), Wave in the water
       const act = $('act');
-      act.textContent = inWater ? 'Wave' : me.ult >= 1 ? 'Slam' : 'Dash';
       act.classList.toggle('ready', inWater ? me.waveCd <= 0 : me.ult >= 1);
       act.classList.toggle('wait', inWater ? me.waveCd > 0 : me.dashCd > 0);
-      $('stick-hint').textContent = inWater ? 'drag here to tip the raft' : 'drag here to move';
+      const hint = inWater ? 'drag here to tip the raft' : 'drag here to move';
+      if ($('stick-hint').textContent !== hint) $('stick-hint').textContent = hint;
+      const word = inWater ? 'Wave' : me.ult >= 1 ? 'Slam' : 'Dash';
+      if (act.textContent !== word) act.textContent = word;
     }
     $('dash-word').textContent = me.ult >= 1 ? 'slam dash, charged' : 'dash';
     $('dash-key').classList.toggle('ready', me.ult >= 1);
