@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overboard</title>
+<meta name="description" content="Bumper sumo on a raft. Knock the others off, and if you fall in, wreck the raft for whoever is left.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/overboard.css">
+</head>
+<body>
+<canvas id="sea" aria-label="The raft"></canvas>
+
+<header class="top" id="top" hidden>
+  <span class="mark">Overboard</span>
+  <ol class="crew" id="crew" aria-label="Score"></ol>
+</header>
+
+<div class="banner" id="banner" hidden role="status">
+  <strong id="banner-title"></strong>
+  <span id="banner-sub"></span>
+</div>
+
+<div class="count" id="count" hidden aria-hidden="true"></div>
+
+<section class="cover menu" id="menu" hidden>
+  <h2>Paused</h2>
+  <button id="resume" type="button">Resume</button>
+  <button id="restart" type="button" class="quiet">Restart match</button>
+  <button id="quit" type="button" class="quiet">Quit to start screen</button>
+  <button id="menu-mute" type="button" class="quiet icon" aria-label="Mute sound" title="Mute sound">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path class="body" d="M3.5 9.5v5H7l5 4.2V5.3L7 9.5z"/>
+      <path class="on" d="M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/>
+      <path class="off" d="M16 9.5l5 5M21 9.5l-5 5"/>
+    </svg>
+  </button>
+  <p class="fine"><kbd>Esc</kbd> resume &nbsp; <kbd>M</kbd> mute</p>
+</section>
+
+<footer class="keys" id="keys" hidden>
+  <div class="keyset" id="keys-aboard">
+    <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span>
+    <span id="dash-key"><kbd>Space</kbd> <span id="dash-word">dash</span></span>
+  </div>
+  <div class="keyset" id="keys-water" hidden>
+    <span><kbd>Click</kbd> pull a plank out from under them</span>
+    <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> tip the raft that way for 2 seconds</span>
+    <span><kbd>Space</kbd> wave that shoves them toward your cursor</span>
+  </div>
+  <div class="side">
+    <span class="esc"><kbd>Esc</kbd> menu</span>
+    <div class="level" id="level" title="Which way the raft is tipping"><b id="level-dot"></b></div>
+  </div>
+</footer>
+
+<section class="cover" id="cover">
+  <h1 id="cover-title">Overboard</h1>
+  <p class="lede" id="cover-lede">Last one on the raft wins.</p>
+  <button id="start" type="button" autofocus>Start match</button>
+  <p class="how" id="cover-how"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span><kbd>Space</kbd> dash</span></p>
+  <p class="fine" id="cover-fine">You against three bots. First to win 3 rounds.</p>
+  <p class="fine touch">This needs a keyboard and a mouse for now.</p>
+</section>
+
+<script src="js/sim.js"></script>
+<script src="js/bots.js"></script>
+<script src="js/cast.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
