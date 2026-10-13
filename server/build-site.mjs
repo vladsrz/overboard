@@ -1,10 +1,8 @@
-// Copies the game's own files into server/site/, which the Worker serves next to
-// the rooms, so the game and its server live at one address. Only what a player's
-// browser needs goes in: no notes, tests or server code. The link-preview tags are
-// pointed at that address. Run by `npm run deploy`.
+// Copies only browser files into server/site/ for the Vercel deployment: no notes,
+// tests or server code. Link-preview tags point at the public game address.
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
-const SITE = process.env.OVERBOARD_SITE_URL || 'https://overboard.overboard-server.workers.dev/';
+const SITE = process.env.OVERBOARD_SITE_URL || 'https://overboard-game.vercel.app/';
 if (!/^https:\/\/[^/]+\/$/.test(SITE)) throw new Error('OVERBOARD_SITE_URL must be an HTTPS origin ending in /');
 const root = new URL('../', import.meta.url), out = new URL('./site/', import.meta.url);
 

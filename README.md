@@ -54,4 +54,4 @@ Plain scripts, loaded in this order by `index.html`:
 
 `CLAUDE.md` holds the design rules and the reasoning behind the numbers.
 
-`manifest.webmanifest` configures the Home Screen app. Its relative start URL and scope work at the Vercel root and inside the GitHub Pages folder. The PNG app icons are rendered from `favicon.svg`; no service worker or offline cache is installed.
+`manifest.webmanifest` configures the Home Screen app at the Vercel root. The PNG app icons are rendered from `favicon.svg`; no service worker or offline cache is installed.
