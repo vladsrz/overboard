@@ -4,7 +4,7 @@ Bumper sumo on a raft. Knock the others off. If you fall in, you are not out: yo
 
 **Play it:** https://vladsrz.github.io/overboard/ (on a computer, or a phone in portrait or landscape)
 
-You against three bots, drawn each match from a cast of twelve with their own habits. First to win 3 rounds.
+You against three bots, drawn each match from a cast of seventeen with their own habits. First to win 3 rounds.
 
 **With friends:** press **Play with friends**, copy the invite link and send it. Up to four of you share the raft and bots take the empty seats. The match runs in the browser of whoever opened the room, so it ends for everyone if they close the tab.
 
@@ -36,7 +36,7 @@ Open `index.html` in a browser. There is no build step and no server. The one de
 node test/sim.test.js
 ```
 
-plays 96 bot-only matches headless, checks the rules hold and that a match survives being sent to another player, and prints how long rounds last, what causes the falls and how each character does.
+plays 136 bot-only matches headless, checks the rules hold and that a match survives being sent to another player, and prints how long rounds last, what causes the falls and how each character does.
 
 ## How it is built
 

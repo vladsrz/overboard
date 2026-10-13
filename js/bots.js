@@ -12,7 +12,11 @@
   //   pick   how they choose who to go for; traits can be combined, e.g. 'grudge near'
   //            near (closest) · edge (whoever is closest to falling) · grudge (whoever hit them last)
   //            leader (whoever is winning) · random · spread (default: someone nobody else is on)
+  //            pile (whoever the others are already on) · people (a person over a bot)
   //   shy / patient / wild   extra habits that stack with pick
+  //   guard  keeps to the middle and only goes for someone who comes into it
+  //   flee   backs away from anyone who gets close, unless it is holding something
+  //   rash   dashes without checking there is raft where the dash ends
   //   water  what they love doing once they are in it: tilt, wave, planks, or all three
   const BRAINS = {
     ram: { skill: 0.6, care: 0.75, loot: 0.15, dash: 1, rest: [0.15, 0.4], pick: 'near', water: 'wave' },
@@ -28,6 +32,12 @@
     badger: { skill: 0.5, care: 0.55, loot: 0.2, dash: 1, rest: [0.15, 0.4], pick: 'grudge near', water: 'planks' },
     pirate: { skill: 0.55, care: 0.75, loot: 1, dash: 0.8, rest: [0.3, 0.7], pick: 'leader', water: 'all' },
     otter: { skill: 0.45, care: 0.7, loot: 0.8, dash: 0.9, rest: [0.1, 0.3], pick: 'random edge', water: 'tilt' },
+    // these five each have a habit of their own
+    jackal: { skill: 0.55, care: 0.75, loot: 0.3, dash: 0.9, rest: [0.2, 0.5], pick: 'pile', water: 'planks' },
+    crab: { skill: 0.55, care: 0.85, loot: 0.3, dash: 0.8, rest: [0.4, 0.8], pick: 'near', guard: true, water: 'tilt' },
+    dodo: { skill: 0.5, care: 0.2, loot: 0.3, dash: 1, rest: [0.1, 0.3], pick: 'near', rash: true, water: 'all' },
+    eel: { skill: 0.6, care: 0.85, loot: 0.6, dash: 0.7, rest: [0.5, 1], pick: 'edge', flee: true, shy: true, water: 'wave' },
+    nemesis: { skill: 0.6, care: 0.75, loot: 0.2, dash: 0.9, rest: [0.2, 0.5], pick: 'people', water: 'planks' },
   };
   // a seat with no character plays like this
   const PLAIN = { skill: 0.5, care: 0.75, loot: 0.5, dash: 0.75, rest: [0.3, 0.7], pick: 'spread', water: 'all' };
@@ -120,8 +130,10 @@
         if (T.pick === 'random') return 1;
         if (has(T, 'random') && Sim.rand(state) < 0.5) return 1;
         const crowd = state.players.filter((q) => q.id !== p.id && q.bot && q.state === p.state && q.bot.target === o.id).length;
-        let v = 1 / (1 + 2 * crowd);
-        if (o.human) v *= 0.85;
+        // most spread out over the targets; the one that piles on wants whoever is
+        // already under attack, or has just been hit
+        let v = has(T, 'pile') ? (1 + 3 * crowd) * (state.time - o.lastHitT < 1.2 ? 2.5 : 1) : 1 / (1 + 2 * crowd);
+        v *= !o.human ? 1 : has(T, 'people') ? 4 : 0.85;
         // easy prey draws attention: standing still, or sitting near the edge
         if (Math.hypot(o.vx, o.vy) < 40) v *= 2.2;
         const edge = voidDir(state, o.x, o.y, tmp);
@@ -209,7 +221,7 @@
   function roam(state, p, b, secs) {
     b.mode = 'roam'; b.modeT = secs;
     b.roamX = b.centerX; b.roamY = b.centerY;
-    const reach = b.T.shy ? 110 : 190;
+    const reach = b.T.guard ? 80 : b.T.shy ? 110 : 190;
     for (let n = 0; n < 10; n++) {
       const i = Math.floor(Sim.rand(state) * state.tiles.length);
       if (state.tiles[i] !== Sim.SOLID) continue;
@@ -274,6 +286,15 @@
         if (d < 140) { ax += ((p.x - o.x) / d) * 1.4 * (1 - d / 140); ay += ((p.y - o.y) / d) * 1.4 * (1 - d / 140); }
       }
 
+      // the one that keeps away: anyone close pushes it off, unless it is holding something worth using
+      if (T.flee && !hot) {
+        for (const o of state.players) {
+          if (o.id === p.id || o.state !== 'alive' || !Sim.visible(o)) continue;
+          const d = Math.hypot(p.x - o.x, p.y - o.y) || 1;
+          if (d < 120) { ax += ((p.x - o.x) / d) * 0.8 * (1 - d / 120); ay += ((p.y - o.y) / d) * 0.8 * (1 - d / 120); }
+        }
+      }
+
       // a pickup close by is worth the detour; a far one only if this bot is in the mood
       const u = nearestPickup(state, p);
       if (u && b.mode !== 'charge' && b.mode !== 'grab'
@@ -306,8 +327,10 @@
           const lined = (tx / d) * b.pushX + (ty / d) * b.pushY;
 
           if (b.mode === 'hunt') {
-            // some hold off: the shy one until its target is near the edge, the patient one until its slam is loaded
-            const holding = !hot && ((T.shy && b.edge >= 130) || (b.wait && b.edge >= 100));
+            // some hold off: the shy one until its target is near the edge, the patient one until its
+            // slam is loaded, the one guarding the middle until its target steps into it
+            const holding = !hot && ((T.shy && b.edge >= 130) || (b.wait && b.edge >= 100)
+              || (T.guard && Math.hypot(t.x - b.centerX, t.y - b.centerY) > 160));
             // the launch spot: back along the push line, far enough out for a run-up
             let L = 60;
             for (const far of [150, 115, 85]) if (Sim.supported(state, t.x - b.pushX * far, t.y - b.pushY * far)) { L = far; break; }
@@ -333,7 +356,7 @@
             const c = Math.cos(b.aim), s = Math.sin(b.aim);
             mx = (gx / gd) * c - (gy / gd) * s; my = (gx / gd) * s + (gy / gd) * c;
             const reach = Math.min(d, 110);
-            if (!b.dashed && p.dashCd <= 0 && d > 60 && b.wantDash && Sim.supported(state, p.x + mx * reach, p.y + my * reach)) {
+            if (!b.dashed && p.dashCd <= 0 && d > 60 && b.wantDash && (T.rash || Sim.supported(state, p.x + mx * reach, p.y + my * reach))) {
               inp.dash = true; b.dashed = true;
             }
             // hit them, missed them or ran out of road: break off and come round again

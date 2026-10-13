@@ -6,7 +6,7 @@ const Cast = require('../js/cast.js');
 const Net = require('../js/net.js');
 
 const DT = 1 / 60;
-const MATCHES = 96;
+const MATCHES = Cast.LIST.length * 8; // every character plays 32
 const stats = { spawned: {}, type: {}, dashes: 0, afterFirst: 0, picked: {}, slams: 0, firstFall: 0, rounds: 0, time: 0, how: {}, ghostKills: 0, falls: 0, draws: 0, longest: 0, wins: [0, 0, 0, 0] };
 
 for (let seed = 1; seed <= MATCHES; seed++) {

@@ -20,6 +20,11 @@
     { key: 'badger', name: 'Badger', tag: 'hits back, hard', color: '#8d95a3', hue: 'grey', light: true },
     { key: 'pirate', name: 'Pirate', tag: 'loots, then leads', color: '#26346f', hue: 'blue' },
     { key: 'otter', name: 'Otter', tag: 'never sits still', color: '#b9a3e8', hue: 'purple', light: true },
+    { key: 'jackal', name: 'Jackal', tag: 'joins the pile-on', color: '#c98a2b', hue: 'brown', light: true },
+    { key: 'crab', name: 'Crab', tag: 'holds the middle', color: '#f08a9c', hue: 'pink', light: true },
+    { key: 'dodo', name: 'Dodo', tag: 'never looks down', color: '#ffffff', hue: 'white', light: true },
+    { key: 'eel', name: 'Eel', tag: 'keeps away', color: '#7fe0c4', hue: 'mint', light: true },
+    { key: 'nemesis', name: 'Nemesis', tag: 'out to get you', color: '#c2278a', hue: 'magenta' },
   ];
   const BY_KEY = {};
   LIST.forEach((c) => { BY_KEY[c.key] = c; });
