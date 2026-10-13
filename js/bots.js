@@ -95,7 +95,7 @@
   // how often a bot that notices an idle player goes for them
   const AFK_PULL = 0.75;
   // the share of bots that, once in the water, use everything they have and not only their favourite
-  const BUSY = 0.75;
+  const BUSY = 0.9;
   function has(T, trait) { return T.pick.indexOf(trait) >= 0; }
 
   function pickTarget(state, p, b, preferred) {
@@ -404,8 +404,8 @@
     b.waterAge += dt;
     if (b.waterAge < 0.3) { /* still surfacing */ } else if (p.tiltCd <= 0 || state.tiltBy === p.id) {
       if (state.tiltBy !== p.id && !b.tiltAsked) {
-        b.tiltAsked = true; b.tiltWait = 2;
-        b.tiltWant = Sim.rand(state) < (W === 'tilt' ? 0.95 : keen ? 0.75 : 0.12);
+        b.tiltAsked = true; b.tiltWait = keen ? 0.6 : 2;
+        b.tiltWant = Sim.rand(state) < (W === 'tilt' || keen ? 0.95 : 0.12);
       }
       if (b.tiltWant && od > 30) { inp.mx = ox / od; inp.my = oy / od; }
       else { b.tiltWait -= dt; if (b.tiltWait <= 0) b.tiltAsked = false; }
@@ -413,16 +413,18 @@
 
     if (p.dropCd <= 0) {
       b.dropDelay -= dt;
-      if (b.dropDelay <= 0 && d < 30) {
+      // a bot that is at it pulls whatever plank its cursor is over once it is closing on its target,
+      // the way a person clicks along the way; it never wastes the click on a plank already gone
+      if (b.dropDelay <= 0 && d < (keen ? 95 : 45) && Sim.tileStateAt(state, b.cx, b.cy) === Sim.SOLID) {
         inp.drop = true;
-        b.dropDelay = W === 'planks' ? 0.05 + Sim.rand(state) * 0.3 : keen ? 0.3 + Sim.rand(state) * 0.9 : 1.5 + Sim.rand(state) * 2;
+        b.dropDelay = W === 'planks' ? 0.03 + Sim.rand(state) * 0.15 : keen ? 0.08 + Sim.rand(state) * 0.3 : 1.5 + Sim.rand(state) * 2;
       }
     }
     if (p.waveCd <= 0) {
       b.waveDelay -= dt;
-      if (b.waveDelay <= 0 && od > 60) {
+      if (b.waveDelay <= 0 && od > 35) {
         inp.wave = true;
-        b.waveDelay = W === 'wave' ? 0.1 + Sim.rand(state) * 0.5 : keen ? 0.4 + Sim.rand(state) * 1.6 : 4 + Sim.rand(state) * 5;
+        b.waveDelay = W === 'wave' ? 0.1 + Sim.rand(state) * 0.3 : keen ? 0.2 + Sim.rand(state) * 0.6 : 4 + Sim.rand(state) * 5;
       }
     }
   }
