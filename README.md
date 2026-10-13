@@ -2,7 +2,7 @@
 
 Bumper sumo on a raft. Knock the others off. If you fall in, you are not out: you get to wreck the raft for whoever is left, by pulling planks, tipping it and sending waves.
 
-**Play it:** https://playoverboard.vercel.app/ (on a computer, or a phone in portrait or landscape)
+**Play it:** https://overboard-game.vercel.app/ (on a computer, or a phone in portrait or landscape)
 
 You against three bots, drawn each match from a cast of seventeen with their own habits. First to win 3 rounds.
 
