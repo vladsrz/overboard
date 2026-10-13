@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --ip 0.0.0.0 --port 8787",
-    "deploy": "wrangler deploy"
+    "build": "node build-site.mjs",
+    "deploy": "node build-site.mjs && wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4"

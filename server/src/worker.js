@@ -38,7 +38,8 @@ function allowed(request, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/') return new Response('Overboard game server. The game is at https://vladsrz.github.io/overboard/\n');
+    // anything that is not one of the game's files (those are served before this runs) or a room
+    if (!/^\/(new|quick|join\/[A-Za-z0-9]{5})$/.test(url.pathname)) return new Response('Not found', { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
     if (!allowed(request, env)) return new Response('Not from here', { status: 403 });
     const room = (code, how) => env.ROOMS.get(env.ROOMS.idFromName(code)).fetch('https://room/' + how + '/' + code, request);

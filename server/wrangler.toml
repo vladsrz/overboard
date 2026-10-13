@@ -1,8 +1,12 @@
 # The game server: one small "room" per group of friends, awake only while they
-# are in it. Deploy with `npm run deploy` from this folder.
+# are in it. It also hands out the game's own files (built into ./site), so the
+# game is playable at the server's address. Deploy with `npm run deploy` from this folder.
 name = "overboard"
 main = "src/worker.js"
 compatibility_date = "2026-09-01"
+
+[assets]
+directory = "./site"
 
 [[durable_objects.bindings]]
 name = "ROOMS"
@@ -25,4 +29,4 @@ new_sqlite_classes = ["Desk"]
 [vars]
 # Pages allowed to connect, by the start of their address. Anything on your own
 # machine or home network is always allowed, for testing.
-ALLOWED_ORIGINS = "https://vladsrz.github.io"
+ALLOWED_ORIGINS = "https://overboard.overboard-server.workers.dev,https://vladsrz.github.io"
