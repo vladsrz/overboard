@@ -179,7 +179,18 @@ kbd {
 .results .wins i { width: 26px; height: 12px; border: 2px solid var(--plank); border-radius: 3px; }
 .results .wins i.won { background: var(--plank); }
 /* with friends: the second button on the start screen, then the room */
-.cover #friends { margin-top: 12px; }
+.more { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
+.cover .more button { margin-top: 0; }
+/* a room code typed on the start screen: five characters and you are in */
+.code-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 13px; opacity: 0.85; }
+#code {
+  width: 6.2em; height: 28px; padding: 0 2px;
+  border: 0; border-bottom: 1.5px solid var(--plank); border-radius: 0;
+  background: transparent; color: var(--plank);
+  font: 700 16px/26px var(--ui); letter-spacing: 0.18em; text-align: center; text-transform: uppercase;
+  -webkit-user-select: text; user-select: text;
+}
+#code:focus-visible { outline: 0; border-bottom-color: var(--foam); background: rgba(11, 57, 54, 0.6); }
 .cover .note { max-width: 26em; opacity: 1; font-size: 14px; }
 .cover button.small { margin-top: 18px; padding: 9px 18px 10px; border-width: 1.5px; font: 600 13px/1.2 var(--ui); }
 /* leaving is the way out, not one of the choices: plain words, no box */
@@ -320,7 +331,7 @@ body.touch .banner { max-width: calc(100vw - 120px); }
   .cover h1 { font-size: clamp(40px, 12vh, 72px); }
   .lede { margin-top: 12px; font-size: 16px; }
   .cover button { margin-top: 18px; }
-  .cover #friends, .cover.room #start { margin-top: 8px; }
+  .more, .code-row, .cover.room #start { margin-top: 8px; }
   .results { row-gap: 5px; margin-top: 12px; }
   .results li { font-size: 15px; }
   .results .disc { width: 24px; height: 24px; font-size: 11px; border-width: 2px; }

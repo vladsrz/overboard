@@ -96,7 +96,11 @@
     <button id="invite" type="button" class="quiet small" hidden>Copy invite link</button>
   </div>
   <button id="start" type="button" autofocus>Start match</button>
-  <button id="friends" type="button" class="quiet">Play with friends</button>
+  <div class="more" id="more">
+    <button id="quick" type="button" class="quiet small">Play online</button>
+    <button id="friends" type="button" class="quiet small">Play with friends</button>
+  </div>
+  <label class="code-row" id="code-row">Have a room code? <input id="code" type="text" maxlength="5" aria-label="Room code" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go"></label>
   <p class="fine note" id="net-note" role="status" hidden></p>
   <button id="leave" type="button" class="plain" hidden>Leave room</button>
   <p class="rotate-hint" id="rotate-hint">

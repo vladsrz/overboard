@@ -117,6 +117,8 @@
   const Net = {
     role: null,      // null = playing alone, 'host' (this browser runs the match) or 'guest'
     server: false,   // the room is on the game server; everyone in it is a 'guest'
+    open: false,     // a public room, found through quick play: it starts on its own
+    wait: -1,        // seconds until a public room starts, or -1
     code: '',        // the room, once it is open
     ready: false,    // host: the room is open; guest: the host has let us in
     playing: false,  // a match is on
@@ -135,7 +137,7 @@
     clearInterval(beat);
     const old = peer, line = link;
     peer = null; link = null; pending = null; heard = []; sent = ''; sentAt = 0;
-    Net.role = null; Net.server = false; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
+    Net.role = null; Net.server = false; Net.open = false; Net.wait = -1; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
     if (old) try { old.destroy(); } catch (e) { /* already gone */ }
     if (line && line.ws) try { line.ws.close(); } catch (e) { /* already gone */ }
   }
@@ -282,6 +284,7 @@
       Net.members = d.names.slice(0, SEATS).map((name, i) => ({ name: cleanName(name, fallbackName(i)) }));
       Net.you = seat(d.you, Net.members.length);
       Net.playing = !!d.playing; Net.ready = true;
+      Net.wait = Number.isInteger(d.wait) ? d.wait : -1;
       Net.on.lobby();
     } else if (d.t === 'full') closed('That room is full.');
     else if (d.t === 'start') {
@@ -324,16 +327,17 @@
 
   Net.usesServer = () => !!serverUrl();
   // may this machine start the match: the host, or on the server whoever has been in the room longest
-  Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && Net.you === 0));
+  Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && !Net.open && Net.you === 0));
   Net.go = () => { if (Net.server) send(link, { t: 'go' }); };
 
-  // no code opens a new room; a code joins that one
-  Net.open = function (code, name) {
+  // No code opens a new room; a code joins that one; quick joins whichever public
+  // room has space (or opens one), where a match starts on its own.
+  Net.connect = function (code, name, quick) {
     reset();
-    Net.role = 'guest'; Net.server = true; Net.code = code;
+    Net.role = 'guest'; Net.server = true; Net.open = !!quick; Net.code = code;
     lobbyN = 0; matchN = 0; seen = now();
     let ws;
-    try { ws = new root.WebSocket(serverUrl() + (code ? '/join/' + code : '/new')); } catch (e) { return closed(OFFLINE); }
+    try { ws = new root.WebSocket(serverUrl() + (quick ? '/quick' : code ? '/join/' + code : '/new')); } catch (e) { return closed(OFFLINE); }
     const line = (link = { ws: ws, get open() { return ws.readyState === 1; }, send(msg) { ws.send(JSON.stringify(msg)); } });
     const GONE = 'That room is not open. Ask for a new link.';
     wanted = name;
@@ -342,8 +346,9 @@
       if (link !== line) return;
       let d = null;
       try { d = JSON.parse(e.data); } catch (err) { return; }
-      if (d && d.t === 'room') Net.code = Net.codeFrom(d.code);
+      if (d && d.t === 'room') { Net.code = Net.codeFrom(d.code); Net.open = !!d.open; }
       else if (d && d.t === 'closed') closed(GONE);
+      else if (d && d.t === 'away') closed('You were away for a while, so you left the room.');
       else fromHost(d);
     };
     ws.onclose = () => { if (link === line) closed(Net.ready ? 'Lost the connection to the game.' : code ? GONE : OFFLINE); };

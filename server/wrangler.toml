@@ -8,10 +8,19 @@ compatibility_date = "2026-09-01"
 name = "ROOMS"
 class_name = "Room"
 
+# the front desk for quick play: knows which public room has space
+[[durable_objects.bindings]]
+name = "DESK"
+class_name = "Desk"
+
 # the free plan only allows this kind of room
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Desk"]
 
 [vars]
 # Pages allowed to connect, by the start of their address. Anything on your own

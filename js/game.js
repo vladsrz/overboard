@@ -314,10 +314,11 @@
   try { myName = localStorage.getItem('overboard-name') || ''; } catch (e) { /* private window */ }
   $('my-name').value = myName;
 
-  // no code opens a room of your own; a code (from an invite link) joins that one
-  function openRoom(code) {
+  // no code opens a room of your own; a code (from an invite link, or typed) joins
+  // that one; quick puts you in a public room with whoever else is looking
+  function openRoom(code, quick) {
     Sfx.unlock();
-    if (Net.usesServer()) Net.open(code, myName); else if (code) Net.join(code, myName); else Net.host(myName);
+    if (Net.usesServer()) Net.connect(code, myName, quick); else if (code) Net.join(code, myName); else Net.host(myName);
     ui.showLobby();
   }
   Net.on.lobby = () => ui.lobby();
@@ -372,7 +373,7 @@
   window.addEventListener('keydown', (e) => {
     if ($('install-guide').open) return;
     // typing your name is not playing
-    if (e.target === $('my-name')) { if (e.code === 'Enter' || e.code === 'Escape') e.target.blur(); return; }
+    if (e.target && e.target.tagName === 'INPUT') { if (e.code === 'Enter' || e.code === 'Escape') e.target.blur(); return; }
     if (e.code === 'Escape' && inMatch()) { e.preventDefault(); Sfx.play('click'); setPaused(!paused); return; }
     if (e.code === 'KeyM' && inMatch() && !e.repeat) { toggleSound(); return; }
     if (paused) return;
@@ -479,6 +480,15 @@
   $('quit').addEventListener('click', () => { Sfx.play('click'); quitToStart(); });
   $('friends').addEventListener('click', () => { Sfx.unlock(); Sfx.play('click'); openRoom(''); });
   $('leave').addEventListener('click', () => { Sfx.play('click'); quitToStart(); });
+  $('quick').addEventListener('click', () => { Sfx.unlock(); Sfx.play('click'); openRoom('', true); });
+  // a room code typed in: the fifth character is the go-ahead
+  $('code').addEventListener('input', () => {
+    const typed = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+    $('code').value = typed;
+    if (typed.length < 5) return;
+    $('code').blur();
+    if (Net.codeFrom(typed)) { Sfx.unlock(); Sfx.play('click'); openRoom(typed); } else ui.showStart('That is not a room code. They are five letters and digits.');
+  });
   $('my-name').addEventListener('input', () => {
     myName = Net.cleanName($('my-name').value, '');
     try { localStorage.setItem('overboard-name', myName); } catch (e) { /* private window */ }

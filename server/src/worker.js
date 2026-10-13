@@ -5,6 +5,12 @@
 //
 //   GET /new          (WebSocket)  open a room; the first message back carries its code
 //   GET /join/CODE    (WebSocket)  join that room, if it is open
+//   GET /quick        (WebSocket)  join whichever public room has space, or open one
+//
+// A room opened with /new is private: its code is the only way in, and whoever has
+// been in it longest starts each match. A public room (from /quick) has no leader:
+// it starts on its own a few seconds after someone arrives, so a player who finds
+// nobody else still gets a match, against bots.
 import Sim from '../../js/sim.js';
 import Bots from '../../js/bots.js';
 import Cast from '../../js/cast.js';
@@ -16,6 +22,8 @@ const QUIET = 8000;          // a player this silent has gone
 const IDLE_ROOM = 15 * 60e3; // a room with no match running closes after this long
 const MAX_MSG = 600;         // characters; an input or a name is far smaller
 const MAX_RATE = 150;        // messages a second from one player before they are dropped
+const GATHER = 8;            // seconds a public room waits for more players before it starts
+const AWAY = 120e3;          // in a public room, a player who touches nothing for this long is let go
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE = /^[A-HJ-NP-Z2-9]{5}$/;
 const IDLE = { mx: 0, my: 0, dash: false, drop: false, wave: false, cx: 0, cy: 0 };
@@ -43,14 +51,48 @@ export default {
       }
       return new Response('No free room', { status: 503 });
     }
+    if (url.pathname === '/quick') {
+      const pick = await env.DESK.get(env.DESK.idFromName('quick')).fetch('https://desk/pick');
+      const code = (await pick.text()).trim();
+      return CODE.test(code) ? room(code, 'quick') : new Response('No free room', { status: 503 });
+    }
     const m = /^\/join\/([A-Za-z0-9]{5})$/.exec(url.pathname);
     if (m && CODE.test(m[1].toUpperCase())) return room(m[1].toUpperCase(), 'join');
     return new Response('Not found', { status: 404 });
   },
 };
 
+// The front desk for quick play: it remembers which public room still has space,
+// so the next player is sent there, and hands out a fresh code when there is none.
+// Rooms tell it how many they hold whenever that changes.
+export class Desk {
+  constructor() { this.code = ''; this.n = 0; this.at = 0; }
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname === '/pick') {
+      // a room that has not reported for a while may have gone without saying so
+      if (!this.code || this.n >= SEATS || Date.now() - this.at > 60e3) {
+        const pick = crypto.getRandomValues(new Uint8Array(5));
+        this.code = Array.from(pick, (v) => LETTERS[v % 32]).join('');
+        this.n = 0;
+      }
+      this.n++; this.at = Date.now();
+      return new Response(this.code);
+    }
+    if (url.pathname === '/report') {
+      const code = url.searchParams.get('code'), n = Number(url.searchParams.get('n')) || 0;
+      if (code === this.code) { this.n = n; this.at = Date.now(); if (n <= 0) this.code = ''; }
+      return new Response('ok');
+    }
+    return new Response('Not found', { status: 404 });
+  }
+}
+
 export class Room {
-  constructor() {
+  constructor(ctx, env) {
+    this.env = env;
+    this.open = false;   // public: found through quick play, and it starts on its own
+    this.startAt = 0;
     this.code = '';
     this.members = [];   // { ws, name, seat, seen, n, mx, my, cx, cy, drop, dash, count, countAt }
     this.lobbyN = 0; this.matchN = 0; this.snapN = 0;
@@ -69,6 +111,7 @@ export class Room {
     if (how === 'join' && !this.members.length) refuse('closed');
     else if (this.members.length >= SEATS) refuse('full');
     else {
+      if (!this.members.length) { this.open = how === 'quick'; this.startAt = Date.now() + GATHER * 1000; }
       this.code = code;
       this.join(ws);
     }
@@ -78,12 +121,15 @@ export class Room {
   send(m, msg) { try { m.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); } catch (e) { /* closing; the heartbeat will notice */ } }
 
   join(ws) {
-    const m = { ws: ws, name: 'Player ' + (this.members.length + 1), seat: -1, seen: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
+    const m = { ws: ws, name: 'Player ' + (this.members.length + 1), seat: -1, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
     this.members.push(m);
     ws.addEventListener('message', (e) => this.hear(m, e.data));
     ws.addEventListener('close', () => this.drop(m));
     ws.addEventListener('error', () => this.drop(m));
-    this.send(m, { t: 'room', code: this.code });
+    this.send(m, { t: 'room', code: this.code, open: this.open });
+    this.report();
+    // a full public room has nobody left to wait for
+    if (this.open && !this.playing && this.members.length >= SEATS) this.startAt = Date.now();
     this.tellLobby();
     if (!this.beat) this.beat = setInterval(() => this.heartbeat(), 1000);
   }
@@ -98,7 +144,14 @@ export class Room {
       this.state.players[m.seat].human = false;
       this.outbox.push({ type: 'left', id: m.seat });
     }
+    this.report();
     if (!this.members.length) this.shut(); else this.tellLobby();
+  }
+
+  // a public room keeps the front desk up to date on how many it holds
+  report() {
+    if (!this.open) return;
+    this.env.DESK.get(this.env.DESK.idFromName('quick')).fetch('https://desk/report?code=' + this.code + '&n=' + this.members.length).catch(() => {});
   }
 
   // nobody left: stop everything, so the room goes back to sleep
@@ -111,15 +164,22 @@ export class Room {
   heartbeat() {
     const now = Date.now();
     for (const m of this.members.slice()) {
-      if (now - m.seen > QUIET) this.drop(m); else if (!this.playing || m.seat < 0) this.send(m, '{"t":"ping"}');
+      if (now - m.seen > QUIET) this.drop(m);
+      // nobody is waiting on a stranger who has walked away, and their room would run for ever
+      else if (this.open && now - m.active > AWAY) { this.send(m, '{"t":"away"}'); this.drop(m); }
+      else if (!this.playing || m.seat < 0) this.send(m, '{"t":"ping"}');
     }
-    if (!this.playing && now - this.idleSince > IDLE_ROOM) this.shut();
+    if (!this.members.length) return;
+    if (this.open && !this.playing) { if (now >= this.startAt) this.start(); else this.tellLobby(); }
+    else if (!this.playing && now - this.idleSince > IDLE_ROOM) this.shut();
   }
 
   tellLobby() {
     this.lobbyN++;
     const names = this.members.map((m) => m.name);
-    this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing }));
+    // in a public room that is gathering, how many seconds until it starts
+    const wait = this.open && !this.playing ? Math.max(0, Math.ceil((this.startAt - Date.now()) / 1000)) : -1;
+    this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing, wait: wait }));
   }
 
   hear(m, raw) {
@@ -133,15 +193,17 @@ export class Room {
     m.seen = now;
     if (d.t === 'name') {
       const name = Net.cleanName(d.name, 'Player ' + (this.members.indexOf(m) + 1));
+      m.active = now;
       if (name !== m.name) { m.name = name; this.tellLobby(); }
     } else if (d.t === 'i') {
       if (d.d) m.dash = true;
       if (!(d.n > m.n)) return;
       m.n = d.n;
+      if (d.d || d.p || clamp(d.mx, 1) !== m.mx || clamp(d.my, 1) !== m.my) m.active = now;
       m.mx = clamp(d.mx, 1); m.my = clamp(d.my, 1); m.cx = clamp(d.cx, 2000); m.cy = clamp(d.cy, 2000); m.drop = !!d.p;
     } else if (d.t === 'go') {
       // only whoever has been in the room longest may start a match
-      if (m === this.members[0] && !this.playing) this.start();
+      if (!this.open && m === this.members[0] && !this.playing) this.start();
     }
   }
 
@@ -200,6 +262,7 @@ export class Room {
       this.playing = false;
       clearInterval(this.timer); this.timer = 0;
       this.idleSince = Date.now();
+      this.startAt = Date.now() + GATHER * 1000;
       for (const m of this.members) m.seat = -1;
       this.tellLobby();
     }

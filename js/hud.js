@@ -131,7 +131,9 @@
     const net = !!Net.role, host = Net.role === 'host', lead = Net.lead();
     $('cover').classList.toggle('end', to === 'end');
     $('cover').classList.toggle('room', to === 'room');
-    $('cover-how').hidden = $('cover-fine').hidden = $('friends').hidden = to !== 'start';
+    $('cover-how').hidden = $('cover-fine').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
+    // playing strangers needs the game server to put you together
+    $('quick').hidden = !Net.usesServer();
     $('room').hidden = to !== 'room';
     $('results').hidden = to !== 'end'; $('cover-lede').hidden = to === 'end';
     $('leave').hidden = !net;
@@ -143,7 +145,9 @@
     // is something to say (a room that closed on you, or waiting for the host).
     const who = Net.members[0] ? Net.members[0].name : 'the host';
     let say = why || '';
-    if (net && !Net.ready) say = host || !Net.code ? 'Opening a room…' : 'Joining…';
+    if (net && !Net.ready) say = Net.open ? 'Looking for players…' : host || !Net.code ? 'Opening a room…' : 'Joining…';
+    else if (Net.open && to === 'room' && Net.playing) say = 'A match is on. You are in the next one.';
+    else if (Net.open) say = (to === 'end' ? 'Next match in ' : 'Starting in ') + Math.max(0, Net.wait) + '.' + (to === 'end' ? '' : ' Bots fill the empty seats.');
     else if (lead) say = to === 'room' ? 'Bots fill the empty seats.' : '';
     else if (net) say = to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
     if (to === 'room') $('cover-lede').textContent = say;
@@ -174,7 +178,7 @@
       else if (!mine && field.parentNode === li) $('room').appendChild(field);
     }
     ol.hidden = !Net.ready;
-    $('invite').hidden = !(Net.ready && Net.code);
+    $('invite').hidden = !(Net.ready && Net.code) || Net.open;
     if (!$('cover').hidden) cover(face);
   }
 
@@ -223,6 +227,7 @@
     showStart(why) {
       clearOverlays();
       $('cover-title').textContent = START.title; $('cover-lede').textContent = START.lede;
+      $('code').value = '';
       cover('start', why);
       $('menu').hidden = true;
       $('top').hidden = true; $('keys').hidden = true; $('pad').hidden = true;
