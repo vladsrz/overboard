@@ -1,0 +1,19 @@
+# The game server: one small "room" per group of friends, awake only while they
+# are in it. Deploy with `npm run deploy` from this folder.
+name = "overboard"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+# the free plan only allows this kind of room
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[vars]
+# Pages allowed to connect, by the start of their address. Anything on your own
+# machine or home network is always allowed, for testing.
+ALLOWED_ORIGINS = "https://vladsrz.github.io"

@@ -128,7 +128,7 @@
   let face = 'start', copiedT = 0;
   function cover(to, why) {
     face = to;
-    const net = !!Net.role, host = Net.role === 'host';
+    const net = !!Net.role, host = Net.role === 'host', lead = Net.lead();
     $('cover').classList.toggle('end', to === 'end');
     $('cover').classList.toggle('room', to === 'room');
     $('cover-how').hidden = $('cover-fine').hidden = $('friends').hidden = to !== 'start';
@@ -136,15 +136,16 @@
     $('results').hidden = to !== 'end'; $('cover-lede').hidden = to === 'end';
     $('leave').hidden = !net;
     $('leave').textContent = host ? 'Close room' : 'Leave room';
-    $('start').hidden = net && !(host && Net.ready);
+    $('start').hidden = net && !lead;
     $('start').textContent = to === 'end' ? 'Play again' : 'Start match';
     // One line of words per screen. In the room it is the line under the title;
     // on the other two it is a small note under the buttons, and only when there
     // is something to say (a room that closed on you, or waiting for the host).
     const who = Net.members[0] ? Net.members[0].name : 'the host';
     let say = why || '';
-    if (host) say = !Net.ready ? 'Opening a room…' : to === 'room' ? 'Bots fill the empty seats.' : '';
-    else if (net) say = !Net.ready ? 'Joining…' : to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
+    if (net && !Net.ready) say = host || !Net.code ? 'Opening a room…' : 'Joining…';
+    else if (lead) say = to === 'room' ? 'Bots fill the empty seats.' : '';
+    else if (net) say = to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
     if (to === 'room') $('cover-lede').textContent = say;
     $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
     $('cover').hidden = false;
@@ -173,7 +174,7 @@
       else if (!mine && field.parentNode === li) $('room').appendChild(field);
     }
     ol.hidden = !Net.ready;
-    $('invite').hidden = !(Net.role === 'host' && Net.ready);
+    $('invite').hidden = !(Net.ready && Net.code);
     if (!$('cover').hidden) cover(face);
   }
 

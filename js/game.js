@@ -252,9 +252,12 @@
     ui.banner('Up against', cast.slice(0, -1).join(', ') + ' and ' + cast[cast.length - 1], C.COUNTDOWN_T + 1.5);
   }
 
-  // Alone: you and three bots. Hosting: everyone in the room, in the order they
-  // came in, and bots in the seats left over. A guest waits for the host.
+  // Alone: you and three bots. With friends: everyone in the room, in the order
+  // they came in, and bots in the seats left over. Whoever may start it (Net.lead)
+  // does; the rest wait.
   function startMatch() {
+    // on the game server the room runs the match: ask it to start one
+    if (Net.server) { if (Net.lead()) Net.go(); return; }
     if (Net.role === 'guest' || (Net.role === 'host' && !Net.ready)) return;
     const seed = newSeed();
     if (!Net.role) { enter([{ name: 'You', human: true }].concat(Cast.draw(3, Math.random)), 0, seed); return; }
@@ -271,7 +274,7 @@
 
   function requestStart() {
     const guide = $('install-guide');
-    if (guide.open || Net.role === 'guest' || (Net.role === 'host' && !Net.ready)) return;
+    if (guide.open || (Net.role && !Net.lead())) return;
     if (G.touch && !document.body.classList.contains('standalone') && !installOffered) {
       installOffered = true;
       const apple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -314,7 +317,7 @@
   // no code opens a room of your own; a code (from an invite link) joins that one
   function openRoom(code) {
     Sfx.unlock();
-    if (code) Net.join(code, myName); else Net.host(myName);
+    if (Net.usesServer()) Net.open(code, myName); else if (code) Net.join(code, myName); else Net.host(myName);
     ui.showLobby();
   }
   Net.on.lobby = () => ui.lobby();

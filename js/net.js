@@ -1,10 +1,15 @@
-// Playing with friends. There is no game server: the host's browser runs the match
-// (the same Sim.step as a solo game) and is the only one whose word counts. Guests
-// send their keys and get the match back about 30 times a second. Browsers find
-// each other through PeerJS's public broker, then talk directly over WebRTC.
+// Playing with friends. Whoever runs the match (the same Sim.step as a solo game)
+// is the only one whose word counts; everyone else sends their keys and gets the
+// match back about 30 times a second. There are two ways to run it:
 //
-// Nothing a guest sends is trusted: the host reads only a name and an input, and
-// clamps both. Messages can arrive out of order, so each kind carries a counter
+//   - the game server (server/, on Cloudflare), when SERVER below is set: every
+//     player connects to a room there and nobody is the host;
+//   - with no server, the browser of whoever opened the room runs it, and the
+//     others reach it directly over WebRTC, found through PeerJS's public broker.
+//
+// Both speak the same messages, so a player's side is the same code either way.
+// Nothing a player sends is trusted: only a name and an input are read, and both
+// are clamped. Messages can arrive out of order, so each kind carries a counter
 // and anything older than the last one seen is dropped.
 (function (root) {
   'use strict';
@@ -86,6 +91,17 @@
 
   // ── the room ──
 
+  // The game server's address once it is deployed, e.g. 'wss://overboard.example.workers.dev'.
+  // Empty means there is none and rooms run in the host's browser. A page opened on
+  // this machine or the home network uses a server on the same machine (`npm run dev`
+  // in server/), so a change can be tried before it is deployed.
+  const SERVER = '';
+  const LOCAL = /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)$/;
+  function serverUrl() {
+    const host = root.location ? root.location.hostname : '';
+    return LOCAL.test(host) ? 'ws://' + host + ':8787' : SERVER;
+  }
+
   const PREFIX = 'overboard-room-', SEATS = 4, QUIET = 6000;
   const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 of them, none that read as another
   const CODE = /^[A-HJ-NP-Z2-9]{5}$/;
@@ -94,10 +110,12 @@
 
   let peer = null, link = null;        // link: a guest's one connection, to the host
   let beat = 0, lobbyN = 0, matchN = 0, snapN = 0, inputN = 0, seen = 0;
-  let pending = null, heard = [];
+  let pending = null, heard = [], sent = '', sentAt = 0;
+  let wanted = ''; // the name to go by, which may be typed before the connection is up
 
   const Net = {
-    role: null,      // null = playing alone, 'host' or 'guest'
+    role: null,      // null = playing alone, 'host' (this browser runs the match) or 'guest'
+    server: false,   // the room is on the game server; everyone in it is a 'guest'
     code: '',        // the room, once it is open
     ready: false,    // host: the room is open; guest: the host has let us in
     playing: false,  // a match is on
@@ -114,10 +132,11 @@
 
   function reset() {
     clearInterval(beat);
-    const old = peer;
-    peer = null; link = null; pending = null; heard = [];
-    Net.role = null; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
+    const old = peer, line = link;
+    peer = null; link = null; pending = null; heard = []; sent = ''; sentAt = 0;
+    Net.role = null; Net.server = false; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
     if (old) try { old.destroy(); } catch (e) { /* already gone */ }
+    if (line && line.ws) try { line.ws.close(); } catch (e) { /* already gone */ }
   }
   // the room is over for this machine, and here is the sentence to show for it
   function closed(why) {
@@ -131,7 +150,7 @@
     if (!root.Peer) return null;
     try { return id ? new root.Peer(id) : new root.Peer(); } catch (e) { return null; }
   }
-  const OFFLINE = 'Could not reach the meeting point. Check your connection and try again.';
+  const OFFLINE = 'Could not open a room. Check your connection and try again.';
 
   // ── host ──
 
@@ -207,6 +226,7 @@
   };
 
   Net.rename = function (name) {
+    wanted = name;
     if (Net.role === 'host') { Net.members[0].name = cleanName(name, fallbackName(0)); tellLobby(); }
     else if (Net.role === 'guest') send(link, { t: 'name', name: cleanName(name, '') });
   };
@@ -278,13 +298,14 @@
   Net.join = function (code, name) {
     reset();
     Net.role = 'guest'; Net.code = code;
+    wanted = name;
     lobbyN = 0; matchN = 0; seen = now();
     const p = (peer = open());
     if (!p) return closed('This browser cannot join a room.');
     p.on('open', () => {
       if (peer !== p) return;
       const conn = (link = p.connect(PREFIX + code, { serialization: 'json' }));
-      conn.on('open', () => { seen = now(); send(conn, { t: 'name', name: cleanName(name, '') }); });
+      conn.on('open', () => { seen = now(); send(conn, { t: 'name', name: cleanName(wanted, '') }); });
       conn.on('data', fromHost);
       conn.on('close', () => { if (peer === p) closed(Net.ready ? 'The host left, so the room is closed.' : 'That room is not open. Ask for a new link.'); });
     });
@@ -298,10 +319,49 @@
     }, 1000);
   };
 
+  // ── a room on the game server ──
+
+  Net.usesServer = () => !!serverUrl();
+  // may this machine start the match: the host, or on the server whoever has been in the room longest
+  Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && Net.you === 0));
+  Net.go = () => { if (Net.server) send(link, { t: 'go' }); };
+
+  // no code opens a new room; a code joins that one
+  Net.open = function (code, name) {
+    reset();
+    Net.role = 'guest'; Net.server = true; Net.code = code;
+    lobbyN = 0; matchN = 0; seen = now();
+    let ws;
+    try { ws = new root.WebSocket(serverUrl() + (code ? '/join/' + code : '/new')); } catch (e) { return closed(OFFLINE); }
+    const line = (link = { ws: ws, get open() { return ws.readyState === 1; }, send(msg) { ws.send(JSON.stringify(msg)); } });
+    const GONE = 'That room is not open. Ask for a new link.';
+    wanted = name;
+    ws.onopen = () => { seen = now(); send(line, { t: 'name', name: cleanName(wanted, '') }); };
+    ws.onmessage = (e) => {
+      if (link !== line) return;
+      let d = null;
+      try { d = JSON.parse(e.data); } catch (err) { return; }
+      if (d && d.t === 'room') Net.code = Net.codeFrom(d.code);
+      else if (d && d.t === 'closed') closed(GONE);
+      else fromHost(d);
+    };
+    ws.onclose = () => { if (link === line) closed(Net.ready ? 'Lost the connection to the game.' : code ? GONE : OFFLINE); };
+    beat = setInterval(() => {
+      if (now() - seen > (Net.ready ? QUIET : 15000)) closed(Net.ready ? 'Lost the connection to the game.' : OFFLINE);
+      else if (!Net.playing) send(link, { t: 'ping' });
+    }, 1000);
+  };
+
+  // What you are pressing goes out when it changes, and a couple of times a second
+  // otherwise so the other end knows you are still there.
   const r3 = (v) => Math.round((v || 0) * 1000) / 1000;
   Net.sendInput = function (inp) {
+    const what = [r3(inp.mx), r3(inp.my), Math.round(inp.cx || 0), Math.round(inp.cy || 0), inp.drop ? 1 : 0, inp.dash ? 1 : 0];
+    const same = what.join() === sent;
+    if (same && now() - sentAt < 400) return;
+    sent = what.join(); sentAt = now();
     inputN++;
-    send(link, { t: 'i', n: inputN, mx: r3(inp.mx), my: r3(inp.my), cx: Math.round(inp.cx || 0), cy: Math.round(inp.cy || 0), p: inp.drop ? 1 : 0, d: inp.dash ? 1 : 0 });
+    send(link, { t: 'i', n: inputN, mx: what[0], my: what[1], cx: what[2], cy: what[3], p: what[4], d: what[5] });
   };
   // guest: the newest match from the host if one came in, and everything that happened
   Net.take = function () {

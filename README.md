@@ -6,7 +6,7 @@ Bumper sumo on a raft. Knock the others off. If you fall in, you are not out: yo
 
 You against three bots, drawn each match from a cast of seventeen with their own habits. First to win 3 rounds.
 
-**With friends:** press **Play with friends**, copy the invite link and send it. Up to four of you share the raft and bots take the empty seats. The match runs in the browser of whoever opened the room, so it ends for everyone if they close the tab.
+**With friends:** press **Play with friends**, copy the invite link and send it. Up to four of you share the raft and bots take the empty seats. The match runs on a small game server (`server/`, a Cloudflare Worker); without one configured it runs in the browser of whoever opened the room.
 
 ## Controls
 
