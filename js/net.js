@@ -231,7 +231,7 @@
   Net.rename = function (name) {
     wanted = name;
     if (Net.role === 'host') { Net.members[0].name = cleanName(name, fallbackName(0)); tellLobby(); }
-    else if (Net.role === 'guest') send(link, { t: 'name', name: cleanName(name, '') });
+    else if (Net.role === 'guest') send(link, card(name));
   };
 
   // host: everyone in the room takes a seat, in the order they came in
@@ -326,6 +326,10 @@
   // ── a room on the game server ──
 
   Net.usesServer = () => !!serverUrl();
+  // the same server over plain web requests, for the play statistics
+  Net.api = () => serverUrl().replace(/^ws/, 'http');
+  // what goes with your name: this browser's made-up id and whether it is a phone, both only for the statistics
+  const card = (name) => ({ t: 'name', name: cleanName(name, ''), id: root.Stats ? root.Stats.device() : '', touch: root.Game && root.Game.touch ? 1 : 0 });
   // may this machine start the match: the host, or on the server whoever has been in the room longest
   Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && !Net.open && Net.you === 0));
   Net.go = () => { if (Net.server) send(link, { t: 'go' }); };
@@ -341,7 +345,7 @@
     const line = (link = { ws: ws, get open() { return ws.readyState === 1; }, send(msg) { ws.send(JSON.stringify(msg)); } });
     const GONE = 'That room is not open. Ask for a new link.';
     wanted = name;
-    ws.onopen = () => { seen = now(); send(line, { t: 'name', name: cleanName(wanted, '') }); };
+    ws.onopen = () => { seen = now(); send(line, card(wanted)); };
     ws.onmessage = (e) => {
       if (link !== line) return;
       let d = null;

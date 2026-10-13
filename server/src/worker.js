@@ -6,6 +6,8 @@
 //   GET /new          (WebSocket)  open a room; the first message back carries its code
 //   GET /join/CODE    (WebSocket)  join that room, if it is open
 //   GET /quick        (WebSocket)  join whichever public room has space, or open one
+//   POST /stat                     a browser reporting a visit or a finished solo match
+//   GET /admin/stats, /admin/export   the play statistics, for whoever holds the key
 //
 // A room opened with /new is private: its code is the only way in, and whoever has
 // been in it longest starts each match. A public room (from /quick) has no leader:
@@ -15,6 +17,10 @@ import Sim from '../../js/sim.js';
 import Bots from '../../js/bots.js';
 import Cast from '../../js/cast.js';
 import Net from '../../js/net.js';
+import { rude } from './names.js';
+import { Stats, clean, device, country } from './stats.js';
+
+export { Stats };
 
 const DT = 1 / 60, STEP_MS = 1000 / 60;
 const SEATS = 4;
@@ -35,14 +41,59 @@ function allowed(request, env) {
   return String(env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean).indexOf(origin) >= 0;
 }
 
+// who a report is from, for rate limiting only: a scrambled form of the address, never stored
+async function source(request) {
+  const ip = request.headers.get('CF-Connecting-IP') || '';
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('overboard:' + ip));
+  return Array.from(new Uint8Array(hash).slice(0, 8), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+// lets a page on another allowed address (the GitHub one) call this one
+function cors(request, env, res) {
+  const out = new Response(res.body, res);
+  if (allowed(request, env)) {
+    out.headers.set('Access-Control-Allow-Origin', request.headers.get('Origin'));
+    out.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    out.headers.set('Vary', 'Origin');
+  }
+  return out;
+}
+const sameKey = (a, b) => { let diff = a.length ^ b.length; for (let i = 0; i < a.length && i < b.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i); return diff === 0; };
+
+async function api(request, env, url) {
+  const stats = env.STATS.get(env.STATS.idFromName('all'));
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
+  if (url.pathname === '/stat' && request.method === 'POST') {
+    if (!allowed(request, env)) return new Response('Not from here', { status: 403 });
+    let d = null;
+    try { d = JSON.parse((await request.text()).slice(0, 60000)); } catch (e) { return new Response('bad', { status: 400 }); }
+    if (!d || typeof d !== 'object') return new Response('bad', { status: 400 });
+    const player = { device: device(d.device), country: country(request.cf && request.cf.country), touch: !!d.touch };
+    const from = await source(request);
+    if (d.t === 'visit') return stats.fetch('https://stats/visit', { method: 'POST', body: JSON.stringify({ from: from, player: player }) });
+    // only solo matches come from a browser; the rooms report their own
+    const rec = d.t === 'match' ? clean(d.rec) : null;
+    if (!rec || rec.seats.filter((s) => s === 'person').length !== 1) return new Response('bad', { status: 400 });
+    return stats.fetch('https://stats/match', { method: 'POST', body: JSON.stringify({ from: from, kind: 'solo', players: [player], rec: rec }) });
+  }
+  if (url.pathname === '/admin/stats' || url.pathname === '/admin/export') {
+    const key = (request.headers.get('Authorization') || '').replace(/^Bearer /, '');
+    if (!env.STATS_KEY || !key || !sameKey(key, env.STATS_KEY)) return new Response('Not found', { status: 404 });
+    return stats.fetch('https://stats/' + (url.pathname === '/admin/stats' ? 'summary' : 'export'));
+  }
+  return new Response('Not found', { status: 404 });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/stat' || url.pathname.startsWith('/admin/')) return cors(request, env, await api(request, env, url));
     // anything that is not one of the game's files (those are served before this runs) or a room
     if (!/^\/(new|quick|join\/[A-Za-z0-9]{5})$/.test(url.pathname)) return new Response('Not found', { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
     if (!allowed(request, env)) return new Response('Not from here', { status: 403 });
-    const room = (code, how) => env.ROOMS.get(env.ROOMS.idFromName(code)).fetch('https://room/' + how + '/' + code, request);
+    // the room is told which country each player is in, for the statistics; it never sees their address
+    const where = country(request.cf && request.cf.country);
+    const room = (code, how) => env.ROOMS.get(env.ROOMS.idFromName(code)).fetch('https://room/' + how + '/' + code + '/' + where, request);
     if (url.pathname === '/new') {
       // a code nobody is using; a clash is rare, so a few tries is plenty
       for (let tries = 0; tries < 5; tries++) {
@@ -91,6 +142,7 @@ export class Desk {
 
 export class Room {
   constructor(ctx, env) {
+    this.ctx = ctx;
     this.env = env;
     this.open = false;   // public: found through quick play, and it starts on its own
     this.startAt = 0;
@@ -103,7 +155,7 @@ export class Room {
   }
 
   async fetch(request) {
-    const [, how, code] = new URL(request.url).pathname.split('/');
+    const [, how, code, where] = new URL(request.url).pathname.split('/');
     if (how === 'new' && this.members.length) return new Response('Taken', { status: 409 });
     const pair = new WebSocketPair();
     const ws = pair[1];
@@ -114,15 +166,15 @@ export class Room {
     else {
       if (!this.members.length) { this.open = how === 'quick'; this.startAt = Date.now() + GATHER * 1000; }
       this.code = code;
-      this.join(ws);
+      this.join(ws, country(where));
     }
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
   send(m, msg) { try { m.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); } catch (e) { /* closing; the heartbeat will notice */ } }
 
-  join(ws) {
-    const m = { ws: ws, name: 'Player ' + (this.members.length + 1), seat: -1, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
+  join(ws, where) {
+    const m = { ws: ws, country: where, device: '', touch: false, name: 'Player ' + (this.members.length + 1), seat: -1, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
     this.members.push(m);
     ws.addEventListener('message', (e) => this.hear(m, e.data));
     ws.addEventListener('close', () => this.drop(m));
@@ -144,6 +196,7 @@ export class Room {
     if (this.playing && m.seat >= 0 && this.state.players[m.seat].human) {
       this.state.players[m.seat].human = false;
       this.outbox.push({ type: 'left', id: m.seat });
+      if (this.rec) this.rec.left++;
     }
     this.report();
     if (!this.members.length) this.shut(); else this.tellLobby();
@@ -157,6 +210,7 @@ export class Room {
 
   // nobody left: stop everything, so the room goes back to sleep
   shut() {
+    if (this.playing) this.file(); // abandoned part-way: still worth knowing
     clearInterval(this.timer); clearInterval(this.beat);
     this.timer = 0; this.beat = 0; this.playing = false; this.state = null;
     for (const m of this.members.splice(0)) { try { m.ws.close(1000, 'closed'); } catch (e) { /* gone */ } }
@@ -193,7 +247,12 @@ export class Room {
     if (!d || typeof d !== 'object') return;
     m.seen = now;
     if (d.t === 'name') {
-      const name = Net.cleanName(d.name, 'Player ' + (this.members.indexOf(m) + 1));
+      const fallback = 'Player ' + (this.members.indexOf(m) + 1);
+      let name = Net.cleanName(d.name, fallback);
+      // strangers see this one
+      if (this.open && rude(name)) name = fallback;
+      if (device(d.id)) m.device = device(d.id);
+      m.touch = !!d.touch;
       m.active = now;
       if (name !== m.name) { m.name = name; this.tellLobby(); }
     } else if (d.t === 'i') {
@@ -221,6 +280,10 @@ export class Room {
     this.state = Sim.createMatch({ seed: seed, players: roster });
     this.matchN++; this.snapN = 0; this.sendN = 0; this.outbox = [];
     this.playing = true;
+    // the record of this match, for the statistics
+    this.rec = { seats: roster.map((p) => p.type || 'person'), rounds: [], winner: -1, left: 0 };
+    this.round = null;
+    this.crowd = this.members.map((m) => ({ device: m.device, country: m.country, touch: m.touch }));
     this.members.forEach((m, i) => {
       m.seat = i; m.mx = 0; m.my = 0; m.drop = false; m.dash = false;
       this.send(m, { t: 'start', m: this.matchN, roster: roster, seed: seed, you: i });
@@ -229,6 +292,28 @@ export class Room {
     this.last = Date.now(); this.acc = 0;
     clearInterval(this.timer);
     this.timer = setInterval(() => this.pump(), 8);
+  }
+
+  // what the statistics keep of each thing that happens (the same as the game keeps on a player's own device)
+  note(e) {
+    const t = Math.round(this.state.time * 10) / 10;
+    if (e.type === 'go') this.round = { secs: 0, winner: -1, falls: [], picks: [], stall: false };
+    else if (e.type === 'matchEnd') this.rec.winner = e.winner;
+    if (!this.round) return;
+    if (e.type === 'fall') this.round.falls.push([e.id, e.by, e.how, t]);
+    else if (e.type === 'pickup') this.round.picks.push([e.id, e.kind]);
+    else if (e.type === 'stall') this.round.stall = true;
+    else if (e.type === 'roundEnd') { this.round.secs = t; this.round.winner = e.winner; this.rec.rounds.push(this.round); this.round = null; }
+  }
+  // hand the finished (or abandoned) match to the statistics
+  file() {
+    const rec = this.rec;
+    this.rec = null;
+    if (!rec || !rec.rounds.length) return;
+    const write = this.env.STATS.get(this.env.STATS.idFromName('all')).fetch('https://stats/match', {
+      method: 'POST', body: JSON.stringify({ kind: this.open ? 'public' : 'private', players: this.crowd, rec: rec }),
+    }).catch(() => {});
+    this.ctx.waitUntil(write);
   }
 
   // run the match up to now, in whole steps
@@ -250,7 +335,7 @@ export class Room {
       return { mx: m.mx, my: m.my, dash: dash, wave: dash, drop: m.drop, cx: m.cx, cy: m.cy };
     });
     Sim.step(state, inputs, DT);
-    for (const e of state.events) this.outbox.push(e);
+    for (const e of state.events) { this.outbox.push(e); this.note(e); }
     const over = state.phase === 'matchEnd';
     // players get the match every other step, and at once when it ends
     if (++this.sendN % 2 === 0 || over) {
@@ -262,6 +347,7 @@ export class Room {
     if (over) {
       this.playing = false;
       clearInterval(this.timer); this.timer = 0;
+      this.file();
       this.idleSince = Date.now();
       this.startAt = Date.now() + GATHER * 1000;
       for (const m of this.members) m.seat = -1;

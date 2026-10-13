@@ -47,7 +47,7 @@ Plain scripts, loaded in this order by `index.html`:
 - `js/cast.js` — who the bots are: names, labels and colours.
 - `js/sound.js` — sound effects, made with Web Audio.
 - `js/net.js` — the room you share with friends. The host's browser runs the match; guests send their input and get the match back about 30 times a second, directly between browsers over WebRTC. PeerJS's public broker is only used to find each other.
-- `js/stats.js` — a record of matches played on this device, kept in the browser only. `dev/stats.html` shows it.
+- `js/stats.js` — a local record of matches played on this device. It also reports visits and finished solo matches to the server for shared play statistics. `dev/stats.html` shows the local record.
 - `js/draw.js` — everything on the canvas.
 - `js/hud.js` — the words around the raft and the start, end and pause screens.
 - `js/game.js` — keys, mouse and the loop.

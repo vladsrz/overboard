@@ -560,6 +560,7 @@
   G.resize();
   attract();
   requestAnimationFrame(frame);
+  Stats.visit();
   // opened from an invite link: straight into that room
   if (Net.codeFrom(location.hash)) openRoom(Net.codeFrom(location.hash));
 })();

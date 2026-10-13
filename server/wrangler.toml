@@ -26,6 +26,15 @@ new_sqlite_classes = ["Room"]
 tag = "v2"
 new_sqlite_classes = ["Desk"]
 
+# play statistics: one small database of matches and daily visitors
+[[durable_objects.bindings]]
+name = "STATS"
+class_name = "Stats"
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Stats"]
+
 [vars]
 # Pages allowed to connect, by the start of their address. Anything on your own
 # machine or home network is always allowed, for testing.

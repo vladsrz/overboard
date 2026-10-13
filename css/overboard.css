@@ -162,6 +162,7 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
+.fine small { display: inline-block; margin-top: 6px; font-size: 11px; opacity: 0.8; }
 /* the final score: a row each, most rounds first, with the same pips as the score bar */
 .results { display: grid; grid-template-columns: auto minmax(0, max-content) auto auto; gap: 12px 14px; max-width: 92vw; margin: 30px 0 0; padding: 0; list-style: none; text-align: left; }
 .results li { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; font-size: 18px; font-weight: 500; opacity: 0.8; }

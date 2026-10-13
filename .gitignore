@@ -2,3 +2,5 @@
 node_modules/
 .wrangler/
 server/site/
+.dev.vars
+server/.stats-key
