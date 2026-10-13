@@ -1,0 +1,16 @@
+{
+  "id": "./",
+  "name": "Overboard",
+  "short_name": "Overboard",
+  "description": "Raft sumo. Knock the others off, then wreck the raft from the water.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12504c",
+  "theme_color": "#12504c",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

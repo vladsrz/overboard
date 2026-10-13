@@ -7,6 +7,10 @@
   const C = Sim.C, DT = 1 / 60;
   const PAL = G.PAL, fx = G.fx, ui = G.ui;
   const $ = (id) => document.getElementById(id);
+  const standalone = matchMedia('(display-mode: standalone)');
+  const updateDisplay = () => document.body.classList.toggle('standalone', standalone.matches || navigator.standalone === true);
+  updateDisplay();
+  standalone.addEventListener('change', updateDisplay);
 
   // what each pickup is called, and the one-line explanation shown the first time you grab it
   G.PICKUP = {
@@ -322,7 +326,9 @@
   $('act').addEventListener('pointerdown', (e) => { e.preventDefault(); if (inMatch() && !paused) spaceQueued = true; $('act').classList.add('down'); });
   for (const up of ['pointerup', 'pointercancel', 'pointerleave']) $('act').addEventListener(up, () => $('act').classList.remove('down'));
   $('pause').addEventListener('click', () => { Sfx.play('click'); setPaused(true); });
-  window.addEventListener('resize', G.resize);
+  // Rotation changes the thumb's coordinates. Release the old hold before laying
+  // out the new view so a finger from the previous orientation cannot keep moving.
+  window.addEventListener('resize', () => { clearInput(); G.resize(); });
   $('start').addEventListener('click', startMatch);
   $('resume').addEventListener('click', () => { Sfx.play('click'); setPaused(false); });
   $('restart').addEventListener('click', startMatch);

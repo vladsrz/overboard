@@ -53,6 +53,14 @@ Bots cannot see an Unseen player, but they guess (`trackOrGuess`): a bot that wa
 ## Icon and link preview
 `favicon.svg` is the tab icon. `og.png` (1200 x 630) is what a pasted link shows; its source is `dev/og.html`. To redo it, serve the folder, screenshot that page at 1200 x 630 with headless Chrome and crop to size.
 
+## Phone layout and Home Screen app
+
+Portrait and landscape are supported. CSS uses safe-area insets for the score, banners, controls and covers; `draw.js` reads the body's resolved safe-area padding to fit and centre the raft in the same area. Landscape reserves thumb lanes on each side. Keep those lane widths in sync with `.stick-zone`. Short screens use a compact, scrollable pause menu. Resizing clears held input before redrawing, so rotation cannot carry a stale thumb hold into the new orientation; retain the three existing lost-touch recovery paths.
+
+`manifest.webmanifest` uses `display: standalone` and `orientation: any`, with relative start URL and scope for GitHub Pages. The Apple web-app metadata in `index.html` supports Home Screen launch. This hides Safari's toolbar when opened from the Home Screen icon; system status and home indicators are controlled by iOS. The pause menu gives installation instructions only on touch devices outside standalone mode. No service worker is used, so this is not offline support.
+
+`apple-touch-icon.png` (180), `icon-192.png` and `icon-512.png` are browser renders of `favicon.svg` at their named sizes, with the water colour as the full square background. Re-render all three after an icon change.
+
 ## Before calling a change done
 1. `node test/sim.test.js`. Read the "by character" line after touching a brain: each character plays 32 matches, so about 8 wins is even. The numbers are noisy at that size (the same brains have ranged from 3 to 13 between runs), so only react to one that is far out.
 2. Open `index.html` and play the part you changed. A browser caches the scripts hard when served from a local server, so reload without cache.

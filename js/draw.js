@@ -42,12 +42,18 @@
     // raft (on a wide one the banner sits in the water beside it), then the key strip.
     // On touch there is no key strip. Held upright, the space under the raft is for
     // the stick and the button; held sideways they sit beside it.
+    const safe = getComputedStyle(document.body);
+    const inset = (side) => parseFloat(safe['padding' + side]) || 0;
+    const left = inset('Left'), right = inset('Right'), above = inset('Top'), below = inset('Bottom');
+    const width = view.w - left - right;
     const upright = view.h > view.w;
     // (a phone held sideways has no height to spare: there the banner sits over the stick's side instead)
-    const top = 56 + (NARROW.matches && !(G.touch && !upright) ? 74 : 0);
-    const bottom = !G.touch ? 56 : upright ? 240 : 12;
-    view.scale = Math.max(0.2, Math.min(view.w / 700, (view.h - top - bottom) / 680));
-    view.ox = view.w / 2; view.oy = top + (view.h - top - bottom) / 2;
+    const top = above + 56 + (NARROW.matches && !(G.touch && !upright) ? 74 : 0);
+    const bottom = below + (!G.touch ? 56 : upright ? 240 : 12);
+    // Leave a thumb lane on each side in landscape, including on smaller phones.
+    const raftWidth = G.touch && !upright ? width - 2 * Math.min(view.w * 0.26, 190) : width;
+    view.scale = Math.max(0.1, Math.min(raftWidth / 700, (view.h - top - bottom) / 680));
+    view.ox = left + width / 2; view.oy = top + (view.h - top - bottom) / 2;
   };
 
   function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0, r), 0, Math.PI * 2); }

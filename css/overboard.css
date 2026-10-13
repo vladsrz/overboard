@@ -15,6 +15,7 @@ html, body, body * { -webkit-user-select: none; user-select: none; -webkit-touch
 html, body { height: 100%; }
 body {
   margin: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overflow: hidden;
   background: var(--water);
   color: var(--plank);
@@ -43,7 +44,8 @@ kbd {
 /* score */
 .top {
   position: fixed; top: 0; left: 0; right: 0;
-  height: 56px; padding: 0 20px;
+  height: calc(56px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) calc(20px + env(safe-area-inset-right)) 0 calc(20px + env(safe-area-inset-left));
   display: flex; align-items: center; justify-content: space-between; gap: 20px;
   pointer-events: none;
 }
@@ -65,7 +67,7 @@ kbd {
 
 /* round calls */
 .banner {
-  position: fixed; left: 20px; top: 76px;
+  position: fixed; left: calc(20px + env(safe-area-inset-left)); top: calc(76px + env(safe-area-inset-top));
   max-width: min(280px, calc(50vw - 330px));
   padding: 12px 18px 13px;
   background: var(--plank); color: var(--ink);
@@ -75,7 +77,7 @@ kbd {
 /* no spare water beside the raft: it gets its own lane under the score bar, and the
    raft is drawn lower to make room (the same query is in draw.js) */
 @media (max-width: 1080px), (max-aspect-ratio: 11/10) {
-  .banner { left: 50%; top: 58px; transform: translateX(-50%); width: max-content; max-width: 94vw; padding: 8px 16px 9px; text-align: center; }
+  .banner { left: 50%; top: calc(58px + env(safe-area-inset-top)); transform: translateX(-50%); width: max-content; max-width: 94vw; padding: 8px 16px 9px; text-align: center; }
   .banner strong { font-size: 17px; }
   .banner span { margin-top: 1px; font-size: 13px; }
 }
@@ -137,7 +139,7 @@ kbd {
 .cover {
   position: fixed; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 24px; text-align: center;
+  padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left)); text-align: center;
   background: rgba(18, 80, 76, 0.88);
 }
 .cover h1 {
@@ -160,11 +162,18 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
+.browser-help { display: none; width: 300px; max-width: 86vw; font-size: 12px; }
+body.touch:not(.standalone) .browser-help { display: block; }
+.browser-help summary { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.browser-help p { margin: 10px 0 0; }
 /* ── touch: a phone or tablet ── */
 .touch-only { display: none !important; }
 body.touch .touch-only { display: inline-flex !important; }
 body.touch .no-touch { display: none !important; }
 body.touch { touch-action: none; overscroll-behavior: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+/* Installation instructions can extend below a short landscape screen. Allow
+   scrolling while paused; the play screen continues to suppress phone gestures. */
+body.touch:has(.menu:not([hidden])), body.touch .menu { touch-action: pan-y; }
 /* the key strip is for keyboards; on touch the stick and the button say what they do */
 body.touch .keys { display: none; }
 
@@ -184,7 +193,7 @@ body.touch .keys { display: none; }
   border-radius: 50%; background: var(--plank);
 }
 .stick-hint {
-  position: absolute; left: 26px; bottom: calc(70px + env(safe-area-inset-bottom));
+  position: absolute; left: calc(26px + env(safe-area-inset-left)); bottom: calc(70px + env(safe-area-inset-bottom));
   padding: 10px 14px; border: 1.5px dashed var(--plank); border-radius: 999px;
   font-size: 13px; opacity: 0.6;
 }
@@ -200,7 +209,7 @@ body.touch .keys { display: none; }
 .act.ready { background: var(--plank); color: var(--ink); }
 .act.wait { opacity: 0.45; }
 .pause {
-  position: absolute; right: calc(10px + env(safe-area-inset-right)); top: 60px;
+  position: absolute; right: calc(10px + env(safe-area-inset-right)); top: calc(60px + env(safe-area-inset-top));
   width: 44px; height: 44px; border-radius: 6px;
   border: 1.5px solid var(--plank); background: transparent;
   display: flex; align-items: center; justify-content: center; gap: 5px;
@@ -209,13 +218,29 @@ body.touch .keys { display: none; }
 .pause i { width: 5px; height: 16px; background: var(--plank); border-radius: 1px; }
 /* held sideways there is no room under the raft: the stick takes the left side, the button the right */
 @media (orientation: landscape) {
-  .stick-zone { width: 32%; height: calc(100% - 56px); }
+  .stick-zone { width: calc(min(26vw, 190px) + env(safe-area-inset-left)); height: calc(100% - 56px - env(safe-area-inset-top)); }
+  .stick-hint { left: calc(12px + env(safe-area-inset-left)); max-width: min(23vw, 170px); border-radius: 12px; }
   .act { bottom: calc(24px + env(safe-area-inset-bottom)); width: 92px; height: 92px; }
 }
 /* the banner shares its strip with the pause button */
 body.touch .banner { max-width: calc(100vw - 120px); }
 @media (orientation: landscape) {
-  body.touch .banner { left: calc(12px + env(safe-area-inset-left)); top: 60px; transform: none; width: auto; max-width: 28vw; text-align: left; }
+  body.touch .banner { left: calc(12px + env(safe-area-inset-left)); top: calc(60px + env(safe-area-inset-top)); transform: none; width: auto; max-width: min(23vw, 170px); text-align: left; }
+  body.touch .crew .name, body.touch .crew .where { display: none; }
+}
+
+/* Short phone screens must fit both the start screen and the entire pause menu. */
+@media (max-height: 520px) {
+  .cover { padding-top: calc(12px + env(safe-area-inset-top)); padding-bottom: calc(12px + env(safe-area-inset-bottom)); overflow-y: auto; }
+  .cover h1 { font-size: clamp(40px, 12vh, 72px); }
+  .lede { margin-top: 12px; font-size: 16px; }
+  .cover button { margin-top: 18px; }
+  .how { margin-top: 14px; font-size: 13px; }
+  .fine { margin-top: 10px; }
+  .cover.menu { justify-content: flex-start; gap: 6px; }
+  .cover.menu h2 { font-size: 32px; margin: 0 0 4px; }
+  .cover.menu button { margin-top: 0; flex-shrink: 0; padding: 10px 24px; }
+  .cover.menu button.icon { width: 40px; height: 40px; padding: 0; margin-top: 0; }
 }
 
 /* the labels next to each name need the room more than the wordmark does */
@@ -225,7 +250,7 @@ body.touch .banner { max-width: calc(100vw - 120px); }
 }
 @media (max-width: 760px) {
   .mark { display: none; }
-  .top { padding: 0 12px; }
+  .top { padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); }
   .crew { gap: 10px; width: 100%; justify-content: space-between; }
   .crew li { gap: 6px; }
   .crew .where { display: none; }

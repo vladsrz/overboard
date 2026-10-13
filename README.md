@@ -2,7 +2,7 @@
 
 Bumper sumo on a raft. Knock the others off. If you fall in, you are not out: you get to wreck the raft for whoever is left, by pulling planks, tipping it and sending waves.
 
-**Play it:** https://vladsrz.github.io/overboard/ (on a computer, or on a phone held upright)
+**Play it:** https://vladsrz.github.io/overboard/ (on a computer, or a phone in portrait or landscape)
 
 You against three bots, drawn each match from a cast of twelve with their own habits. First to win 3 rounds. Online multiplayer is the plan and is not built yet.
 
@@ -15,6 +15,8 @@ You against three bots, drawn each match from a cast of twelve with their own ha
 | **Any time** | `Esc` pause · `M` mute |
 
 On a phone or tablet: drag on the left to move (in the water, to tip the raft), the round button on the right dashes (in the water, sends a wave toward your last tap), tap a plank to pull it, and the button in the corner pauses.
+
+For play without Safari’s toolbar on iPhone, open the game in Safari, use **Share → Add to Home Screen**, and leave **Open as Web App** on if shown. Launch Overboard from its Home Screen icon. Turn the phone sideways for landscape; turn off Portrait Orientation Lock if it stays upright. On Android, use **Install app** or **Add to Home screen** in the browser menu and launch that icon. Both orientations are supported. This removes browser bars; the phone still controls its system indicators. A connection is required to load the game.
 
 A few things worth knowing:
 
@@ -47,3 +49,5 @@ Plain scripts, loaded in this order by `index.html`:
 - `js/game.js` — keys, mouse and the loop.
 
 `CLAUDE.md` holds the design rules and the reasoning behind the numbers.
+
+`manifest.webmanifest` configures the Home Screen app. Its relative start URL and scope keep it inside the game’s GitHub Pages folder. The PNG app icons are rendered from `favicon.svg`; no service worker or offline cache is installed.
