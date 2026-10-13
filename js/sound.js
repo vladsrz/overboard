@@ -4,7 +4,11 @@
   'use strict';
   // two buses: game sounds, which go silent the moment the game pauses, and menu clicks, which do not
   let ac = null, master = null, game = null, ui = null, out = null, hiss = null, muted = false, held = false;
-  const last = {};
+  // lvl: how loud the sound being started is, 1 for your own and less for someone else's across the raft
+  let lvl = 1;
+  const last = {}, lastLvl = {};
+  // heard whether or not the match is paused: menu clicks and what goes on in the room
+  const UI = { click: 1, join: 1, leave: 1, soon: 1 };
   // every game sound still playing or queued, so pausing can stop them outright
   const ringing = new Set();
   function track(node) { if (out === game) { ringing.add(node); node.onended = () => ringing.delete(node); } }
@@ -35,7 +39,7 @@
     osc.frequency.setValueAtTime(freq, t);
     if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + dur);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(o.gain || 0.2, t + 0.008);
+    g.gain.exponentialRampToValueAtTime((o.gain || 0.2) * lvl, t + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     osc.connect(g).connect(out);
     track(osc);
@@ -51,7 +55,7 @@
     f.frequency.setValueAtTime(o.from || 1200, t);
     if (o.to) f.frequency.exponentialRampToValueAtTime(o.to, t + dur);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(o.gain || 0.2, t + (o.attack || 0.01));
+    g.gain.exponentialRampToValueAtTime((o.gain || 0.2) * lvl, t + (o.attack || 0.01));
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(f).connect(g).connect(out);
     track(src);
@@ -59,23 +63,34 @@
   }
 
   const tune = (notes, step, o) => notes.forEach((n, i) => tone(n, step * 1.6, Object.assign({ delay: i * step }, o)));
+  // the sounds heard most (a bump, a plank) never land on quite the same note twice
+  const wob = (f, by) => f * (1 + (Math.random() * 2 - 1) * by);
 
   const sounds = {
-    tick: () => tone(392, 0.11, { type: 'square', gain: 0.1 }),
-    go: () => tone(784, 0.3, { type: 'square', gain: 0.12 }),
+    tick: () => tone(392, 0.11, { type: 'square', gain: 0.13 }),
+    go: () => tone(784, 0.3, { type: 'square', gain: 0.16 }),
     bump: (power) => {
       const g = Math.max(0.2, Math.min(1, (power || 0) / 320));
-      tone(150, 0.13, { gain: 0.5 * g, to: 55 });
+      // a harder hit is lower as well as louder
+      const f = wob(190 - 60 * g, 0.07);
+      tone(f, 0.13, { gain: 0.5 * g, to: f * 0.37 });
       noise(0.06, { gain: 0.22 * g, from: 2000, to: 500 });
     },
-    dash: () => noise(0.17, { gain: 0.16, from: 500, to: 2800, type: 'bandpass' }),
-    slamDash: () => { noise(0.3, { gain: 0.26, from: 300, to: 3400, type: 'bandpass' }); tone(90, 0.3, { type: 'sawtooth', gain: 0.12, to: 260 }); },
+    dash: () => { noise(0.17, { gain: 0.8, from: 500, to: 2800, type: 'bandpass' }); tone(230, 0.12, { type: 'triangle', gain: 0.16, to: 560 }); },
+    slamDash: () => { noise(0.3, { gain: 0.9, from: 300, to: 3400, type: 'bandpass' }); tone(90, 0.3, { type: 'sawtooth', gain: 0.24, to: 260 }); },
     slamReady: () => tune([392, 523, 784], 0.06, { type: 'square', gain: 0.1 }),
     waveReady: () => { noise(0.35, { gain: 0.14, from: 500, to: 1500, attack: 0.15 }); tone(294, 0.2, { type: 'triangle', gain: 0.1, to: 392 }); },
     slam: () => { tone(95, 0.6, { gain: 0.8, to: 28 }); noise(0.5, { gain: 0.55, from: 4200, to: 140 }); tone(300, 0.18, { type: 'square', gain: 0.1, to: 80 }); },
     thorns: () => { tone(1400, 0.07, { type: 'square', gain: 0.12, to: 500 }); noise(0.09, { gain: 0.25, from: 5000, to: 2000, type: 'highpass' }); },
-    fall: () => tone(720, 0.42, { type: 'triangle', gain: 0.16, to: 140 }),
-    creak: () => { tone(70, 0.5, { type: 'sawtooth', gain: 0.1, to: 110 }); tone(64, 0.5, { type: 'sawtooth', gain: 0.08, to: 96, delay: 0.05 }); },
+    fall: () => tone(720, 0.42, { type: 'triangle', gain: 0.2, to: 140 }),
+    // Your own fall, your own knock-off and the plank under your own feet each have
+    // a sound nobody else's has, so the ones that matter to you stand out.
+    fallMe: () => { tone(520, 0.5, { type: 'sawtooth', gain: 0.2, to: 70 }); tone(780, 0.5, { type: 'triangle', gain: 0.18, to: 105 }); },
+    ko: () => { noise(0.05, { gain: 0.22, from: 6000, to: 2500, type: 'highpass' }); tune([1047, 1568], 0.07, { type: 'square', gain: 0.13 }); },
+    warnMe: () => { tone(880, 0.07, { type: 'square', gain: 0.18 }); tone(660, 0.1, { type: 'square', gain: 0.18, delay: 0.08 }); },
+    // a press that can do nothing yet: still recharging, or a dash with no direction
+    nope: () => tone(210, 0.09, { type: 'square', gain: 0.12, to: 150 }),
+    creak: () => { tone(80, 0.5, { type: 'sawtooth', gain: 0.28, to: 125 }); tone(73, 0.5, { type: 'sawtooth', gain: 0.22, to: 110, delay: 0.05 }); },
     shrink: () => tune([196, 147, 196, 147], 0.16, { type: 'square', gain: 0.1 }),
     spawn: () => tone(880, 0.09, { gain: 0.1, to: 1320 }),
     big: () => tone(110, 0.3, { type: 'triangle', gain: 0.3, to: 330 }),
@@ -85,26 +100,36 @@
     armour: () => tune([1200, 900, 1500], 0.045, { type: 'square', gain: 0.09 }),
     wearOff: () => tune([520, 390], 0.08, { type: 'triangle', gain: 0.12 }),
     click: () => tone(520, 0.05, { type: 'triangle', gain: 0.12 }),
-    warn: () => tone(620, 0.05, { type: 'triangle', gain: 0.1 }),
-    gone: () => tone(120, 0.14, { type: 'triangle', gain: 0.28, to: 48 }),
+    warn: () => tone(wob(620, 0.08), 0.05, { type: 'triangle', gain: 0.16 }),
+    // the knock on top is what a phone's speaker can play; the thud under it is too low for one
+    gone: () => { const f = wob(120, 0.1); tone(f, 0.14, { type: 'triangle', gain: 0.28, to: f * 0.4 }); noise(0.05, { gain: 0.14, from: 1100, to: 350 }); },
     splash: () => { noise(0.5, { gain: 0.4, from: 2600, to: 280 }); tone(210, 0.28, { gain: 0.18, to: 60 }); },
-    wave: () => noise(1.3, { gain: 0.3, from: 260, to: 1500, attack: 0.5 }),
-    washed: () => noise(0.22, { gain: 0.25, from: 1600, to: 500 }),
+    wave: () => noise(1.3, { gain: 0.9, from: 260, to: 1500, attack: 0.5 }),
+    washed: () => noise(0.22, { gain: 0.5, from: 1600, to: 500 }),
     bomb: () => { tone(130, 0.45, { gain: 0.7, to: 32 }); noise(0.4, { gain: 0.5, from: 3200, to: 180 }); },
+    // something coming down from a long way up, not something going off
+    meteor: () => { tone(1500, 0.6, { type: 'sawtooth', gain: 0.3, to: 170 }); tone(1130, 0.6, { type: 'sawtooth', gain: 0.22, to: 128, delay: 0.09 }); noise(0.75, { gain: 0.9, from: 5200, to: 260, attack: 0.3 }); },
     roundWon: () => tune([523, 659, 784], 0.1, { type: 'triangle', gain: 0.18 }),
     roundLost: () => tune([330, 262], 0.14, { type: 'triangle', gain: 0.16 }),
     matchPoint: () => tune([392, 392, 587], 0.13, { type: 'square', gain: 0.1 }),
     matchWon: () => tune([523, 659, 784, 1047, 1319], 0.12, { type: 'triangle', gain: 0.2 }),
     matchLost: () => tune([392, 330, 262, 196], 0.18, { type: 'triangle', gain: 0.18 }),
+    // the room: someone came in, someone left, a public match is about to start
+    join: () => tune([587, 880], 0.09, { type: 'triangle', gain: 0.16 }),
+    leave: () => tune([440, 294], 0.12, { type: 'triangle', gain: 0.14 }),
+    playerLeft: () => tune([440, 294], 0.12, { type: 'triangle', gain: 0.14 }),
+    soon: () => tone(392, 0.08, { type: 'square', gain: 0.09 }),
   };
 
-  // gapMs stops a pile-up from firing the same sound every frame
-  function play(name, arg, gapMs) {
+  // gapMs stops a pile-up from firing the same sound every frame. A louder one
+  // still gets through, so your own hit is never dropped for a bot's a moment before.
+  function play(name, arg, gapMs, level) {
     if (!ac || muted || !sounds[name]) return;
-    const now = ac.currentTime;
-    if (gapMs && last[name] !== undefined && now - last[name] < gapMs / 1000) return;
-    last[name] = now;
-    out = name === 'click' ? ui : game;
+    const now = ac.currentTime, loud = level || 1;
+    if (gapMs && last[name] !== undefined && now - last[name] < gapMs / 1000 && loud <= lastLvl[name]) return;
+    last[name] = now; lastLvl[name] = loud;
+    lvl = loud;
+    out = UI[name] ? ui : game;
     sounds[name](arg);
   }
 

@@ -338,7 +338,7 @@
         hit(state, a, b.id, pricksA ? 'thorns' : 'bump', toA); hit(state, b, a.id, pricksB ? 'thorns' : 'bump', toB);
         if (live && a.slam && a.dashT > 0) slam(state, a);
         if (live && b.slam && b.dashT > 0) slam(state, b);
-        state.events.push({ type: 'bump', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, power: Math.max(toA, toB), thorns: pricksA || pricksB });
+        state.events.push({ type: 'bump', a: a.id, b: b.id, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, power: Math.max(toA, toB), thorns: pricksA || pricksB });
       }
     }
 

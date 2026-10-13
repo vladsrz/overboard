@@ -21,7 +21,7 @@
     hide: { name: 'Unseen', tip: 'The others cannot see you.', sound: 'hide' },
     thorns: { name: 'Thorns', tip: 'Anyone you touch gets thrown back.', sound: 'armour' },
     charge: { name: 'Charge', tip: 'Your slam is ready.', sound: 'charge' },
-    meteor: { name: 'Meteors', tip: 'Planks are coming out all over the raft, but not under you.', sound: 'bomb' },
+    meteor: { name: 'Meteors', tip: 'Planks are coming out all over the raft, but not under you.', sound: 'meteor' },
   };
   // The start screen only says how to move. Everything else is explained once,
   // the first time it happens to you.
@@ -47,8 +47,10 @@
   // what a player is wearing right now: [time left, full time, name]
   G.worn = (p) => [[p.hideT, C.HIDE_T, 'Unseen'], [p.thornT, C.THORN_T, 'Thorns'], [p.bigT, C.BIG_T, 'Big'], [p.powerT, C.POWER_T, 'Power']].filter((w) => w[0] > 0);
   // game sounds only play in a real match, not behind the start screen
-  G.sfx = (name, arg, gap) => { if (G.mode === 'match') Sfx.play(name, arg, gap); };
+  G.sfx = (name, arg, gap, level) => { if (G.mode === 'match') Sfx.play(name, arg, gap, level); };
   const sfx = G.sfx;
+  // how loud something is when you had no part in it: two others bumping, someone else's dash or pickup
+  const FAR = 0.5;
 
   const newSeed = () => (Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0;
   function newMatch(roster, me, seed) {
@@ -131,7 +133,7 @@
     if (me.state === 'ghost') { me.cx = mine.cx; me.cy = mine.cy; }
     const n = state.players.length;
     const seat = (v) => v === undefined || v === -1 || (Number.isInteger(v) && v >= 0 && v < n);
-    react(got.events.filter((e) => e && typeof e.type === 'string' && seat(e.id) && seat(e.by) && seat(e.winner) && (e.kind === undefined || G.PICKUP[e.kind])));
+    react(got.events.filter((e) => e && typeof e.type === 'string' && seat(e.id) && seat(e.by) && seat(e.winner) && seat(e.a) && seat(e.b) && (e.kind === undefined || G.PICKUP[e.kind])));
   }
 
   function react(events) {
@@ -144,13 +146,20 @@
           if (e.power < 25) break;
           fx.ring(e.x, e.y, 8, 16 + Math.min(34, e.power / 14), 0.22, PAL.WATER, 3, true);
           if (e.power > 260) fx.shake(Math.min(0.2, e.power / 3000));
-          sfx(e.thorns ? 'thorns' : 'bump', e.power, 60);
+          // (a server from before hits said who was in them leaves a and b out: those play at full)
+          sfx(e.thorns ? 'thorns' : 'bump', e.power, 60, e.a === undefined || e.a === G.me || e.b === G.me ? 1 : FAR);
           break;
-        case 'dash': sfx(e.slam ? 'slamDash' : 'dash', 0, 60); break;
+        case 'dash': sfx(e.slam ? 'slamDash' : 'dash', 0, 60, e.id === G.me ? 1 : FAR); break;
         case 'nodash': if (e.id === G.me) teach('nodash', 'Dash needs a direction', G.touch ? 'Drag the stick, then press Dash.' : 'Hold a movement key, then press Space.'); break;
         case 'spawn': fx.ring(e.x, e.y, 4, 22, 0.3, PAL.PLANK, 3, true); sfx('spawn', 0, 80); break;
         case 'stall': if (match) ui.banner('The raft is breaking up', 'Nobody has gone in for a while.', 2.4); sfx('shrink'); break;
-        case 'warn': sfx('warn', 0, 40); break;
+        case 'warn': {
+          // the plank going from under your own feet is the one to hear
+          const me = G.human();
+          const mine = me && me.state === 'alive' && Math.hypot(Sim.tileX(e.tile) - me.x, Sim.tileY(e.tile) - me.y) < C.TILE * 0.8;
+          if (mine) sfx('warnMe', 0, 200); else sfx('warn', 0, 40);
+          break;
+        }
         case 'gone': sfx('gone', 0, 50); break;
         case 'wave': sfx('wave'); break;
         case 'tilt': sfx('creak', 0, 300); break;
@@ -165,7 +174,7 @@
             if (match) ui.banner('Meteor shower', e.id === G.me ? 'You set it off. Keep moving.' : state.players[e.id].name + ' set it off. Keep moving.', 2.6);
           }
           else fx.ring(e.x, e.y, 14, 34, 0.3, G.colors[e.id].fill, 4, true);
-          sfx(kind.sound);
+          sfx(kind.sound, 0, 0, e.id === G.me || e.kind === 'bomb' || e.kind === 'meteor' ? 1 : FAR);
           if (e.id === G.me && e.kind !== 'meteor') teach(e.kind, kind.name, kind.tip);
           break;
         }
@@ -183,7 +192,10 @@
             teach('water', 'In the water', 'Tap a plank to pull it. The stick tips the raft. Wave pushes toward your last tap.');
           }
           break;
-        case 'fall': if (e.id === G.me) myFall = e; sfx('fall', 0, 80); break;
+        case 'fall':
+          if (e.id === G.me) { myFall = e; sfx('fallMe'); }
+          else { sfx('fall', 0, 80); if (e.by === G.me) sfx('ko'); }
+          break;
         case 'go': ui.go(); sfx('go'); break;
         case 'round': {
           ui.newRound();
@@ -204,17 +216,18 @@
           clearInput();
           const w = e.winner < 0 ? null : state.players[e.winner];
           ui.endRound(!w ? 'Nobody takes round ' + e.round : w.id === G.me ? 'Round ' + e.round + ' is yours' : w.name + ' takes round ' + e.round, C.ROUND_END_T);
+          // the round that decides the match gets the match's tune, the moment it is decided
           if (state.matchWinner < 0) sfx(w && w.id === G.me ? 'roundWon' : 'roundLost');
+          else sfx(state.matchWinner === G.me ? 'matchWon' : 'matchLost');
           break;
         }
         case 'matchEnd':
           if (!match) { attract(); return; }
           if (e.winner < 0) break;
-          sfx(e.winner === G.me ? 'matchWon' : 'matchLost');
           ui.showEnd(state.players[e.winner]);
           break;
         // someone playing with you closed the game: their disc plays on as a bot
-        case 'left': if (match) ui.banner(state.players[e.id].name + ' left', 'A bot has their seat.', 2.4); break;
+        case 'left': if (match) ui.banner(state.players[e.id].name + ' left', 'A bot has their seat.', 2.4); sfx('playerLeft'); break;
       }
     }
     if (myFall && match && state.phase === 'play') {
@@ -240,6 +253,34 @@
       if (me.state === 'ghost' && me.waveCd <= 0 && was.wave > 0) sfx('waveReady');
     }
     was.ult = me.ult; was.worn = me.state === 'alive' ? G.worn(me).length : 0; was.wave = me.waveCd;
+  }
+
+  // ── presses that can do nothing yet ──
+  //
+  // A press is never swallowed silently. One that cannot do anything right now (the
+  // dash, wave, tip or plank is still recharging, or a dash has no direction) gets
+  // a short low note, judged from the match as this machine last saw it.
+  const nope = () => sfx('nope', 0, 120);
+  function pressAct() {
+    spaceQueued = true;
+    const me = G.human();
+    if (!me || G.state.phase !== 'play') return;
+    const inp = humanInput();
+    if (me.state === 'alive' ? me.dashCd > 0 || Math.hypot(inp.mx, inp.my) <= 0.01 : me.state === 'ghost' && me.waveCd > 0) nope();
+  }
+  // asking for a tip that is still recharging also lights its bar up
+  function askTip() {
+    const me = G.human();
+    if (!me || me.state !== 'ghost' || me.tiltCd <= 0) return;
+    if (G.state.tiltBy !== me.id) G.tipNagUntil = performance.now() + 350;
+    if (G.state.phase === 'play') nope();
+  }
+  // a click on a plank more than the 0.3s a click is kept for (clickBuf) before the next pull is ready
+  function askPlank() {
+    const me = G.human();
+    if (!inMatch() || paused || !me || me.state !== 'ghost' || G.state.phase !== 'play' || me.dropCd <= 0.3) return;
+    const i = Sim.tileIndexAt((mouse.x - G.view.ox) / G.view.scale, (mouse.y - G.view.oy) / G.view.scale);
+    if (i >= 0 && G.state.tiles[i] === Sim.SOLID) nope();
   }
 
   // ── starting, pausing, leaving ──
@@ -290,6 +331,7 @@
     if (guide.open || (Net.role && !Net.lead())) return;
     if (G.touch && !document.body.classList.contains('standalone') && !installOffered) {
       installOffered = true;
+      Sfx.unlock(); Sfx.play('click');
       const apple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       guide.classList.toggle('apple', apple);
       guide.showModal();
@@ -331,10 +373,21 @@
   // that one; quick puts you in a public room with whoever else is looking
   function openRoom(code, quick) {
     Sfx.unlock();
+    crowd = -1; waitWas = -1;
     if (Net.usesServer()) Net.connect(code, myName, quick); else if (code) Net.join(code, myName); else Net.host(myName);
     ui.showLobby();
   }
-  Net.on.lobby = () => ui.lobby();
+  // Someone coming into the room or leaving it is heard, and so are the last three
+  // seconds before a public room starts. Not during a match: a leaver there has a
+  // banner and a sound of their own, and a newcomer is waiting for the next one.
+  let crowd = -1, waitWas = -1;
+  Net.on.lobby = () => {
+    const n = Net.ready ? Net.members.length : -1, playing = G.mode === 'match' && !ui.coverOpen();
+    if (!playing && crowd > 0 && n > 0 && n !== crowd) Sfx.play(n > crowd ? 'join' : 'leave');
+    if (!playing && Net.open && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
+    crowd = n; waitWas = Net.wait;
+    ui.lobby();
+  };
   Net.on.closed = (why) => quitToStart(why);
   // the host started a match and this machine has a seat in it
   Net.on.start = (list, seed, you) => {
@@ -396,11 +449,8 @@
     }
     if (/^(Key[WASD]|Arrow|Space)/.test(e.code)) setTouch(false);
     keys[e.code] = true;
-    if (!e.repeat && /^(Key[WASD]|Arrow)/.test(e.code)) {
-      const me = G.human();
-      if (me.state === 'ghost' && me.tiltCd > 0 && G.state.tiltBy !== me.id) G.tipNagUntil = performance.now() + 350;
-    }
-    if (e.code === 'Space') { if (!e.repeat) spaceQueued = true; e.preventDefault(); }
+    if (!e.repeat && /^(Key[WASD]|Arrow)/.test(e.code)) askTip();
+    if (e.code === 'Space') { if (!e.repeat) pressAct(); e.preventDefault(); }
     if (e.code.startsWith('Arrow')) e.preventDefault();
   });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -409,7 +459,7 @@
   // hovering; a finger only moves it by touching the raft, never from the stick.
   window.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { mouse.x = e.clientX; mouse.y = e.clientY; } });
   // a click or tap shorter than one tick, or a hair early, still pulls the plank
-  G.canvas.addEventListener('pointerdown', (e) => { if (e.button === 0) { mouse.x = e.clientX; mouse.y = e.clientY; mouse.down = true; clickBuf = 0.3; } });
+  G.canvas.addEventListener('pointerdown', (e) => { if (e.button === 0) { mouse.x = e.clientX; mouse.y = e.clientY; mouse.down = true; clickBuf = 0.3; askPlank(); } });
   G.canvas.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse' && mouse.down) { mouse.x = e.clientX; mouse.y = e.clientY; } });
   window.addEventListener('pointerup', () => { mouse.down = false; });
   window.addEventListener('pointercancel', () => { mouse.down = false; });
@@ -431,7 +481,10 @@
     let dx = (p.clientX - stick.ox) / REACH, dy = (p.clientY - stick.oy) / REACH;
     const m = Math.hypot(dx, dy);
     if (m > 1) { dx /= m; dy /= m; }
+    // pushed over from rest: the same as pressing a direction key
+    const fresh = Math.hypot(stick.x, stick.y) <= 0.25 && Math.hypot(dx, dy) > 0.25;
     stick.x = dx; stick.y = dy;
+    if (fresh && inMatch() && !paused) askTip();
     stick.lx = p.clientX; stick.ly = p.clientY; stick.seen = performance.now();
     $('knob').style.transform = 'translate(' + dx * REACH + 'px,' + dy * REACH + 'px)';
   }
@@ -477,7 +530,7 @@
   $('act').addEventListener('pointerdown', (e) => {
     e.preventDefault();
     if (!inMatch() || paused || G.state.phase !== 'play' || $('act').disabled) return;
-    spaceQueued = true; $('act').classList.add('down');
+    pressAct(); $('act').classList.add('down');
   });
   for (const up of ['pointerup', 'pointercancel', 'pointerleave']) $('act').addEventListener(up, () => $('act').classList.remove('down'));
   $('pause').addEventListener('click', () => { Sfx.play('click'); setPaused(true); });
@@ -486,7 +539,7 @@
   window.addEventListener('resize', () => { clearInput(); G.resize(); });
   $('start').addEventListener('click', requestStart);
   $('install-continue').addEventListener('click', () => { $('install-guide').close(); startMatch(); });
-  $('install-back').addEventListener('click', () => $('install-guide').close());
+  $('install-back').addEventListener('click', () => { Sfx.play('click'); $('install-guide').close(); });
   $('resume').addEventListener('click', () => { Sfx.play('click'); setPaused(false); });
   $('restart').addEventListener('click', startMatch);
   $('menu-mute').addEventListener('click', toggleSound);
@@ -508,6 +561,7 @@
     Net.rename(myName);
   });
   $('invite').addEventListener('click', () => {
+    Sfx.play('click');
     const url = location.origin + location.pathname + '#' + Net.code;
     // The clipboard API only exists on https and localhost. Anywhere else (a preview
     // over the home network), copy the old way: select the text in a field and ask
