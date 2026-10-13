@@ -162,6 +162,22 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
+/* the final score: a row each, most rounds first, with the same pips as the score bar */
+.results { display: grid; grid-template-columns: auto minmax(0, max-content) auto auto; gap: 12px 14px; max-width: 92vw; margin: 30px 0 0; padding: 0; list-style: none; text-align: left; }
+.results li { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; font-size: 18px; font-weight: 500; opacity: 0.8; }
+.results .wins { margin-left: 18px; }
+.results .n { min-width: 1ch; font-variant-numeric: tabular-nums; }
+.results li.first { font-weight: 700; opacity: 1; }
+.results .disc {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 2.5px solid var(--ink);
+  font: 700 14px/1 var(--ui);
+}
+.results .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results .wins { display: flex; gap: 5px; }
+.results .wins i { width: 26px; height: 12px; border: 2px solid var(--plank); border-radius: 3px; }
+.results .wins i.won { background: var(--plank); }
 /* with friends: the second button on the start screen, then the room */
 .cover #friends { margin-top: 12px; }
 .cover .note { max-width: 26em; opacity: 1; font-size: 14px; }
@@ -300,6 +316,9 @@ body.touch .banner { max-width: calc(100vw - 120px); }
   .lede { margin-top: 12px; font-size: 16px; }
   .cover button { margin-top: 18px; }
   .cover #friends, .cover.room #start { margin-top: 8px; }
+  .results { row-gap: 5px; margin-top: 12px; }
+  .results li { font-size: 15px; }
+  .results .disc { width: 24px; height: 24px; font-size: 11px; border-width: 2px; }
   .room, .field, .cover .room button { margin-top: 12px; }
   .cover.room { justify-content: flex-start; }
   .seats .disc { width: 34px; height: 34px; font-size: 15px; }

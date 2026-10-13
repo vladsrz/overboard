@@ -37,7 +37,7 @@
       const T = BRAINS[p.type] || PLAIN;
       p.bot = {
         T: T, skill: T.skill,
-        target: -1, retargetT: 0, thinkT: 0,
+        target: -1, retargetT: 0, thinkT: 0, afkRoll: -1,
         mode: 'hunt', modeT: 0, chargeAt: 0, dashed: false, roamX: 0, roamY: 0,
         wantsLoot: Sim.rand(state) < T.loot, wait: false,
         pushX: 0, pushY: 0, edge: 999, aim: 0, wantDash: false,
@@ -82,6 +82,8 @@
     return best;
   }
 
+  // how often a bot that notices an idle player goes for them
+  const AFK_PULL = 0.75;
   function has(T, trait) { return T.pick.indexOf(trait) >= 0; }
 
   function pickTarget(state, p, b, preferred) {
@@ -92,14 +94,18 @@
     if (!others.length) { b.target = -1; return null; }
     const cur = others.find((o) => o.id === b.target);
     // Someone who has not touched their controls for a few seconds is the easiest
-    // hit on the raft. Whoever this bot was after, it drops them and goes for that
-    // player instead (the nearest one, if several have wandered off).
+    // hit on the raft, and most bots, most of the time, drop whoever they were after
+    // and go for that player (the nearest one, if several have wandered off). Each
+    // bot decides for itself when it notices and again every time it rethinks, so
+    // now and then one carries on with its own plan.
     const away = others.filter((o) => o.idleT >= C.AFK_T);
-    if (away.length) {
+    if (!away.length) b.afkRoll = -1;
+    else if (b.afkRoll < 0 || b.retargetT <= 0) b.afkRoll = Sim.rand(state);
+    if (away.length && b.afkRoll < AFK_PULL) {
       if (cur && cur.idleT >= C.AFK_T && b.retargetT > 0) return cur;
       let pick = away[0];
       for (const o of away) if (Math.hypot(o.x - p.x, o.y - p.y) < Math.hypot(pick.x - p.x, pick.y - p.y)) pick = o;
-      b.target = pick.id; b.retargetT = 2;
+      b.target = pick.id; b.retargetT = 2 + Sim.rand(state) * 2;
       return pick;
     }
     if (cur && b.retargetT > 0) return cur;

@@ -133,6 +133,7 @@
     $('cover').classList.toggle('room', to === 'room');
     $('cover-how').hidden = $('cover-fine').hidden = $('friends').hidden = to !== 'start';
     $('room').hidden = to !== 'room';
+    $('results').hidden = to !== 'end'; $('cover-lede').hidden = to === 'end';
     $('leave').hidden = !net;
     $('leave').textContent = host ? 'Close room' : 'Leave room';
     $('start').hidden = net && !(host && Net.ready);
@@ -189,7 +190,23 @@
     showEnd(winner) {
       clearOverlays();
       $('cover-title').textContent = winner.id === G.me ? 'You won the match' : winner.name + ' won the match';
-      $('cover-lede').textContent = G.state.players.map((p) => p.name + ' ' + p.wins).join('  ·  ');
+      // the final score: one row each, most rounds first, drawn like the score bar
+      const ol = $('results');
+      ol.textContent = '';
+      for (const p of G.state.players.slice().sort((a, b) => b.wins - a.wins || a.id - b.id)) {
+        const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span'), wins = document.createElement('span');
+        disc.className = 'disc'; disc.textContent = p.name[0];
+        disc.style.background = G.colors[p.id].fill; disc.style.color = G.colors[p.id].text;
+        name.className = 'name'; name.textContent = p.name + (Net.role && p.id === G.me ? ' (you)' : '');
+        wins.className = 'wins';
+        for (let i = 0; i < C.WINS; i++) wins.appendChild(document.createElement('i')).classList.toggle('won', i < p.wins);
+        if (p.id === winner.id) li.className = 'first';
+        li.setAttribute('aria-label', p.name + ', ' + p.wins + ' of ' + C.WINS + ' rounds');
+        const n = document.createElement('span');
+        n.className = 'n'; n.textContent = p.wins;
+        li.append(disc, name, wins, n);
+        ol.appendChild(li);
+      }
       cover('end');
       $('menu').hidden = true; $('pad').hidden = true;
     },

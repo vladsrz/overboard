@@ -388,31 +388,34 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
 }
 
 // A player who has let go of the controls is the easy target: once they have been
-// still for AFK_T every bot on the raft goes for them, and the moment they steer
-// again they are just another player.
+// still for AFK_T most bots, most of the time, go for them (not all: now and then
+// one keeps to its own plan), and the moment they steer again the clock is cleared.
 {
-  const s = Sim.createMatch({ seed: 61, players: [{ name: 'You', human: true }, { name: 'Ram', type: 'ram' }, { name: 'Heron', type: 'heron' }, { name: 'Grudge', type: 'grudge' }] });
-  const run = (secs, mine) => { for (let t = 0; t < secs * 60; t++) Sim.step(s, s.players.map((p) => (p.human ? mine : Bots.input(s, p, DT))), DT); };
-  run(Sim.C.COUNTDOWN_T + 0.1, { mx: 0, my: 0 });
-  // keep them where they are, so the check is about who the bots choose and not whether they got there
-  const hold = () => { const me = s.players[0]; me.x = 0; me.y = 0; me.vx = 0; me.vy = 0; me.state = 'alive'; };
   let chased = 0, steps = 0;
-  for (let t = 0; t < 60 * 8 && s.phase === 'play'; t++) {
+  for (let seed = 1; seed <= 12; seed++) {
+    const s = Sim.createMatch({ seed: seed * 613, players: [{ name: 'You', human: true }].concat(Cast.draw(3, () => Sim.rand({ rng: seed * 17 }))) });
+    const step = (mine) => Sim.step(s, s.players.map((p) => (p.human ? mine : Bots.input(s, p, DT))), DT);
+    // keep them where they are, so the check is about who the bots choose and not whether they got there
+    const hold = () => { const me = s.players[0]; me.x = 0; me.y = 0; me.vx = 0; me.vy = 0; me.state = 'alive'; };
+    for (let t = 0; t < 60 * 12 && s.phase !== 'roundEnd'; t++) {
+      hold();
+      step({ mx: 0, my: 0 });
+      if (s.phase !== 'play' || s.players[0].idleT < Sim.C.AFK_T + 0.1) continue;
+      for (const p of s.players) if (!p.human && p.state === 'alive' && p.bot) { steps++; if (p.bot.target === 0) chased++; }
+    }
+    if (s.phase !== 'play') continue;
     hold();
-    Sim.step(s, s.players.map((p) => (p.human ? { mx: 0, my: 0 } : Bots.input(s, p, DT))), DT);
-    if (s.players[0].idleT < Sim.C.AFK_T + 0.1) continue;
-    for (const p of s.players) if (!p.human && p.state === 'alive' && p.bot) { steps++; if (p.bot.target === 0) chased++; }
+    step({ mx: 1, my: 0 });
+    assert(s.players[0].idleT === 0, 'steering again must clear the idle clock');
   }
-  assert(steps > 100 && chased === steps, 'every bot should be after the idle player: ' + chased + ' of ' + steps);
-  hold();
-  Sim.step(s, s.players.map((p) => (p.human ? { mx: 1, my: 0 } : Bots.input(s, p, DT))), DT);
-  assert(s.players[0].idleT === 0, 'steering again must clear the idle clock');
+  stats.afk = Math.round((100 * chased) / steps) + '%';
+  assert(steps > 100 && chased > steps * 0.6 && chased < steps, 'most bots, not all, should be after the idle player: ' + chased + ' of ' + steps);
 }
 
 console.log('ok', MATCHES, 'matches');
 console.log('rounds', stats.rounds, '| avg round', (stats.time / stats.rounds).toFixed(1) + 's', '| longest', stats.longest.toFixed(1) + 's', '| draws', stats.draws);
 console.log('falls by cause', stats.how, '| credited to a ghost', stats.ghostKills, 'of', stats.falls);
-console.log('idle player knocked off in round 1:', stats.idle, '| avg bot speed', stats.botSpeed, 'of', Math.round(Sim.C.ACCEL / Sim.C.DAMP));
+console.log('bots after a player who let go:', stats.afk, '| idle player knocked off in round 1:', stats.idle, '| avg bot speed', stats.botSpeed, 'of', Math.round(Sim.C.ACCEL / Sim.C.DAMP));
 console.log('knockback at 80 / 230 / 520 speed', stats.knock);
 console.log('first fall at', (stats.firstFall / stats.rounds).toFixed(1) + 's avg', '| then', (stats.afterFirst / stats.rounds).toFixed(1) + 's with someone in the water', '| slams', stats.slams, '| dashes per round', (stats.dashes / stats.rounds).toFixed(1));
 console.log('by character (played / won / walked off):', Object.keys(stats.type).map((k) => k + ' ' + stats.type[k].played + '/' + stats.type[k].won + '/' + stats.type[k].slipped).join(', '));
