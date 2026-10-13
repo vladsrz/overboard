@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- The whole cast on one sheet, read from js/cast.js and js/bots.js so it cannot go stale.
+     Screenshot it with headless Chrome to make dev/cast.png. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Overboard: the cast</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --water: #12504c; --deep: #0b3936; --plank: #efe9da; --ink: #14211f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; width: 1400px; padding: 56px 60px 60px; background: var(--water); color: var(--plank); font: 500 15px/1.35 "Instrument Sans", system-ui, sans-serif; }
+  h1 { margin: 0; font: 900 54px/1 "Unbounded", sans-serif; letter-spacing: -0.02em; }
+  h2 { margin: 46px 0 18px; font: 700 15px/1 "Unbounded", sans-serif; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.7; }
+  .sub { margin: 14px 0 0; font-size: 18px; opacity: 0.8; }
+  ol { display: grid; grid-template-columns: repeat(6, 1fr); gap: 34px 16px; margin: 0; padding: 0; list-style: none; }
+  li { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .disc { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; border: 5px solid var(--ink); font: 700 40px/1 "Instrument Sans", sans-serif; }
+  .name { margin-top: 12px; font-size: 21px; font-weight: 700; }
+  .tag { margin-top: 2px; font-size: 15px; }
+  .more { margin-top: 2px; font-size: 13px; opacity: 0.6; }
+  .hex { margin-top: 6px; font: 500 12px/1 ui-monospace, Menlo, monospace; opacity: 0.6; }
+</style>
+</head>
+<body>
+<h1>Overboard</h1>
+<p class="sub">The cast. Three of the seventeen bots are drawn each match.</p>
+<h2>Bots</h2>
+<ol id="bots"></ol>
+<h2>Players, by seat</h2>
+<ol id="people"></ol>
+<script src="../js/sim.js"></script>
+<script src="../js/bots.js"></script>
+<script src="../js/cast.js"></script>
+<script>
+  function card(letter, c, name, tag, more) {
+    const li = document.createElement('li');
+    const add = (cls, text) => { const el = document.createElement('span'); el.className = cls; el.textContent = text; li.appendChild(el); return el; };
+    const disc = add('disc', letter);
+    disc.style.background = c.color; disc.style.color = c.light ? '#0b3936' : '#efe9da';
+    add('name', name); add('tag', tag); if (more) add('more', more); add('hex', c.color);
+    return li;
+  }
+  for (const c of Cast.LIST) document.getElementById('bots').appendChild(card(c.name[0], c, c.name, c.tag, 'in the water: ' + Cast.WATER_TAG[Bots.BRAINS[c.key].water]));
+  ['You, or the host', 'Second player', 'Third player', 'Fourth player'].forEach((who, i) => document.getElementById('people').appendChild(card(String(i + 1), Cast.PEOPLE[i], who, Cast.PEOPLE[i].hue, '')));
+</script>
+</body>
+</html>
