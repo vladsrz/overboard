@@ -10,6 +10,7 @@ These are decisions the owner has already made, mostly by trying something and r
 
 - **One action button.** A separate slam key was confusing, so the slam is folded into the dash.
 - **A key you were already holding does not count as a new press.** A direction held while falling in used to tip the raft the instant you hit the water and start the tip's cooldown, so the first deliberate tip did nothing. You have to let go and press again (`tiltWait` in `sim.js`).
+- **A dash needs a direction.** With no movement key held, Space does nothing and uses nothing up; it used to dash wherever you last moved, which at the start of a round was toward the centre. Showing the direction on the disc or auto-aiming were the other options; the owner chose this. The first time it happens a hint says to hold a direction, so the press is not swallowed silently.
 - **A key press always does the thing.** Tips used to be refused silently while a bot was tipping, which read as "sometimes works and sometimes doesn't". Never add a rule that can swallow the player's input without saying so.
 - **Anything on screen explains itself while you play.** Tilt and the wave were not understood until they drew their direction on the raft.
 - **The start screen says how to move and nothing else.** Three rows of instructions were too much text. Everything else is taught by a one-off banner the first time it happens to the player (`teach` in `game.js`).

@@ -276,7 +276,10 @@
         if (fm > 0.01) { p.faceX = mx / fm; p.faceY = my / fm; }
         p.vx += (mx * C.ACCEL + state.tilt.x * C.TILT_ACCEL) * dt;
         p.vy += (my * C.ACCEL + state.tilt.y * C.TILT_ACCEL) * dt;
-        if (inp.dash && p.dashCd <= 0) {
+        // A dash goes the way you are steering. With no direction held there is no
+        // dash and nothing is used up (it used to go wherever you last moved).
+        if (inp.dash && p.dashCd <= 0 && fm <= 0.01) state.events.push({ type: 'nodash', id: p.id });
+        if (inp.dash && p.dashCd <= 0 && fm > 0.01) {
           p.dashCd = C.DASH_CD; p.dashT = C.DASH_T;
           p.dashX = p.faceX; p.dashY = p.faceY;
           p.slam = p.ult >= 1;

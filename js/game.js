@@ -88,6 +88,7 @@
           sfx(e.thorns ? 'thorns' : 'bump', e.power, 60);
           break;
         case 'dash': sfx(e.slam ? 'slamDash' : 'dash', 0, 60); break;
+        case 'nodash': if (state.players[e.id].human) teach('nodash', 'Dash needs a direction', 'Hold a movement key, then press Space.'); break;
         case 'spawn': fx.ring(e.x, e.y, 4, 22, 0.3, PAL.PLANK, 3, true); sfx('spawn', 0, 80); break;
         case 'stall': if (match) ui.banner('The raft is breaking up', 'Nobody has gone in for a while.', 2.4); sfx('shrink'); break;
         case 'warn': sfx('warn', 0, 40); break;

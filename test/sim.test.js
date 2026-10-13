@@ -149,6 +149,20 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   assert.notStrictEqual(lean(20), 'alive', 'standing in the middle of a hole should');
 }
 
+// no direction held, no dash: nothing moves and nothing is used up
+{
+  const s = Sim.createMatch({ seed: 7 });
+  const press = (mx) => s.players.map((p, i) => (i === 0 ? { mx: mx, my: 0, dash: true } : { mx: 0, my: 0 }));
+  while (s.phase !== 'play') Sim.step(s, press(0), DT);
+  const a = s.players[0];
+  a.ult = 1;
+  Sim.step(s, press(0), DT);
+  assert(a.dashT === 0 && a.dashCd === 0 && a.ult === 1 && Math.hypot(a.vx, a.vy) < 1, 'a dash with no direction should do nothing');
+  assert(s.events.some((e) => e.type === 'nodash'), 'and the game should know it was asked');
+  Sim.step(s, press(1), DT);
+  assert(a.dashT > 0 && a.dashX === 1, 'with a direction held it dashes that way');
+}
+
 // a run-up hits harder than a shove from close in
 {
   const knock = (speed, powered) => {
