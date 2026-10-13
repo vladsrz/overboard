@@ -138,31 +138,39 @@
     $('leave').textContent = host ? 'Close room' : 'Leave room';
     $('start').hidden = net && !(host && Net.ready);
     $('start').textContent = to === 'end' ? 'Play again' : 'Start match';
+    // One line of words per screen. In the room it is the line under the title;
+    // on the other two it is a small note under the buttons, and only when there
+    // is something to say (a room that closed on you, or waiting for the host).
+    const who = Net.members[0] ? Net.members[0].name : 'the host';
     let say = why || '';
-    if (host) say = !Net.ready ? 'Opening a room…' : to === 'room' ? 'Send the link to up to three friends. Bots take the empty seats.' : '';
-    else if (net) {
-      const who = Net.members[0] ? Net.members[0].name : 'the host';
-      say = !Net.ready ? 'Joining…' : to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
-    }
-    $('net-note').textContent = say; $('net-note').hidden = !say;
+    if (host) say = !Net.ready ? 'Opening a room…' : to === 'room' ? 'Bots fill the empty seats.' : '';
+    else if (net) say = !Net.ready ? 'Joining…' : to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
+    if (to === 'room') $('cover-lede').textContent = say;
+    $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
     $('cover').hidden = false;
   }
 
-  // the room: four seats in the colours they will play in, empty ones marked for bots
+  // The room: four seats in the colours they will play in, empty ones marked for
+  // bots. Your own seat is where you type your name. The seats are made once and
+  // updated in place, so the field keeps its cursor while names change around it.
   function lobby() {
     if (!Net.role) return;
-    const ol = $('seats');
-    ol.textContent = '';
-    for (let i = 0; i < Net.SEATS; i++) {
-      const m = Net.members[i], who = Cast.PEOPLE[i];
+    const ol = $('seats'), field = $('my-name');
+    while (ol.children.length < Net.SEATS) {
       const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span');
       disc.className = 'disc'; name.className = 'name';
-      if (m) {
-        disc.textContent = m.name[0]; disc.style.background = who.color; disc.style.color = who.light ? G.PAL.DEEP : G.PAL.PLANK;
-        name.textContent = m.name + (i === Net.you ? ' (you)' : '');
-      } else { li.className = 'empty'; name.textContent = 'bot'; }
       li.append(disc, name);
       ol.appendChild(li);
+    }
+    for (let i = 0; i < Net.SEATS; i++) {
+      const m = Net.members[i], who = Cast.PEOPLE[i], li = ol.children[i], mine = !!m && i === Net.you;
+      const disc = li.querySelector('.disc'), name = li.querySelector('.name');
+      li.className = !m ? 'empty' : mine ? 'mine' : '';
+      disc.textContent = m ? m.name[0] : '';
+      disc.style.background = m ? who.color : ''; disc.style.color = m ? (who.light ? G.PAL.DEEP : G.PAL.PLANK) : '';
+      name.textContent = m ? m.name : 'bot'; name.hidden = mine;
+      if (mine && field.parentNode !== li) li.appendChild(field);
+      else if (!mine && field.parentNode === li) $('room').appendChild(field);
     }
     ol.hidden = !Net.ready;
     $('invite').hidden = !(Net.role === 'host' && Net.ready);
@@ -219,7 +227,7 @@
       $('top').hidden = true; $('keys').hidden = true; $('pad').hidden = true;
     },
     showLobby() {
-      $('cover-title').textContent = START.title; $('cover-lede').textContent = 'Up to four of you on one raft.';
+      $('cover-title').textContent = START.title;
       clearTimeout(copiedT);
       $('invite').textContent = 'Copy invite link'; $('invite').classList.remove('typed');
       cover('room');
@@ -232,7 +240,7 @@
       $('invite').classList.toggle('typed', !ok);
       $('invite').textContent = ok ? 'Link copied!' : url;
       if (ok) copiedT = setTimeout(() => { $('invite').textContent = 'Copy invite link'; }, 2000);
-      else { $('net-note').textContent = 'Could not copy it for you. Select the link above and copy it.'; $('net-note').hidden = false; }
+      else $('cover-lede').textContent = 'Could not copy it for you. Select the link below and copy it.';
     },
     showMenu(on) {
       $('restart').hidden = !!Net.role;
