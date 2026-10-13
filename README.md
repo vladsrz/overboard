@@ -4,7 +4,9 @@ Bumper sumo on a raft. Knock the others off. If you fall in, you are not out: yo
 
 **Play it:** https://vladsrz.github.io/overboard/ (on a computer, or a phone in portrait or landscape)
 
-You against three bots, drawn each match from a cast of twelve with their own habits. First to win 3 rounds. Online multiplayer is the plan and is not built yet.
+You against three bots, drawn each match from a cast of twelve with their own habits. First to win 3 rounds.
+
+**With friends:** press **Play with friends**, copy the invite link and send it. Up to four of you share the raft and bots take the empty seats. The match runs in the browser of whoever opened the room, so it ends for everyone if they close the tab.
 
 ## Controls
 
@@ -28,13 +30,13 @@ A few things worth knowing:
 
 ## Run it locally
 
-Open `index.html` in a browser. There is no build step, no server and no dependencies. Fonts come from Google Fonts and fall back if you are offline; every sound is synthesised, so there are no audio files.
+Open `index.html` in a browser. There is no build step and no server. The one dependency is a copy of [PeerJS](https://peerjs.com) in `vendor/`, used only when you play with friends (which needs the page served over `http://localhost` or HTTPS, not opened as a file). Fonts come from Google Fonts and fall back if you are offline; every sound is synthesised, so there are no audio files.
 
 ```
 node test/sim.test.js
 ```
 
-plays 96 bot-only matches headless, checks the rules hold, and prints how long rounds last, what causes the falls and how each character does.
+plays 96 bot-only matches headless, checks the rules hold and that a match survives being sent to another player, and prints how long rounds last, what causes the falls and how each character does.
 
 ## How it is built
 
@@ -44,6 +46,7 @@ Plain scripts, loaded in this order by `index.html`:
 - `js/bots.js` — how each bot thinks. A bot produces the same input a person does, so any seat can be either.
 - `js/cast.js` — who the bots are: names, labels and colours.
 - `js/sound.js` — sound effects, made with Web Audio.
+- `js/net.js` — the room you share with friends. The host's browser runs the match; guests send their input and get the match back about 30 times a second, directly between browsers over WebRTC. PeerJS's public broker is only used to find each other.
 - `js/draw.js` — everything on the canvas.
 - `js/hud.js` — the words around the raft and the start, end and pause screens.
 - `js/game.js` — keys, mouse and the loop.

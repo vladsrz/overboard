@@ -25,13 +25,22 @@
   LIST.forEach((c) => { BY_KEY[c.key] = c; });
 
   const YOU = { key: 'you', name: 'You', tag: '', color: '#ec5b2a', hue: 'orange', light: true };
+  // People, by seat. Playing alone you are the first; with friends each of you gets
+  // the next one, and no bot of the same hue is drawn into that match.
+  const PEOPLE = [
+    YOU,
+    { color: '#f590b8', hue: 'pink', light: true },
+    { color: '#2f9e5b', hue: 'green' },
+    { color: '#f3b81f', hue: 'yellow', light: true },
+  ];
 
   // what it says next to their name once they are in the water, by their favourite way to wreck the raft
   const WATER_TAG = { tilt: 'tips the raft', wave: 'sends waves', planks: 'pulls planks', all: 'does it all' };
 
-  // n different characters for a match, no two of the same hue; rnd is any 0..1 source
-  function draw(n, rnd) {
-    const pool = LIST.slice();
+  // n different characters for a match, no two of the same hue and none of a hue in
+  // `taken`; rnd is any 0..1 source
+  function draw(n, rnd, taken) {
+    const pool = LIST.filter((c) => !taken || taken.indexOf(c.hue) < 0);
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
     const cast = [];
     for (const c of pool) if (cast.length < n && !cast.some((x) => x.hue === c.hue)) cast.push(c);
@@ -39,7 +48,7 @@
     return cast.map((c) => ({ name: c.name, type: c.key }));
   }
 
-  const Cast = { LIST, BY_KEY, YOU, WATER_TAG, draw };
+  const Cast = { LIST, BY_KEY, YOU, PEOPLE, WATER_TAG, draw };
   root.Cast = Cast;
   if (typeof module !== 'undefined' && module.exports) module.exports = Cast;
 })(typeof window !== 'undefined' ? window : globalThis);

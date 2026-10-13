@@ -3,6 +3,7 @@ const assert = require('assert');
 const Sim = require('../js/sim.js');
 const Bots = require('../js/bots.js');
 const Cast = require('../js/cast.js');
+const Net = require('../js/net.js');
 
 const DT = 1 / 60;
 const MATCHES = 96;
@@ -345,6 +346,45 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   stats.botSpeed = Math.round(speed / n);
   assert(idleOut >= rounds * 0.7, 'an idle player should usually be knocked off: ' + stats.idle);
   assert(stats.botSpeed > 90, 'bots are standing around: avg speed ' + stats.botSpeed);
+}
+
+// With friends, the host sends the match to the guests as a message. A guest's copy
+// has to be the same match: unpacked into a fresh one and run on with the same
+// inputs, it must stay identical. Checked mid-round, with planks going, waves out,
+// pickups down and somebody in the water.
+{
+  const roster = [{ name: 'Ann', human: true }, { name: 'Bo', human: true }].concat(Cast.draw(2, () => 0.3, ['orange', 'pink']));
+  assert(roster.length === 4 && !roster.some((r) => r.type && ['orange', 'pink'].indexOf(Cast.BY_KEY[r.type].hue) >= 0), 'bots must not share a hue with a person');
+  assert(Cast.draw(3, () => 0.7, ['green', 'yellow']).every((r) => ['green', 'yellow'].indexOf(Cast.BY_KEY[r.type].hue) < 0));
+  const host = Sim.createMatch({ seed: 77, players: roster });
+  const guest = Sim.createMatch({ seed: 1, players: roster });
+  const steer = (s, t) => s.players.map((p) => ({ mx: p.id === 3 ? 1 : 0.3 * Math.sin(t / 40 + p.id), my: 0.3 * Math.cos(t / 55 + p.id * 2), dash: t % 97 === p.id, wave: t % 61 === 0, drop: t % 13 === 0, cx: 80 * Math.sin(t / 9), cy: 80 * Math.cos(t / 7) }));
+  let t = 0, checked = 0, busy = 0;
+  for (; t < 60 * 40 && host.phase !== 'matchEnd'; t++) {
+    Sim.step(host, steer(host, t), DT);
+    const wet = host.players.some((p) => p.state === 'ghost');
+    if (host.phase !== 'play' || t % 45 || checked >= 12 || (!wet && checked >= 4)) continue;
+    checked++;
+    if (wet && (host.waves.length || host.tiles.some((v) => v === Sim.WARN))) busy++;
+    Net.unpack(guest, JSON.parse(JSON.stringify(Net.pack(host))));
+    assert.deepStrictEqual(Net.pack(guest), Net.pack(host));
+    const a = Sim.createMatch({ seed: 2, players: roster });
+    Net.unpack(a, JSON.parse(JSON.stringify(Net.pack(host))));
+    for (let k = 1; k <= 180; k++) Sim.step(a, steer(a, t + k), DT);
+    const b = Sim.createMatch({ seed: 3, players: roster });
+    Net.unpack(b, JSON.parse(JSON.stringify(Net.pack(host))));
+    for (let k = 1; k <= 180; k++) Sim.step(b, steer(b, t + k), DT);
+    assert.deepStrictEqual(Net.pack(a), Net.pack(b), 'two copies of one snapshot must play out the same');
+  }
+  assert(checked > 4 && busy > 0, 'the snapshot test never saw a busy moment: ' + checked + ' checked, ' + busy + ' busy');
+  // a message that is not a match is refused, and one with nonsense in it cannot plant a bad seat number
+  assert.throws(() => Net.unpack(guest, { p: [] }));
+  const bad = JSON.parse(JSON.stringify(Net.pack(host)));
+  bad.f[5] = 99; bad.p[0][6] = 'flying'; bad.p[1][2] = 'x'; bad.marks = [3, 1, 42];
+  Net.unpack(guest, bad);
+  assert(guest.tiltBy === -1 && guest.players[0].state === 'ghost' && guest.players[1].x === 0 && guest.tileBy[3] === -1);
+  assert(Net.cleanName('  <b>Finn</b> the very long name ', 'x') === 'bFinnb the v' && Net.cleanName('<>', 'Player 2') === 'Player 2' && Net.cleanName(7, 'P') === 'P');
+  assert(Net.codeFrom('#abc23') === 'ABC23' && Net.codeFrom('#abc1') === '' && Net.codeFrom('#OOOOO') === '');
 }
 
 console.log('ok', MATCHES, 'matches');

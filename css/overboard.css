@@ -162,11 +162,42 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
+/* with friends: the second button on the start screen, then the room */
+.cover #friends { margin-top: 12px; }
+.cover .note { max-width: 26em; opacity: 1; font-size: 14px; }
+.cover button.small { margin-top: 14px; padding: 9px 18px 10px; border-width: 1.5px; font: 600 13px/1.2 var(--ui); }
+.room { display: flex; flex-direction: column; align-items: center; margin-top: 26px; }
+/* four seats in the colours they will play in; an empty one is a dashed ring a bot will fill */
+.seats { display: flex; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.seats li { width: 92px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.seats .disc {
+  width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 2.5px solid var(--ink);
+  font: 700 19px/1 var(--ui);
+}
+.seats .name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.seats .empty .disc { border: 2px dashed var(--plank); opacity: 0.45; }
+.seats .empty .name { font-weight: 400; opacity: 0.6; }
+.field { display: flex; align-items: center; gap: 10px; margin-top: 22px; font-size: 13px; }
+/* the one place on the page where text is typed and selected */
+.field input {
+  width: 11em; padding: 8px 10px;
+  border: 1.5px solid var(--plank); border-radius: 4px;
+  background: transparent; color: var(--plank);
+  font: 600 16px/1.2 var(--ui);
+  -webkit-user-select: text; user-select: text;
+}
+.field input:focus-visible { outline: 3px solid var(--foam); outline-offset: 2px; }
+.cover .room button { margin-top: 22px; max-width: 92vw; overflow-wrap: anywhere; }
+.cover.room #start { margin-top: 14px; }
+body.touch .cover.room { touch-action: pan-y; overflow-y: auto; }
+@media (max-width: 420px) { .seats { gap: 2px; } .seats li { width: 78px; } }
 .rotate-hint { display: none; margin: 18px 0 0; color: var(--foam); font-size: 13px; }
 .rotate-hint svg { flex: none; width: 66px; height: 44px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .rotate-hint span { max-width: 200px; text-align: left; }
 @media (orientation: portrait) and (max-width: 600px) {
-  body.touch .cover:not(.end) .rotate-hint { display: flex; align-items: center; gap: 10px; }
+  body.touch .cover:not(.end):not(.room) .rotate-hint { display: flex; align-items: center; gap: 10px; }
 }
 .browser-help { display: none; width: 300px; max-width: 86vw; font-size: 12px; }
 body.touch:not(.standalone) .browser-help { display: block; }
@@ -266,6 +297,11 @@ body.touch .banner { max-width: calc(100vw - 120px); }
   .cover h1 { font-size: clamp(40px, 12vh, 72px); }
   .lede { margin-top: 12px; font-size: 16px; }
   .cover button { margin-top: 18px; }
+  .cover #friends, .cover.room #start { margin-top: 8px; }
+  .room, .field, .cover .room button { margin-top: 12px; }
+  .cover.room { justify-content: flex-start; }
+  .seats .disc { width: 34px; height: 34px; font-size: 15px; }
+  .seats li { gap: 4px; }
   .how { margin-top: 14px; font-size: 13px; }
   .fine { margin-top: 10px; }
   .cover.menu { justify-content: flex-start; gap: 6px; }

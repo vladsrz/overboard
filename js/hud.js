@@ -64,7 +64,7 @@
       items[i].querySelector('.where').style.color = 'var(--plank)';
       // a bot's label says what it is like: on the raft, then in the water
       const who = Cast.BY_KEY[p.type];
-      items[i].querySelector('.where').textContent = !who ? '' : over ? Cast.WATER_TAG[Bots.BRAINS[p.type].water] : who.tag;
+      items[i].querySelector('.where').textContent = !who ? (Net.role && p.id === G.me ? 'you' : '') : over ? Cast.WATER_TAG[Bots.BRAINS[p.type].water] : who.tag;
       items[i].querySelectorAll('.wins i').forEach((el, n) => el.classList.toggle('won', n < p.wins));
       items[i].setAttribute('aria-label', p.name + ', ' + p.wins + ' of ' + C.WINS + ' rounds, ' + (over ? 'overboard' : 'aboard'));
     });
@@ -123,6 +123,51 @@
     G.canvas.classList.remove('water');
   }
 
+  // The big screen over the raft has three faces: 'start', 'room' (you and your
+  // friends, before a match) and 'end'. In a room only the host has a Start button.
+  let face = 'start';
+  function cover(to, why) {
+    face = to;
+    const net = !!Net.role, host = Net.role === 'host';
+    $('cover').classList.toggle('end', to === 'end');
+    $('cover').classList.toggle('room', to === 'room');
+    $('cover-how').hidden = $('cover-fine').hidden = $('friends').hidden = to !== 'start';
+    $('room').hidden = to !== 'room';
+    $('leave').hidden = !net;
+    $('leave').textContent = host ? 'Close room' : 'Leave room';
+    $('start').hidden = net && !(host && Net.ready);
+    $('start').textContent = to === 'end' ? 'Play again' : 'Start match';
+    let say = why || '';
+    if (host) say = !Net.ready ? 'Opening a room…' : to === 'room' ? 'Send the link to up to three friends. Bots take the empty seats.' : '';
+    else if (net) {
+      const who = Net.members[0] ? Net.members[0].name : 'the host';
+      say = !Net.ready ? 'Joining…' : to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
+    }
+    $('net-note').textContent = say; $('net-note').hidden = !say;
+    $('cover').hidden = false;
+  }
+
+  // the room: four seats in the colours they will play in, empty ones marked for bots
+  function lobby() {
+    if (!Net.role) return;
+    const ol = $('seats');
+    ol.textContent = '';
+    for (let i = 0; i < Net.SEATS; i++) {
+      const m = Net.members[i], who = Cast.PEOPLE[i];
+      const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span');
+      disc.className = 'disc'; name.className = 'name';
+      if (m) {
+        disc.textContent = m.name[0]; disc.style.background = who.color; disc.style.color = who.light ? G.PAL.DEEP : G.PAL.PLANK;
+        name.textContent = m.name + (i === Net.you ? ' (you)' : '');
+      } else { li.className = 'empty'; name.textContent = 'bot'; }
+      li.append(disc, name);
+      ol.appendChild(li);
+    }
+    ol.hidden = !Net.ready;
+    $('invite').hidden = !(Net.role === 'host' && Net.ready);
+    if (!$('cover').hidden) cover(face);
+  }
+
   G.ui = {
     banner, update,
     endRound(title, secs) {
@@ -143,23 +188,31 @@
     },
     showEnd(winner) {
       clearOverlays();
-      $('cover-title').textContent = winner.human ? 'You won the match' : winner.name + ' won the match';
+      $('cover-title').textContent = winner.id === G.me ? 'You won the match' : winner.name + ' won the match';
       $('cover-lede').textContent = G.state.players.map((p) => p.name + ' ' + p.wins).join('  ·  ');
-      $('cover-how').hidden = true; $('cover-fine').hidden = true;
-      $('start').textContent = 'Play again';
-      $('cover').classList.add('end');
-      $('cover').hidden = false; $('pad').hidden = true;
+      cover('end');
+      $('menu').hidden = true; $('pad').hidden = true;
     },
-    showStart() {
+    // why: one line under the buttons, for when a room closed on you
+    showStart(why) {
       clearOverlays();
       $('cover-title').textContent = START.title; $('cover-lede').textContent = START.lede;
-      $('cover-how').hidden = false; $('cover-fine').hidden = false;
-      $('start').textContent = 'Start match';
-      $('cover').classList.remove('end');
-      $('cover').hidden = false; $('menu').hidden = true;
+      cover('start', why);
+      $('menu').hidden = true;
       $('top').hidden = true; $('keys').hidden = true; $('pad').hidden = true;
     },
+    showLobby() {
+      $('cover-title').textContent = START.title; $('cover-lede').textContent = 'Up to four of you on one raft.';
+      $('invite').textContent = 'Copy invite link';
+      cover('room');
+      lobby();
+    },
+    lobby,
+    // the link went to the clipboard, or could not, in which case it is shown to copy by hand
+    copied(ok, url) { $('invite').textContent = ok ? 'Link copied' : url; },
     showMenu(on) {
+      $('restart').hidden = !!Net.role;
+      $('quit').textContent = Net.role === 'host' ? 'End match and close room' : Net.role ? 'Leave match' : 'Quit to start screen';
       $('menu').hidden = !on;
       if (on) $('resume').focus(); else if (document.activeElement) document.activeElement.blur();
     },

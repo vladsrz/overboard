@@ -246,7 +246,7 @@
       // hidden: you see yourself faintly, everyone else only when something touches them
       let alpha = 1;
       if (p.hideT > 0) {
-        if (p.human || !me) alpha = 0.35;
+        if (p === me || !me) alpha = 0.35;
         else if (p.seenT > 0) alpha = 0.6;
         else continue;
       }
@@ -274,18 +274,18 @@
       ctx.fillText(p.name[0], p.x, p.y + 1);
 
       // meters only for players you can see properly
-      if (!p.human && alpha < 1) continue;
+      if (p !== me && alpha < 1) continue;
       ctx.globalAlpha = 1;
       // under the disc: how long each thing they are wearing has left
       G.worn(p).forEach((w, n) => {
         const y = p.y + r + (p.thornT > 0 ? 17 : 10) + n * 14;
         bar(p.x, y, 46, 6, w[0] / w[1], col.fill);
-        if (p.human) label(w[2] + ' ' + Math.ceil(w[0]), p.x + 30, y + 4, 12, 'left');
+        if (p === me) label(w[2] + ' ' + Math.ceil(w[0]), p.x + 30, y + 4, 12, 'left');
       });
       // above the disc: the slam. Yours shows it charging, with a thin second bar
-      // for the dash coming back; a bot's only appears once it is loaded.
+      // for the dash coming back; anyone else's only appears once it is loaded.
       const y = p.y - r - (p.thornT > 0 ? 34 : 26);
-      if (p.human) {
+      if (p === me) {
         bar(p.x, y, 54, 9, p.slam ? 0 : p.ult, col.fill, p.ult >= 1);
         if (p.dashCd > 0) bar(p.x, y + 13, 54, 4, 1 - p.dashCd / C.DASH_CD, PLANK);
       } else if (p.ult >= 1) bar(p.x, y + 4, 38, 6, 1, col.fill, true);
@@ -294,14 +294,14 @@
   }
 
   // a ring for each player in the water, where they are aiming
-  function drawGhosts(state) {
+  function drawGhosts(state, me) {
     if (state.phase !== 'play') return;
     for (const p of state.players) {
       if (p.state !== 'ghost') continue;
       ctx.strokeStyle = LINE; ctx.lineWidth = 6.5; circle(p.cx, p.cy, 10); ctx.stroke();
       ctx.strokeStyle = G.colors[p.id].fill; ctx.lineWidth = 3.5; circle(p.cx, p.cy, 10); ctx.stroke();
       // under your cursor: the wave coming back, and thinner under it, the tip
-      if (p.human) {
+      if (p === me) {
         // each says what it is, and the tip bar lights up if you ask for a tip before it is back
         if (p.waveCd > 0) { bar(p.cx, p.cy + 22, 44, 7, 1 - p.waveCd / C.WAVE_CD, G.colors[p.id].fill); label('wave', p.cx + 30, p.cy + 26, 11, 'left'); }
         if (p.tiltCd > 0 && state.tiltBy !== p.id) { bar(p.cx, p.cy + 36, 44, 7, 1 - p.tiltCd / C.TILT_CD, PLANK, performance.now() < G.tipNagUntil); label('tip', p.cx + 30, p.cy + 40, 11, 'left'); }
@@ -339,7 +339,7 @@
     drawPickups(state);
     drawWaves(state, me);
     drawPlayers(state, me);
-    drawGhosts(state);
+    drawGhosts(state, me);
     drawRings(true, dt);
     drawFloats(dt);
   };

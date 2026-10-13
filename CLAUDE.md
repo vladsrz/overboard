@@ -1,6 +1,6 @@
 # Overboard — agent notes
 
-Raft sumo where knocked-out players wreck the raft for whoever is left. Static site, no build, no server. Live at https://vladsrz.github.io/overboard/ (GitHub Pages from `main`, so a push is a deploy). `README.md` is for visitors; this file is for whoever changes the game.
+Raft sumo where knocked-out players wreck the raft for whoever is left, alone against bots or with up to three friends by invite link. Static site, no build, no server. Live at https://vladsrz.github.io/overboard/ (GitHub Pages from `main`, so a push is a deploy). `README.md` is for visitors; this file is for whoever changes the game.
 
 ## The brief
 **Least complicated, most fun.** Check every addition against that line. Cutting is allowed.
@@ -50,6 +50,19 @@ To add one, add a row in each file. `pick` takes combined traits (`'grudge near'
 What a bot is holding changes its mood: with Thorns it drops its plan and runs straight at the nearest player; Power, Big or a loaded slam make it press the attack.
 
 Bots cannot see an Unseen player, but they guess (`trackOrGuess`): a bot that was after you keeps heading for where it last saw you for 1.5 to 4 seconds depending on its skill, with a guess that drifts further off the longer you stay hidden. It never reads the hidden player's real position, so moving away shakes it off.
+
+## With friends
+`js/net.js`. Still no server of our own. Whoever presses **Play with friends** is the host: their browser runs `Sim.step` exactly as in a solo match and is the only authority. A guest opens the invite link (`#` plus a five-character room code), sends its input every step, and gets the whole match back every other step (`Net.pack` / `Net.unpack`). Browsers find each other through PeerJS's public broker (`vendor/peerjs.min.js`, v1.5.4) and then talk directly over WebRTC.
+
+- **Seats.** People sit in the order they joined, host first, in the colours of `Cast.PEOPLE`; bots fill the rest up to four, never in a person's hue. `G.me` is this machine's seat. `p.human` means "a person", not "you": anything about the local player compares against `G.me`.
+- **A guest does not predict.** Between two messages it runs the match on a step or two with everyone steering as the host last reported (`tickGuest` in `game.js`), then takes the host's version. So a guest feels its own keys one round trip late. That is the known cost of the simple version; fixing it means replaying the guest's unconfirmed inputs on top of each snapshot.
+- **What happened** (sounds, rings, banners) comes from the host's event list, sent with the snapshot. A guest throws away the events of its own in-between steps, or everything would sound twice.
+- **Nothing from the wire is trusted.** The host reads a name and an input from a guest and clamps both; a guest forces every field of a snapshot into the type the match already holds and refuses seat numbers that do not exist. Names go to the page as text, never as HTML. Messages can arrive out of order, so each kind carries a counter.
+- **Nobody can pause a shared match.** Esc opens the menu over a match that carries on. A hidden tab gets no animation frames, so a worker's timer carries the match while the tab is hidden (`pump` in `game.js`); without it a host who switched tabs would freeze everyone.
+- **Leaving.** A guest who leaves or goes quiet for 6 seconds becomes a bot in the same seat. If the host leaves, the room is over and guests go back to the start screen with a line saying so. Someone who joins while a match is on waits for the next one.
+- **Limits to know about.** The room code is the only lock. Players' browsers connect directly, so they can see each other's IP addresses, as with any peer-to-peer game. If the public broker is down, rooms cannot be opened or joined (matches already running carry on).
+
+To check it: serve the folder, open the page in two separate browser profiles, host in one and open the invite link in the other. The node test covers the snapshot round trip only.
 
 ## Icon and link preview
 `favicon.svg` is the tab icon. `og.png` (1200 x 630) is what a pasted link shows; its source is `dev/og.html`. To redo it, serve the folder, screenshot that page at 1200 x 630 with headless Chrome and crop to size.

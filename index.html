@@ -89,7 +89,15 @@
 <section class="cover" id="cover">
   <h1 id="cover-title">Overboard</h1>
   <p class="lede" id="cover-lede">Last one on the raft wins.</p>
+  <div class="room" id="room" hidden>
+    <ol class="seats" id="seats" aria-label="In the room" hidden></ol>
+    <label class="field">Your name <input id="my-name" type="text" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done"></label>
+    <button id="invite" type="button" class="quiet" hidden>Copy invite link</button>
+  </div>
   <button id="start" type="button" autofocus>Start match</button>
+  <button id="friends" type="button" class="quiet">Play with friends</button>
+  <p class="fine note" id="net-note" role="status" hidden></p>
+  <button id="leave" type="button" class="quiet small" hidden>Leave room</button>
   <p class="rotate-hint" id="rotate-hint">
     <svg viewBox="0 0 72 48" aria-hidden="true">
       <g opacity="0.45">
@@ -130,6 +138,8 @@
 <script src="js/bots.js"></script>
 <script src="js/cast.js"></script>
 <script src="js/sound.js"></script>
+<script src="vendor/peerjs.min.js"></script>
+<script src="js/net.js"></script>
 <script src="js/draw.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/game.js"></script>
