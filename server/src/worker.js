@@ -36,8 +36,7 @@ const IDLE_ROOM = 15 * 60e3; // a room with no match running closes after this l
 const MAX_MSG = 600;         // characters; an input or a name is far smaller
 const MAX_RATE = 150;        // messages a second from one player before they are dropped
 const GATHER = 8;            // seconds a public room waits for more players before it starts
-const AUTO_GO = 3;           // seconds a private room with auto-start counts down before the next match
-const AUTO_REST = 3;         // seconds to show the match result before the next countdown
+const AUTO_GO = 5;           // seconds on the result screen before a private room's next match
 const AWAY = 120e3;          // in a public room, a player who touches nothing for this long is let go
 const HOLD = 8;              // connections one source may have open at once: two full rooms from one home
 const HOLD_NEW = 20e3;       // a connection let in whose room has not reported it yet stops counting after this
@@ -264,8 +263,8 @@ export class Room {
     this.timer = 0; this.beat = 0; this.last = 0; this.acc = 0; this.sendN = 0; this.outbox = [];
     this.idleSince = Date.now();
     this.reported = 0;   // when the front desk was last told who is here
-    // a private room's auto-start: on or off, when the countdown ends, and the earliest it may begin
-    this.auto = false; this.goAt = 0; this.restUntil = 0;
+    // a private room's auto-start: on or off, and when its countdown ends
+    this.auto = false; this.goAt = 0;
   }
 
   async fetch(request) {
@@ -368,7 +367,7 @@ export class Room {
     const ready = this.auto && !this.open && !this.playing && this.matchN > 0 && this.members.length >= 2
       && !this.members.some((m, i) => m.boardHold || (i > 0 && m.sit)) && this.members.some((m) => now - m.active < AWAY);
     if (!ready) this.goAt = 0;
-    else if (!this.goAt) this.goAt = Math.max(now, this.restUntil) + AUTO_GO * 1000;
+    else if (!this.goAt) this.goAt = now + AUTO_GO * 1000;
   }
 
   tellLobby() {
@@ -377,7 +376,7 @@ export class Room {
     // in a public room that is gathering, how many seconds until it starts
     // (or, in a private room with auto-start, until the next match does)
     const secs = (at) => Math.max(0, Math.ceil((at - Date.now()) / 1000));
-    const wait = this.playing ? -1 : this.open ? secs(this.startAt) : this.goAt && Date.now() >= this.restUntil ? secs(this.goAt) : -1;
+    const wait = this.playing ? -1 : this.open ? secs(this.startAt) : this.goAt ? secs(this.goAt) : -1;
     // who is sitting the next match out, and the room's score: match wins since coming in
     const sit = this.members.map((m) => m.sit), wins = this.members.map((m) => m.wins), hold = this.members.map((m) => m.boardHold);
     this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing, wait: wait, sit: sit, wins: wins, hold: hold, auto: this.auto }));
@@ -562,7 +561,6 @@ export class Room {
       this.startAt = Date.now() + GATHER * 1000;
       // everyone is in the next match again unless they say otherwise
       for (const m of this.members) { m.seat = -1; m.sit = false; }
-      this.restUntil = Date.now() + AUTO_REST * 1000;
       this.autoCheck();
       this.tellLobby();
     }

@@ -167,7 +167,8 @@
       $('sit').hidden = !t.sit; $('sit').textContent = t.sit || '';
       say = why || t.say;
     }
-    $('auto-start').hidden = !(Net.party() && Net.you === 0 && to === 'room');
+    $('auto-start').hidden = !(Net.party() && (to === 'room' || to === 'end'));
+    $('auto-start').disabled = Net.you !== 0;
     $('auto-start').textContent = 'Auto-start later matches: ' + (Net.auto ? 'on' : 'off');
     $('auto-start').setAttribute('aria-pressed', Net.auto ? 'true' : 'false');
     $('react').hidden = !(net && Net.ready && to !== 'start');
@@ -295,7 +296,9 @@
     const at = Date.now();
     backT = setInterval(() => {
       if (face !== 'end' || $('cover').hidden || !Net.party()) { clearInterval(backT); return; }
-      if (Date.now() - at > 3000 && $('board-ask').hidden && !Net.playing) { clearInterval(backT); G.ui.showLobby(); }
+      if (Date.now() - at > 3000 && $('board-ask').hidden && !Net.playing && !(Net.auto && Net.wait >= 0)) {
+        clearInterval(backT); G.ui.showLobby();
+      }
     }, 250);
   }
 
