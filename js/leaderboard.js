@@ -48,7 +48,8 @@
     $('mine').hidden = !me;
     if (!me) return;
     let say;
-    if (!me.canName) say = 'Win a match in a room or Play online to put your name here.';
+    if (me.blocked) say = 'This browser cannot put a name on the leaderboard.';
+    else if (!me.canName) say = 'Win a match in a room or Play online to put your name here.';
     else if (me.name && me.rank) say = 'You are ' + Board.place(me.rank) + ' this week, as ' + me.name + '.';
     else if (me.name) say = 'Your name is ' + me.name + '. It shows here once you win a match this week.';
     else if (me.wins) say = 'You have ' + Board.wins(me.wins) + ' this week. Add your name to be listed.';

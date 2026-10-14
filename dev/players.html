@@ -25,10 +25,11 @@
 </head>
 <body>
 <h1>Overboard: players</h1>
-<p class="muted" id="about">Everyone's play, as the game server has counted it. No names or addresses are kept.</p>
+<p class="muted" id="about">Everyone's play, as the game server has counted it. Leaderboard names are shown below for moderation; addresses are not kept.</p>
 <form id="door"><input id="key" type="password" placeholder="statistics key" autocomplete="off"><button>Show</button></form>
 <button id="export" hidden>Export matches as JSON</button><button id="forget" hidden>Forget the key on this device</button>
 <div id="out"></div>
+<section id="moderation" hidden><h2>Leaderboard names</h2><p class="muted">Removing a name also stops that browser from adding another.</p><div id="names"></div><p id="names-note" role="status"></p></section>
 <script src="../js/sim.js"></script>
 <script src="../js/cast.js"></script>
 <script src="../js/net.js"></script>

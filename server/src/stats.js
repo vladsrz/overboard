@@ -100,6 +100,7 @@ export const week = (t) => Math.floor((t / 864e5 + 3) / 7);
 export const weekEnds = (w) => ((w + 1) * 7 - 3) * 864e5;
 const BOARD = 20;       // names shown
 const BOARD_WEEKS = 8;  // weeks of wins kept
+const BOT_WINS_DAY = 10; // bot-only match wins credited per browser per UTC day
 // The same rule as a name in a room (Net.cleanName: letters, digits and a little
 // punctuation, at most 12), checked again here because strangers read these.
 export const boardName = (v) => (typeof v === 'string' && /^[\p{L}\p{N}][\p{L}\p{N} _.'-]{0,11}$/u.test(v) && v.trim() === v && !rude(v) ? v : '');
@@ -112,6 +113,8 @@ export class Stats {
     // the leaderboard: room wins per browser per week, and the names people chose to show
     this.sql.exec('CREATE TABLE IF NOT EXISTS wins (week INTEGER, device TEXT, n INTEGER, last INTEGER, PRIMARY KEY (week, device))');
     this.sql.exec('CREATE TABLE IF NOT EXISTS names (device TEXT PRIMARY KEY, name TEXT, at INTEGER)');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS bot_wins (day TEXT, device TEXT, n INTEGER, PRIMARY KEY (day, device))');
+    this.sql.exec('CREATE TABLE IF NOT EXISTS blocked_names (device TEXT PRIMARY KEY)');
     this.limit = new Map(); // who has reported how much this hour; in memory only
     this.hour = 0;
   }
@@ -138,6 +141,7 @@ export class Stats {
     this.sql.exec('DELETE FROM seen WHERE day < ?', day(Date.now() - KEEP_DAYS * 864e5));
     this.sql.exec('DELETE FROM wins WHERE week <= ?', week(Date.now()) - BOARD_WEEKS);
     this.sql.exec('DELETE FROM names WHERE device NOT IN (SELECT device FROM wins)');
+    this.sql.exec('DELETE FROM bot_wins WHERE day < ?', day(Date.now()));
   }
 
   // This week's names, most wins first; a tie goes to whoever got there first.
@@ -153,12 +157,13 @@ export class Stats {
     const mine = this.sql.exec('SELECT n, last FROM wins WHERE week = ? AND device = ?', w, id).toArray()[0];
     const named = this.sql.exec('SELECT name FROM names WHERE device = ?', id).toArray()[0];
     const ever = this.sql.exec('SELECT COUNT(*) AS n FROM wins WHERE device = ?', id).toArray()[0].n > 0;
+    const blocked = this.sql.exec('SELECT 1 FROM blocked_names WHERE device = ?', id).toArray().length > 0;
     let rank = 0;
     if (mine && named) {
       rank = 1 + this.sql.exec('SELECT COUNT(*) AS n FROM wins w JOIN names n ON n.device = w.device WHERE w.week = ? AND (w.n > ? OR (w.n = ? AND w.last < ?))',
         w, mine.n, mine.n, mine.last).toArray()[0].n;
     }
-    return { wins: mine ? mine.n : 0, name: named ? named.name : '', rank: rank, canName: ever };
+    return { wins: mine ? mine.n : 0, name: named ? named.name : '', rank: rank, canName: ever && !blocked, blocked };
   }
   // after about one write in fifty: doing it every time would cost more than it saves
   tidy() { if (Math.random() < 0.02) this.prune(); }
@@ -185,8 +190,14 @@ export class Stats {
       // a room's winner; only rooms send this, the Worker never passes it on
       if (url.pathname === '/win') {
         const id = device(d.device);
-        if (!id) return new Response('bad', { status: 400 });
+        if (!id || typeof d.botOnly !== 'boolean') return new Response('bad', { status: 400 });
         const now = Date.now();
+        if (d.botOnly) {
+          const today = day(now);
+          const used = this.sql.exec('SELECT n FROM bot_wins WHERE day = ? AND device = ?', today, id).toArray()[0];
+          if (used && used.n >= BOT_WINS_DAY) return new Response('capped');
+          this.sql.exec('INSERT INTO bot_wins (day, device, n) VALUES (?, ?, 1) ON CONFLICT (day, device) DO UPDATE SET n = n + 1', today, id);
+        }
         this.sql.exec('INSERT INTO wins (week, device, n, last) VALUES (?, ?, 1, ?) ON CONFLICT (week, device) DO UPDATE SET n = n + 1, last = excluded.last', week(now), id, now);
         this.tidy();
         return new Response('ok');
@@ -203,11 +214,20 @@ export class Stats {
         else {
           const name = boardName(d.name);
           if (!name) return Response.json({ error: 'name' }, { status: 400 });
+          if (this.sql.exec('SELECT 1 FROM blocked_names WHERE device = ?', id).toArray().length) return Response.json({ error: 'blocked' }, { status: 403 });
           // a name can only go up once there is a win to put it next to
           if (!this.standing(id).canName) return Response.json({ error: 'win' }, { status: 403 });
           this.sql.exec('INSERT INTO names (device, name, at) VALUES (?, ?, ?) ON CONFLICT (device) DO UPDATE SET name = excluded.name, at = excluded.at', id, name, Date.now());
         }
         return Response.json(this.standing(id));
+      }
+      // Only the Worker exposes this behind STATS_KEY; public board routes cannot reach it.
+      if (url.pathname === '/moderate/name') {
+        const id = device(d.device);
+        if (!id) return new Response('bad', { status: 400 });
+        this.sql.exec('INSERT OR IGNORE INTO blocked_names (device) VALUES (?)', id);
+        this.sql.exec('DELETE FROM names WHERE device = ?', id);
+        return new Response('ok');
       }
       if (url.pathname === '/match') {
         const rec = clean(d.rec), kind = MODES.indexOf(d.kind) >= 0 ? d.kind : null;
@@ -224,6 +244,7 @@ export class Stats {
       return new Response('Not found', { status: 404 });
     }
     if (url.pathname === '/board') return Response.json(this.board());
+    if (url.pathname === '/moderate/names') return Response.json(this.sql.exec('SELECT n.device, n.name, COALESCE(w.n, 0) AS wins FROM names n LEFT JOIN wins w ON w.device = n.device AND w.week = ? ORDER BY wins DESC, n.at DESC', week(Date.now())).toArray());
     if (url.pathname === '/summary') return Response.json(this.summary());
     if (url.pathname === '/export') return Response.json(this.sql.exec('SELECT id, at, kind, people, finished, data FROM matches ORDER BY id DESC LIMIT 2000').toArray().map((r) => Object.assign(r, { data: JSON.parse(r.data) })));
     return new Response('Not found', { status: 404 });

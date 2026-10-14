@@ -35,6 +35,7 @@
     // what to say when a name was not taken
     why(err) {
       return err && err.why === 'name' ? 'Pick another name: letters and numbers, up to 12.'
+        : err && err.why === 'blocked' ? 'This browser cannot put a name on the leaderboard.'
         : err && err.why === 'slow' ? 'Too many tries. Wait a minute and try again.'
         : 'Could not reach the game server. Try again in a moment.';
     },

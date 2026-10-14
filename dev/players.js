@@ -19,7 +19,38 @@ function who(key) {
 }
 let key = '';
 try { key = sessionStorage.getItem('overboard-stats-key') || ''; } catch (e) { /* typed each time */ }
-const ask = (path) => fetch(API + path, { headers: { Authorization: 'Bearer ' + key } });
+const ask = (path, body) => fetch(API + path, {
+  method: body ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + key },
+  ...(body ? { body: JSON.stringify(body) } : {}),
+});
+
+async function showNames() {
+  const res = await ask('/admin/names');
+  if (!res.ok) throw new Error('Could not load names.');
+  const names = await res.json(), box = document.getElementById('names');
+  box.textContent = '';
+  document.getElementById('moderation').hidden = false;
+  if (!names.length) { el('p', 'No names to moderate.', box); return; }
+  const t = el('table', undefined, box), hr = el('tr', undefined, t);
+  ['name', 'wins this week', 'action'].forEach((h) => el('th', h, hr));
+  for (const entry of names) {
+    const tr = el('tr', undefined, t);
+    el('td', entry.name, tr); el('td', String(entry.wins), tr);
+    const button = el('button', 'Remove and block', el('td', undefined, tr));
+    button.type = 'button';
+    button.onclick = async () => {
+      button.disabled = true;
+      const note = document.getElementById('names-note');
+      note.textContent = '';
+      try {
+        const reply = await ask('/admin/remove-name', { device: entry.device });
+        if (!reply.ok) throw new Error('Could not remove name.');
+        await showNames();
+        note.textContent = entry.name + ' was removed and blocked.';
+      } catch (e) { note.textContent = e.message; button.disabled = false; }
+    };
+  }
+}
 
 async function show() {
   out.textContent = '';
@@ -67,6 +98,7 @@ async function show() {
     Cast.LIST.filter((c) => s.bots[c.key]).map((c) => { const b = s.bots[c.key]; return [who(c.key), b.seats, pct(b.matchWins, b.finished), pct(b.roundWins, b.rounds), b.gotPerson, b.alone]; }));
   const pk = ['bomb', 'big', 'power', 'hide', 'thorns', 'charge', 'meteor'], pa = pk.reduce((a, k) => a + (s.picks[k] || 0), 0);
   table('Pickups taken', ['pickup', 'taken', 'share'], pk.map((k) => [k, s.picks[k] || 0, pct(s.picks[k] || 0, pa)]));
+  try { await showNames(); } catch (e) { document.getElementById('names-note').textContent = e.message; }
 }
 
 document.getElementById('door').onsubmit = (e) => { e.preventDefault(); key = document.getElementById('key').value.trim(); show(); };

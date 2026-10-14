@@ -7,7 +7,8 @@
 //   GET /join/CODE    (WebSocket)  join that room, if it is open
 //   GET /quick        (WebSocket)  join a gathering public room, or open one
 //   POST /stat                     a browser reporting a visit or a finished solo match
-//   GET /admin/stats, /admin/export   the play statistics, for whoever holds the key
+//   GET /admin/stats, /admin/export, /admin/names   owner-only statistics and names
+//   POST /admin/remove-name                    owner-only removal and block
 //   GET /board                     this week's leaderboard
 //   POST /board/me                 a browser's own place on it, by its made-up id
 //   POST /board/name               a browser adding, changing or taking off its own name
@@ -106,10 +107,22 @@ async function api(request, env, url) {
     if (!rec || rec.seats.filter((s) => s === 'person').length !== 1) return new Response('bad', { status: 400 });
     return stats.fetch('https://stats/match', { method: 'POST', body: JSON.stringify({ from: from, kind: 'solo', players: [player], rec: rec }) });
   }
-  if (url.pathname === '/admin/stats' || url.pathname === '/admin/export') {
+  if (url.pathname === '/admin/stats' || url.pathname === '/admin/export' || url.pathname === '/admin/names' || url.pathname === '/admin/remove-name') {
     const key = (request.headers.get('Authorization') || '').replace(/^Bearer /, '');
     if (!env.STATS_KEY || !key || !sameKey(key, env.STATS_KEY)) return new Response('Not found', { status: 404 });
-    return stats.fetch('https://stats/' + (url.pathname === '/admin/stats' ? 'summary' : 'export'));
+    if (url.pathname === '/admin/remove-name') {
+      if (request.method !== 'POST') return new Response('Not found', { status: 404 });
+      const raw = await text(request, 1024);
+      if (raw === null) return new Response('Too big', { status: 413 });
+      let d;
+      try { d = JSON.parse(raw); } catch (e) { return new Response('bad', { status: 400 }); }
+      const id = device(d && d.device);
+      if (!id) return new Response('bad', { status: 400 });
+      return stats.fetch('https://stats/moderate/name', { method: 'POST', body: JSON.stringify({ device: id }) });
+    }
+    if (request.method !== 'GET') return new Response('Not found', { status: 404 });
+    const internal = url.pathname === '/admin/stats' ? 'summary' : url.pathname === '/admin/export' ? 'export' : 'moderate/names';
+    return stats.fetch('https://stats/' + internal);
   }
   // The weekly leaderboard. Anyone may read it. A browser asks for its own place, or
   // puts up its own name, by its made-up id; the wins themselves only ever come from
@@ -143,7 +156,11 @@ async function api(request, env, url) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/stat' || url.pathname.startsWith('/admin/') || url.pathname === '/board' || url.pathname.startsWith('/board/')) return cors(request, env, await api(request, env, url));
+    if (url.pathname === '/stat' || url.pathname.startsWith('/admin/') || url.pathname === '/board' || url.pathname.startsWith('/board/')) {
+      const res = cors(request, env, await api(request, env, url));
+      if (url.pathname.startsWith('/admin/')) res.headers.set('Cache-Control', 'no-store');
+      return res;
+    }
     // anything that is not one of the game's files (those are served before this runs) or a room
     if (!/^\/(new|quick|join\/[A-Za-z0-9]{5})$/.test(url.pathname)) return new Response('Not found', { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
@@ -430,8 +447,9 @@ export class Room {
   credit(seat) {
     const m = seat >= 0 && this.state.players[seat].human ? this.members.find((x) => x.seat === seat) : null;
     if (!m || !device(m.device)) return;
+    const people = this.state.players.filter((p, i) => p.human && this.members.some((x) => x.seat === i)).length;
     const write = this.env.STATS.get(this.env.STATS.idFromName('all')).fetch('https://stats/win', {
-      method: 'POST', body: JSON.stringify({ device: m.device }),
+      method: 'POST', body: JSON.stringify({ device: m.device, botOnly: people < 2 }),
     }).catch(() => {});
     this.ctx.waitUntil(write);
   }

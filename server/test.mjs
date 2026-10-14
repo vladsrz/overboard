@@ -3,7 +3,7 @@
 import assert from 'node:assert';
 import { rude } from './src/names.js';
 import { Stats, clean, device, country, subnet, text, BODY_MAX, week, weekEnds, boardName } from './src/stats.js';
-import { Room } from './src/worker.js';
+import worker, { Room } from './src/worker.js';
 
 for (const ok of ['Ann', 'Bo', 'Sam PC', 'me On Phone', 'Grape', 'Cockpit Sam', 'Raccoon', 'Analyst', 'Night Owl', 'Player 2', 'Dr. Who', 'Assassin']) assert(!rude(ok), 'refused an ordinary name: ' + ok);
 for (const bad of ['fuck you', 'F U C K', 'fuuuuck', 'sh1t', 'b!tch', 'n1gg4', 'hitler', 'N a z i', 'ass', 'k y s']) assert(rude(bad), 'let through: ' + bad);
@@ -47,7 +47,9 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
   });
   const seats = [{ human: true }, { human: true }, { human: false }, { human: false }];
   room(seats, [{ seat: 0, device: 'alice123456' }, { seat: 1, device: 'bobby123456' }]).credit(1);
-  assert.deepStrictEqual(sent.splice(0), [['https://stats/win', { device: 'bobby123456' }]], 'the winning seat was not the one credited');
+  assert.deepStrictEqual(sent.splice(0), [['https://stats/win', { device: 'bobby123456', botOnly: false }]], 'the winning seat was not the one credited');
+  room(seats, [{ seat: 0, device: 'alice123456' }]).credit(0);
+  assert.deepStrictEqual(sent.splice(0), [['https://stats/win', { device: 'alice123456', botOnly: true }]], 'a bot-only match was not marked for the daily cap');
   room(seats, [{ seat: 0, device: 'alice123456' }]).credit(2);
   room(seats, [{ seat: 0, device: 'alice123456' }]).credit(-1);
   room([{ human: false }, { human: true }], [{ seat: 1, device: 'bobby123456' }]).credit(0);
@@ -127,7 +129,7 @@ else {
   try {
     const ask = async (how, d) => { const res = await send(how, d); return { status: res.status, body: await res.json().catch(() => null) }; };
     const top = async () => (await (await stats.fetch(new Request('https://stats/board'))).json()).top;
-    const win = async (id, times) => { for (let i = 0; i < times; i++) await send('win', { device: id }); };
+    const win = async (id, times, botOnly = false) => { for (let i = 0; i < times; i++) await send('win', { device: id, botOnly }); };
     assert((await send('win', { device: 'NOT AN ID' })).status === 400 && count('wins') === 0, 'a win went to something that is not a browser id');
     assert((await ask('board/name', { device: 'nowins12345', name: 'Ann' })).status === 403 && count('names') === 0, 'a name went up with no win behind it');
     await win('alice123456', 3); await win('bobby123456', 3); await win('carol123456', 5); await win('dave1234567', 1);
@@ -147,11 +149,35 @@ else {
     r = await ask('board/name', { device: 'alice123456', name: '' });
     assert(r.status === 200 && r.body.name === '' && r.body.rank === 0 && r.body.wins === 3, 'taking a name off did not');
     assert.deepStrictEqual((await top()).map((x) => x.name), ['Carol', 'Bobby'], 'a name that was taken off is still listed');
+    // Bot-only matches stop adding wins after ten per UTC day. Human matches still count.
+    const today = now;
+    await win('grinder12345', 12, true);
+    assert((await ask('board/me', { device: 'grinder12345' })).body.wins === 10, 'bot-only wins passed the daily cap');
+    await win('grinder12345', 1);
+    assert((await ask('board/me', { device: 'grinder12345' })).body.wins === 11, 'a human win was capped');
+    now = today + 864e5;
+    await win('grinder12345', 1, true);
+    assert((await ask('board/me', { device: 'grinder12345' })).body.wins === 12, 'bot-only cap did not reset on the next UTC day');
+    // The owner can remove a name and stop that browser from putting up another.
+    assert((await (await stats.fetch(new Request('https://stats/moderate/names'))).json()).some((e) => e.name === 'Carol'));
+    assert((await ask('moderate/name', { device: 'carol123456' })).status === 200);
+    assert(!(await top()).some((e) => e.name === 'Carol'), 'moderated name stayed public');
+    assert((await ask('board/name', { device: 'carol123456', name: 'Again' })).status === 403, 'moderated browser could rename itself');
+    assert((await ask('board/me', { device: 'carol123456' })).body.blocked, 'moderation was not reported to the browser');
+    const env = { STATS_KEY: 'test-key', STATS: { idFromName: () => 'all', get: () => ({ fetch: (url, init) => stats.fetch(new Request(url, init)) }) } };
+    const admin = (path, key, body) => worker.fetch(new Request('https://game.test/admin/' + path, {
+      method: body ? 'POST' : 'GET', headers: { Origin: 'http://localhost:8080', Authorization: key ? 'Bearer ' + key : '' },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    }), env);
+    assert((await admin('names', '')).status === 404 && (await admin('remove-name', '', { device: 'bobby123456' })).status === 404, 'moderation accepted no key');
+    assert((await admin('names', 'test-key')).status === 200, 'owner could not load names');
+    assert((await admin('remove-name', 'test-key', { device: 'bobby123456' })).status === 200, 'owner could not remove a name');
+    assert(!(await top()).some((e) => e.name === 'Bobby'), 'owner removal was not reflected on the board');
     // a new week starts empty; last week's winners can still put a name back up
     now += 7 * 864e5;
     assert((await top()).length === 0, 'last week\'s wins count this week');
-    r = await ask('board/me', { device: 'carol123456' });
-    assert(r.body.wins === 0 && r.body.rank === 0 && r.body.name === 'Carol' && r.body.canName, 'a new week lost a name or kept old wins');
+    r = await ask('board/me', { device: 'grinder12345' });
+    assert(r.body.wins === 0 && r.body.rank === 0 && r.body.name === '' && r.body.canName, 'a new week kept old wins or lost the ability to add a name');
     // wins are kept eight weeks, and a name goes with the last of them
     now += 8 * 7 * 864e5;
     stats.prune();
