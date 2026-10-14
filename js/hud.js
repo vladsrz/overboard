@@ -151,10 +151,36 @@
     else if (Net.open) say = (to === 'end' ? 'Next match in ' : 'Starting in ') + Math.max(0, Net.wait) + '.' + (to === 'end' ? '' : ' Bots fill the empty seats.');
     else if (lead) say = to === 'room' ? 'Bots fill the empty seats.' : '';
     else if (net) say = to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
+    // a private room on the server: everyone's button is Ready, and the line says who it waits for
+    $('start').disabled = false; $('start').classList.remove('done');
+    if (Net.together() && to !== 'start') {
+      const t = readyFace(to);
+      $('start').hidden = !!t.hidden; $('start').textContent = t.label || '';
+      $('start').disabled = !!t.done; $('start').classList.toggle('done', !!t.done);
+      say = why || t.say;
+    }
     if (to === 'room') $('cover-lede').textContent = say;
     $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
     $('cover').hidden = false;
     placeMini();
+  }
+
+  // Ready, then: once everyone is, the room counts down. Anyone ready who has waited
+  // long enough may start without whoever is not, and they sit that match out.
+  function readyFace(to) {
+    const me = Net.members[Net.you], rest = Net.unready();
+    const names = (list) => {
+      const n = list.map((m) => (m === me ? 'you' : m.name));
+      return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1];
+    };
+    if (Net.playing) return { hidden: true, say: 'A match is on. You are in the next one.' };
+    const t = !me || !me.ready ? { label: 'Ready' }
+      : rest.length && Net.out === 0 ? { label: 'Start without ' + names(rest) }
+      : { label: 'Ready', done: true };
+    t.say = Net.wait >= 0 ? 'Starting in ' + Net.wait + '.'
+      : rest.length < Net.members.length ? 'Waiting for ' + names(rest) + '.'
+      : to === 'room' ? 'Bots fill the empty seats.' : '';
+    return t;
   }
 
   // After a match won in a room (the only wins the leaderboard counts), offer to put
@@ -240,19 +266,22 @@
     if (!Net.role) return;
     const ol = $('seats'), field = $('my-name');
     while (ol.children.length < Net.SEATS) {
-      const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span');
-      disc.className = 'disc'; name.className = 'name';
-      li.append(disc, name);
+      const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span'), note = document.createElement('span');
+      disc.className = 'disc'; name.className = 'name'; note.className = 'note';
+      li.append(disc, name, note);
       ol.appendChild(li);
     }
     for (let i = 0; i < Net.SEATS; i++) {
       const m = Net.members[i], who = Cast.PEOPLE[i], li = ol.children[i], mine = !!m && i === Net.you;
-      const disc = li.querySelector('.disc'), name = li.querySelector('.name');
-      li.className = !m ? 'empty' : mine ? 'mine' : '';
+      const disc = li.querySelector('.disc'), name = li.querySelector('.name'), note = li.querySelector('.note');
+      const ready = !!m && m.ready && Net.together() && !Net.playing;
+      li.className = (!m ? 'empty' : mine ? 'mine' : '') + (ready ? ' ready' : '');
+      // under the name: ready, and the matches won since coming into this room
+      note.textContent = !m ? '' : [ready ? 'ready' : '', m.wins ? m.wins + (m.wins === 1 ? ' win' : ' wins') : ''].filter(Boolean).join(' · ');
       disc.textContent = m ? m.name[0] : '';
       disc.style.background = m ? who.color : ''; disc.style.color = m ? (who.light ? G.PAL.DEEP : G.PAL.PLANK) : '';
       name.textContent = m ? m.name : 'bot'; name.hidden = mine;
-      if (mine && field.parentNode !== li) li.appendChild(field);
+      if (mine && field.parentNode !== li) li.insertBefore(field, note);
       else if (!mine && field.parentNode === li) $('room').appendChild(field);
     }
     ol.hidden = !Net.ready;
@@ -321,6 +350,8 @@
     },
     showLobby() {
       $('cover-title').textContent = START.title;
+      // back from a result: the last match's score bar and keys go with it
+      $('top').hidden = true; $('keys').hidden = true; $('pad').hidden = true;
       clearTimeout(copiedT);
       $('invite').textContent = 'Copy invite link'; $('invite').classList.remove('typed');
       cover('room');

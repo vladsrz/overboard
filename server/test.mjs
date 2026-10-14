@@ -58,6 +58,55 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
   assert(sent.length === 0, 'a bot, a draw, a player who left or a browser with no id was credited: ' + JSON.stringify(sent));
 }
 
+// A private room starts when everyone in it is ready. Anyone ready may start without
+// the rest once they have waited, and whoever was not ready sits that match out.
+// The room counts each person's match wins.
+{
+  const quiet = { idFromName: () => 'x', get: () => ({ fetch: () => Promise.resolve() }) };
+  const socket = () => { const ws = { got: [], addEventListener() {}, send(s) { ws.got.push(JSON.parse(s)); }, close() {} }; return ws; };
+  const last = (ws, t) => ws.got.filter((d) => d.t === t).pop();
+  const room = () => { const r = new Room({ waitUntil() {} }, { DESK: quiet, STATS: quiet }); r.code = 'ABCDE'; return r; };
+
+  let r = room();
+  const a = socket(), b = socket();
+  r.join(a, 'US', 'w1', 'id1'); r.join(b, 'US', 'w2', 'id2');
+  const [A, B] = r.members;
+  r.hear(A, '{"t":"ready"}');
+  assert(!r.goAt && r.readySince, 'one of two ready should not count down');
+  assert.deepStrictEqual(last(b, 'lobby').ready, [true, false], 'the room did not say who is ready');
+  assert(last(b, 'lobby').out === 15 && last(b, 'lobby').wait === -1, 'the wait for the rest was not told');
+  r.hear(A, '{"t":"go"}');
+  assert(!r.playing, 'started without the rest before waiting');
+  r.hear(B, '{"t":"go"}');
+  assert(!r.playing, 'someone not ready started the match');
+  r.readySince -= 16000;
+  r.hear(A, '{"t":"go"}');
+  assert(r.playing && A.seat === 0 && B.seat === -1, 'did not start without the one who was not ready');
+  assert(last(a, 'start') && !last(b, 'start'), 'the one not ready was given a seat');
+  assert(!A.ready && !B.ready, 'ready should not carry over to the next match');
+  // the match ends with the person in seat 0 on top
+  r.state.phase = 'matchEnd'; r.state.matchWinner = 0;
+  r.tick();
+  assert(!r.playing && A.wins === 1 && B.wins === 0, 'the room did not count the match win');
+  assert.deepStrictEqual(last(b, 'lobby').wins, [1, 0], 'the room did not tell its score');
+  r.shut();
+
+  r = room();
+  const c = socket(), d = socket();
+  r.join(c, 'US', 'w1', 'id1'); r.join(d, 'US', 'w2', 'id2');
+  const [C, D] = r.members;
+  r.hear(C, '{"t":"ready"}'); r.hear(D, '{"t":"ready"}');
+  assert(r.goAt && last(c, 'lobby').wait === 3, 'everyone ready should count down from 3');
+  r.join(socket(), 'US', 'w3', 'id3');
+  assert(!r.goAt, 'someone arriving should stop the countdown');
+  r.drop(r.members[2]);
+  assert(r.goAt, 'the countdown should come back when the newcomer leaves');
+  r.goAt = Date.now() - 1;
+  r.heartbeat();
+  assert(r.playing && C.seat === 0 && D.seat === 1, 'everyone ready did not start with everyone seated');
+  r.shut();
+}
+
 // who a limit is counted against: an IPv6 address is its /64, however it is written
 assert(subnet('203.0.113.7') === '203.0.113.7' && subnet('203.0.113.7') !== subnet('203.0.113.8'), 'an IPv4 address is kept whole');
 assert(subnet('::ffff:203.0.113.7') === '203.0.113.7', 'IPv4 written the IPv6 way');

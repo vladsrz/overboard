@@ -351,10 +351,16 @@
 
   // Alone: you and three bots. With friends: everyone in the room, in the order
   // they came in, and bots in the seats left over. Whoever may start it (Net.lead)
-  // does; the rest wait.
+  // does; the rest wait. A private room on the server starts once everyone is ready.
   function startMatch() {
-    // on the game server the room runs the match: ask it to start one
-    if (Net.server) { if (Net.lead()) Net.go(); return; }
+    // on the game server the room runs the match: say you are ready, or ask it to start one
+    if (Net.server) {
+      const me = Net.members[Net.you];
+      // ready from the result goes back to the room, where the seats say who else is
+      if (Net.together() && me && !me.ready) { Net.readyUp(); ui.showLobby(); }
+      else if (Net.together() ? Net.out === 0 && Net.unready().length : Net.lead()) Net.go();
+      return;
+    }
     if (Net.role === 'guest' || (Net.role === 'host' && !Net.ready)) return;
     const seed = newSeed();
     if (!Net.role) { enter([{ name: 'You', human: true }].concat(Cast.draw(3, Math.random)), 0, seed); return; }
@@ -371,7 +377,7 @@
 
   function requestStart(practice = false) {
     const guide = $('install-guide');
-    if (guide.open || (Net.role && !Net.lead())) return;
+    if (guide.open || (Net.role && !Net.lead() && !Net.together())) return;
     // The start screen's main action joins public play. Room and result screens
     // keep their own Start now / Play again behavior.
     if (!practice && !Net.role && G.mode !== 'match') {
@@ -449,7 +455,7 @@
     if (Net.ready) onlineFromStart = false;
     const n = Net.ready ? Net.members.length : -1, playing = G.mode === 'match' && !ui.coverOpen();
     if (!playing && crowd > 0 && n > 0 && n !== crowd) Sfx.play(n > crowd ? 'join' : 'leave');
-    if (!playing && Net.open && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
+    if (!playing && (Net.open || Net.together()) && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
     crowd = n; waitWas = Net.wait;
     ui.lobby();
   };

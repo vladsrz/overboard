@@ -118,12 +118,13 @@
     role: null,      // null = playing alone, 'host' (this browser runs the match) or 'guest'
     server: false,   // the room is on the game server; everyone in it is a 'guest'
     open: false,     // a public room, found through quick play: it starts on its own
-    wait: -1,        // seconds until a public room starts, or -1
+    wait: -1,        // seconds until a public room starts (or a private one, once everyone is ready), or -1
+    out: -1,         // private room on the server: seconds until anyone ready may start without the rest, or -1
     code: '',        // the room, once it is open
     ready: false,    // host: the room is open; guest: the host has let us in
     playing: false,  // a match is on
     you: 0,          // which entry of members is this machine
-    // host: { name, conn, seat, ... } with the host first. guest: { name } as the host lists them.
+    // host: { name, conn, seat, ... } with the host first. guest: { name, ready, wins } as the host lists them.
     members: [],
     on: { lobby() {}, start() {}, left() {}, closed() {} },
     pack, unpack, cleanName, SEATS,
@@ -137,7 +138,7 @@
     clearInterval(beat);
     const old = peer, line = link;
     peer = null; link = null; pending = null; heard = []; sent = ''; sentAt = 0;
-    Net.role = null; Net.server = false; Net.open = false; Net.wait = -1; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
+    Net.role = null; Net.server = false; Net.open = false; Net.wait = -1; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0; Net.out = -1;
     if (old) try { old.destroy(); } catch (e) { /* already gone */ }
     if (line && line.ws) try { line.ws.close(); } catch (e) { /* already gone */ }
   }
@@ -284,10 +285,15 @@
     if (d.t === 'lobby') {
       if (!(d.v > lobbyN) || !Array.isArray(d.names)) return;
       lobbyN = d.v;
-      Net.members = d.names.slice(0, SEATS).map((name, i) => ({ name: cleanName(name, fallbackName(i)) }));
+      const ready = Array.isArray(d.ready) ? d.ready : [], wins = Array.isArray(d.wins) ? d.wins : [];
+      Net.members = d.names.slice(0, SEATS).map((name, i) => ({
+        name: cleanName(name, fallbackName(i)), ready: ready[i] === true,
+        wins: Number.isInteger(wins[i]) && wins[i] > 0 ? Math.min(wins[i], 999) : 0,
+      }));
       Net.you = seat(d.you, Net.members.length);
       Net.playing = !!d.playing; Net.ready = true;
       Net.wait = Number.isInteger(d.wait) ? d.wait : -1;
+      Net.out = Number.isInteger(d.out) ? d.out : -1;
       Net.on.lobby();
     } else if (d.t === 'full') closed('That room is full.');
     else if (d.t === 'start') {
@@ -337,6 +343,12 @@
   // (in a public room, nobody leads; but someone alone in it may start at once rather than wait)
   Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && (Net.open ? !Net.playing && Net.members.length === 1 : Net.you === 0)));
   Net.go = () => { if (Net.server) send(link, { t: 'go' }); };
+  // A private room on the server starts when everyone in it says they are ready
+  // (the browser-hosted room still starts when its host says so).
+  Net.together = () => Net.server && !Net.open && Net.ready;
+  Net.readyUp = () => { if (Net.together()) send(link, { t: 'ready' }); };
+  // whoever this machine would start without: the people in the room not yet ready
+  Net.unready = () => (Net.together() ? Net.members.filter((m) => !m.ready) : []);
 
   // No code opens a new room; a code joins that one; quick joins whichever public
   // room has space (or opens one), where a match starts on its own.
