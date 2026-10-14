@@ -451,7 +451,8 @@
         }
         if (pick >= 0) {
           state.tiles[pick] = WARN; state.tileT[pick] = C.WARN_T;
-          state.tileBy[pick] = aimed ? -2 : state.meteorBy; // distinct target mark; never credits a player
+          // the raft's own aimed burst blinks black like every other plank the raft pulls, and credits nobody
+          state.tileBy[pick] = state.meteorBy;
           state.events.push({ type: 'warn', tile: pick, by: state.meteorBy });
         }
       }

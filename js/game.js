@@ -154,8 +154,8 @@
         case 'spawn': fx.ring(e.x, e.y, 4, 22, 0.3, PAL.PLANK, 3, true); sfx('spawn', 0, 80); break;
         case 'stall': if (match) ui.banner('The raft is breaking up', 'Nobody has gone in for a while.', 2.4); sfx('shrink'); break;
         case 'stallMeteor':
-          if (match) ui.banner('Meteors incoming', 'They are aiming near everyone still on the raft. Keep moving.', 2.6);
-          sfx('meteor'); break;
+          if (match) ui.banner('The raft is breaking up faster', 'It is pulling planks near everyone still on it. Keep moving.', 2.6);
+          sfx('shrink'); break;
         case 'warn': {
           // the plank going from under your own feet is the one to hear
           const me = G.human();

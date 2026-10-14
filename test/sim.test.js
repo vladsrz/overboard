@@ -314,7 +314,8 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   for (let t = 0; t < 45; t++) {
     park(); Sim.step(s, [], DT);
     called += s.events.filter((e) => e.type === 'stallMeteor').length;
-    for (const e of s.events) if (e.type === 'warn' && s.tileBy[e.tile] === -2) {
+    // the raft's own aimed burst: nobody's colour (the regular pulls are parked off above)
+    for (const e of s.events) if (e.type === 'warn' && e.by === -1 && s.tileBy[e.tile] === -1) {
       strikes++;
       assert(s.players.some((p) => Math.hypot(Sim.tileX(e.tile) - p.x, Sim.tileY(e.tile) - p.y) <= Sim.C.STALL_METEOR_R), 'meteor missed the survivors');
     }
@@ -466,9 +467,10 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
     assert.deepStrictEqual(Net.pack(a), Net.pack(b), 'two copies of one snapshot must play out the same');
   }
   assert(checked > 4 && busy > 0, 'the snapshot test never saw a busy moment: ' + checked + ' checked, ' + busy + ' busy');
-  host.tiles[3] = Sim.WARN; host.tileT[3] = 0.5; host.tileBy[3] = -2;
+  host.tiles[3] = Sim.WARN; host.tileT[3] = 0.5; host.tileBy[3] = -1;
+  host.tiles[4] = Sim.WARN; host.tileT[4] = 0.5; host.tileBy[4] = 1;
   Net.unpack(guest, JSON.parse(JSON.stringify(Net.pack(host))));
-  assert.strictEqual(guest.tileBy[3], -2, 'automatic meteor target should survive a room snapshot');
+  assert(guest.tileBy[3] === -1 && guest.tileBy[4] === 1, 'who is pulling a plank should survive a room snapshot');
   // a message that is not a match is refused, and one with nonsense in it cannot plant a bad seat number
   assert.throws(() => Net.unpack(guest, { p: [] }));
   const bad = JSON.parse(JSON.stringify(Net.pack(host)));

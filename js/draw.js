@@ -127,19 +127,9 @@
         const on = Math.floor(e * (5 + e * 9)) % 2 === 0;
         const by = state.tileBy[i];
         const k = (size * (1 - 0.14 * (e / C.WARN_T))) / 2;
-        // a player's plank blinks their colour, the raft's black, and a meteor
-        // target water teal so the incoming strike reads differently
-        ctx.fillStyle = on ? (by >= 0 ? G.colors[by].fill : by === -2 ? WATER : BLACK) : PLANK;
+        // a player's plank blinks their colour, the raft's own black
+        ctx.fillStyle = on ? (by >= 0 ? G.colors[by].fill : BLACK) : PLANK;
         ctx.beginPath(); ctx.roundRect(x - k, y - k, k * 2, k * 2, 4); ctx.fill();
-        if (by === -2) {
-          // a small descending stone and target ring during the one-second warning
-          const drop = Math.min(1, e / C.WARN_T);
-          ctx.strokeStyle = WATER; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(x, y, 12 - 5 * drop, 0, Math.PI * 2); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(x + 11 - 9 * drop, y - 16 + 13 * drop);
-          ctx.lineTo(x + 17 - 9 * drop, y - 22 + 13 * drop); ctx.stroke();
-          ctx.fillStyle = WATER; ctx.beginPath(); ctx.arc(x + 8 - 8 * drop, y - 13 + 11 * drop, 3, 0, Math.PI * 2); ctx.fill();
-        }
       } else if (s === Sim.GONE && state.tileT[i] > 0) {
         const k = (size * 0.86 * (state.tileT[i] / C.GONE_T)) / 2;
         ctx.fillStyle = DEEP;
