@@ -119,14 +119,22 @@
     server: false,   // the room is on the game server; everyone in it is a 'guest'
     open: false,     // a public room, found through quick play: it starts on its own
     wait: -1,        // seconds until a public room starts, or -1
+    auto: false,     // private server room: the host chose automatic starts
     code: '',        // the room, once it is open
     ready: false,    // host: the room is open; guest: the host has let us in
     playing: false,  // a match is on
     you: 0,          // which entry of members is this machine
-    // host: { name, conn, seat, ... } with the host first. guest: { name } as the host lists them.
+    // host: { name, conn, seat, ... } with the host first. guest: { name, sit, wins } as the host lists them.
     members: [],
-    on: { lobby() {}, start() {}, left() {}, closed() {} },
+    on: { lobby() {}, start() {}, left() {}, closed() {}, emote() {} },
     pack, unpack, cleanName, SEATS,
+    // The reactions anyone in a room can send, on keys 1 to 9. Only these: nothing typed
+    // goes to strangers. The server checks the number against this list. The first five
+    // are drawn by the game (FACES in hud.js), not emoji.
+    EMOTES: ['yes', 'happy', 'laughing', 'shocked', 'angry', 'gg', 'nice one', 'oops', 'one more?'],
+    // ms between one player's reactions. Whoever passes them on allows a little less, for the
+    // time messages take to arrive unevenly.
+    EMOTE_GAP: 3000,
     codeFrom: (hash) => { const c = String(hash || '').replace(/^#/, '').toUpperCase(); return CODE.test(c) ? c : ''; },
   };
 
@@ -137,7 +145,7 @@
     clearInterval(beat);
     const old = peer, line = link;
     peer = null; link = null; pending = null; heard = []; sent = ''; sentAt = 0;
-    Net.role = null; Net.server = false; Net.open = false; Net.wait = -1; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
+    Net.role = null; Net.server = false; Net.open = false; Net.wait = -1; Net.auto = false; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
     if (old) try { old.destroy(); } catch (e) { /* already gone */ }
     if (line && line.ws) try { line.ws.close(); } catch (e) { /* already gone */ }
   }
@@ -165,6 +173,16 @@
     Net.on.lobby();
   }
 
+  // a reaction from someone in a browser-hosted room goes to everyone, the host included
+  function hostEmote(i, k) {
+    const m = Net.members[i], t = now();
+    if (!m || t - (m.emoteAt || 0) < Net.EMOTE_GAP * 0.8) return;
+    m.emoteAt = t;
+    const msg = { t: 'emote', i: i, s: m.seat, k: k };
+    for (const x of Net.members) send(x.conn, msg);
+    Net.on.emote(i, m.seat, k);
+  }
+
   function drop(m) {
     const i = Net.members.indexOf(m);
     if (i < 1) return;
@@ -180,6 +198,8 @@
     if (d.t === 'name') {
       const name = cleanName(d.name, fallbackName(Net.members.indexOf(m)));
       if (name !== m.name) { m.name = name; tellLobby(); }
+    } else if (d.t === 'emote') {
+      if (Number.isInteger(d.k) && d.k >= 0 && d.k < Net.EMOTES.length) hostEmote(Net.members.indexOf(m), d.k);
     } else if (d.t === 'i') {
       // a dash is one press: it is kept until the match has used it, however the messages land
       if (d.d) m.dash = true;
@@ -284,11 +304,21 @@
     if (d.t === 'lobby') {
       if (!(d.v > lobbyN) || !Array.isArray(d.names)) return;
       lobbyN = d.v;
-      Net.members = d.names.slice(0, SEATS).map((name, i) => ({ name: cleanName(name, fallbackName(i)) }));
+      const sit = Array.isArray(d.sit) ? d.sit : [], wins = Array.isArray(d.wins) ? d.wins : [], hold = Array.isArray(d.hold) ? d.hold : [];
+      Net.members = d.names.slice(0, SEATS).map((name, i) => ({
+        name: cleanName(name, fallbackName(i)), sit: sit[i] === true, hold: hold[i] === true,
+        wins: Number.isInteger(wins[i]) && wins[i] > 0 ? Math.min(wins[i], 999) : 0,
+      }));
       Net.you = seat(d.you, Net.members.length);
       Net.playing = !!d.playing; Net.ready = true;
       Net.wait = Number.isInteger(d.wait) ? d.wait : -1;
+      Net.auto = d.auto === true;
       Net.on.lobby();
+    } else if (d.t === 'emote') {
+      // who (their place in the room), their seat in the match or -1, and which reaction
+      if (!Number.isInteger(d.k) || d.k < 0 || d.k >= Net.EMOTES.length) return;
+      const i = seat(d.i, Net.members.length);
+      if (i >= 0) Net.on.emote(i, Number.isInteger(d.s) ? d.s : -1, d.k);
     } else if (d.t === 'full') closed('That room is full.');
     else if (d.t === 'start') {
       if (!(d.m > matchN) || !Array.isArray(d.roster)) return;
@@ -337,6 +367,23 @@
   // (in a public room, nobody leads; but someone alone in it may start at once rather than wait)
   Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && (Net.open ? !Net.playing && Net.members.length === 1 : Net.you === 0)));
   Net.go = () => { if (Net.server) send(link, { t: 'go' }); };
+  Net.setAuto = (on) => { if (Net.party() && Net.you === 0) send(link, { t: 'auto', on: !!on }); };
+  Net.boardDone = () => { if (Net.party()) send(link, { t: 'board', done: true }); };
+  // A private room on the server works like a party: everyone plays the next match
+  // unless they sit it out, and whoever has been in the room longest starts it and may
+  // send someone out. (A browser-hosted room has none of that: everyone plays.)
+  Net.party = () => Net.server && !Net.open && Net.ready;
+  Net.sit = (on) => { if (Net.party()) send(link, { t: 'sit', on: !!on }); };
+  Net.kick = (i) => { if (Net.party() && Net.you === 0) send(link, { t: 'kick', i: i }); };
+  // a reaction, for everyone in the room to see; false if it is too soon after the last
+  let emotedAt = 0;
+  Net.emote = (k) => {
+    if (!Number.isInteger(k) || k < 0 || k >= Net.EMOTES.length || !Net.ready) return false;
+    if (now() - emotedAt < Net.EMOTE_GAP) return false;
+    emotedAt = now();
+    if (Net.role === 'host') hostEmote(0, k); else send(link, { t: 'emote', k: k });
+    return true;
+  };
 
   // No code opens a new room; a code joins that one; quick joins whichever public
   // room has space (or opens one), where a match starts on its own.
@@ -367,6 +414,7 @@
       if (d && d.t === 'room') { Net.code = Net.codeFrom(d.code); Net.open = !!d.open; }
       else if (d && d.t === 'closed') closed(GONE);
       else if (d && d.t === 'away') closed('You were away for a while, so you left the room.');
+      else if (d && d.t === 'kicked') closed('You were removed from the room.');
       // the server turned this connection away before it reached a room
       else if (d && d.t === 'busy') closed('Too many games are open from your network. Close one and try again.');
       else if (d && d.t === 'slow') closed('Too many tries from your network. Wait a minute and try again.');

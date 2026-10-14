@@ -9,6 +9,16 @@ const DT = 1 / 60;
 const MATCHES = Cast.LIST.length * 8; // every character plays 32
 const stats = { spawned: {}, type: {}, dashes: 0, afterFirst: 0, picked: {}, slams: 0, firstFall: 0, rounds: 0, time: 0, how: {}, ghostKills: 0, falls: 0, draws: 0, longest: 0, wins: [0, 0, 0, 0] };
 
+// A match-winning round reaches the result sooner than an ordinary round.
+const finish = Sim.createMatch({ seed: 2, players: Cast.draw(4, () => 0.5) });
+finish.phase = 'play'; finish.players[0].wins = Sim.C.WINS - 1;
+finish.players.slice(1).forEach((p) => { p.state = 'ghost'; });
+Sim.step(finish, [], DT);
+assert(finish.phase === 'roundEnd' && finish.matchWinner === 0 && finish.phaseT === Sim.C.MATCH_END_T);
+
+const replacement = Cast.replacement([{ name: 'Ann', human: true }, { name: 'Ram', type: 'ram' }, { name: 'Otter', type: 'otter' }], 0, () => 0);
+assert(replacement.name !== 'Ann' && replacement.type !== 'ram' && replacement.type !== 'otter');
+
 for (let seed = 1; seed <= MATCHES; seed++) {
   // Four characters a match. Every character plays the same number of matches
   // (the offset walks the whole list) against changing company (the stride

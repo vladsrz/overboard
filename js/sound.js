@@ -8,7 +8,7 @@
   let lvl = 1;
   const last = {}, lastLvl = {};
   // heard whether or not the match is paused: menu clicks and what goes on in the room
-  const UI = { click: 1, join: 1, leave: 1, soon: 1 };
+  const UI = { click: 1, join: 1, leave: 1, soon: 1, emote: 1 };
   // every game sound still playing or queued, so pausing can stop them outright
   const ringing = new Set();
   function track(node) { if (out === game) { ringing.add(node); node.onended = () => ringing.delete(node); } }
@@ -65,6 +65,16 @@
   const tune = (notes, step, o) => notes.forEach((n, i) => tone(n, step * 1.6, Object.assign({ delay: i * step }, o)));
   // the sounds heard most (a bump, a plank) never land on quite the same note twice
   const wob = (f, by) => f * (1 + (Math.random() * 2 - 1) * by);
+
+  // short and quiet: they go off whenever anyone reacts, on top of the match
+  const EMOTE = {
+    yes: () => tune([660, 990], 0.07, { type: 'triangle', gain: 0.12 }),
+    happy: () => { tone(784, 0.28, { gain: 0.13 }); tone(1175, 0.24, { gain: 0.06, delay: 0.03 }); },
+    laughing: () => tune([700, 790, 880], 0.075, { type: 'square', gain: 0.05 }),
+    shocked: () => tone(380, 0.3, { type: 'triangle', gain: 0.13, to: 920 }),
+    angry: () => { tone(150, 0.32, { type: 'sawtooth', gain: 0.08, to: 105 }); tone(158, 0.32, { type: 'sawtooth', gain: 0.06, to: 112 }); },
+    words: () => tone(660, 0.07, { type: 'triangle', gain: 0.1, to: 990 }),
+  };
 
   const sounds = {
     tick: () => tone(392, 0.11, { type: 'square', gain: 0.13 }),
@@ -124,6 +134,8 @@
     leave: () => tune([440, 294], 0.12, { type: 'triangle', gain: 0.14 }),
     playerLeft: () => tune([440, 294], 0.12, { type: 'triangle', gain: 0.14 }),
     soon: () => tone(392, 0.08, { type: 'square', gain: 0.09 }),
+    // someone in the room reacted: each drawn reaction has a sound of its own, the words a pop
+    emote: (name) => (EMOTE[name] || EMOTE.words)(),
   };
 
   // gapMs stops a pile-up from firing the same sound every frame. A louder one

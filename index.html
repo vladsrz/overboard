@@ -46,6 +46,9 @@
   </div>
   <button class="act" id="act" type="button">Dash</button>
   <button class="pause" id="pause" type="button" aria-label="Pause"><i></i><i></i></button>
+  <!-- in a room: reactions, behind one small button -->
+  <button class="emote-open" id="emote-open" type="button" aria-label="React" aria-expanded="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14a4.2 4.2 0 0 0 7 0"/><path d="M9.5 9.8v.4M14.5 9.8v.4"/></svg></button>
+  <div class="emotes column" id="emotes-pad" hidden></div>
 </div>
 
 <section class="cover menu" id="menu" hidden>
@@ -75,11 +78,13 @@
     <span id="dash-key"><kbd>Space</kbd> <span id="dash-word">dash</span></span>
   </div>
   <div class="keyset" id="keys-water" hidden>
-    <span><kbd>Click</kbd> pull a plank out from under them</span>
-    <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> tip the raft that way for 2 seconds</span>
-    <span><kbd>Space</kbd> wave that shoves them toward your cursor</span>
+    <span><kbd>Click</kbd> pull a plank</span>
+    <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> tip the raft</span>
+    <span><kbd>Space</kbd> wave</span>
   </div>
   <div class="side">
+    <!-- in a room: every reaction beside its key, and a click sends it too -->
+    <span class="react-strip" id="react-key" aria-label="Reactions" hidden></span>
     <span class="esc"><kbd>Esc</kbd> menu</span>
     <div class="level" id="level" title="Which way the raft is tipping"><b id="level-dot"></b></div>
   </div>
@@ -100,12 +105,23 @@
   </div>
   <p class="fine board-line" id="board-line" hidden><span id="board-line-text"></span> <a href="leaderboard.html" target="_blank" rel="noopener">See the leaderboard</a></p>
   <div class="room" id="room" hidden>
-    <p class="room-code typed" id="room-code" hidden>Room code <b id="room-code-text"></b></p>
+    <!-- the code to read out, with a button that copies it and one that copies the invite link -->
+    <p class="room-code typed" id="room-code" hidden>Room code <b id="room-code-text"></b>
+      <button id="copy-code" type="button" class="icon" aria-label="Copy the room code" title="Copy the room code"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="glyph"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></g><path class="ok" d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+      <button id="copy-link" type="button" class="icon" aria-label="Copy the invite link" title="Copy the invite link"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="glyph"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></g><path class="ok" d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+    </p>
+    <p class="fine room-link typed" id="room-link" hidden></p>
     <ol class="seats" id="seats" aria-label="In the room" hidden></ol>
     <input id="my-name" type="text" maxlength="12" placeholder="your name" aria-label="Your name" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">
-    <button id="invite" type="button" class="quiet small" hidden>Copy invite link</button>
   </div>
-  <button id="start" type="button" autofocus>Play online</button>
+  <!-- the main button; in a room, Sit out for anyone who does not start, and reactions behind one small button -->
+  <div class="actions">
+    <button id="start" type="button" autofocus>Play online</button>
+    <button id="sit" type="button" class="quiet small" hidden>Sit out</button>
+    <button id="react" type="button" class="icon" aria-label="React" title="React (keys 1 to 9)" aria-expanded="false" aria-controls="emotes" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14a4.2 4.2 0 0 0 7 0"/><path d="M9.5 9.8v.4M14.5 9.8v.4"/></svg></button>
+    <div class="emotes pop" id="emotes" aria-label="Reactions" hidden></div>
+  </div>
+  <button id="auto-start" type="button" class="auto-start" aria-pressed="false" hidden>Auto-start later matches: off</button>
   <div class="more" id="more">
     <button id="practice" type="button" class="quiet small">Play solo (unranked)</button>
     <button id="friends" type="button" class="quiet small">Create room</button>

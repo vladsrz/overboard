@@ -53,7 +53,19 @@
     return cast.map((c) => ({ name: c.name, type: c.key }));
   }
 
-  const Cast = { LIST, BY_KEY, YOU, PEOPLE, WATER_TAG, draw };
+  // A departed person's seat gets a new character, distinct from the bots already playing.
+  function replacement(players, seat, rnd) {
+    const others = players.filter((p, i) => i !== seat);
+    const used = players.map((p, i) => i === seat ? null : BY_KEY[p.type] || (p.human ? PEOPLE[i] : null)).filter(Boolean);
+    const pool = LIST.filter((c) => !used.some((b) => b.key === c.key));
+    const choices = pool.filter((c) => !used.some((b) => b.hue === c.hue)
+      && !others.some((p) => p.name[0].toUpperCase() === c.name[0]));
+    const withHues = pool.filter((c) => !used.some((b) => b.hue === c.hue));
+    const pick = (choices.length ? choices : withHues.length ? withHues : pool)[Math.floor(rnd() * (choices.length || withHues.length || pool.length))];
+    return { name: pick.name, type: pick.key };
+  }
+
+  const Cast = { LIST, BY_KEY, YOU, PEOPLE, WATER_TAG, draw, replacement };
   root.Cast = Cast;
   if (typeof module !== 'undefined' && module.exports) module.exports = Cast;
 })(typeof window !== 'undefined' ? window : globalThis);

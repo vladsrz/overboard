@@ -124,7 +124,7 @@
   // ?lag=MS on a local page simulates delay (see net.js).
   const PREDICT = /[?&]predict=1\b/.test(location.search);
   let base = null, baseStep = 0, stepN = 0, rtt = 0, lastAck = 0;
-  const history = [];
+  const history = []; // the inputs sent, not the browser's history (that is window.history)
   G.lag = () => Math.round(rtt); // the round trip the prediction allows for, in ms (for testing)
   function tickGuest() {
     const state = G.state, me = G.human(), mine = humanInput();
@@ -258,7 +258,7 @@
           if (!match) break;
           clearInput();
           const w = e.winner < 0 ? null : state.players[e.winner];
-          ui.endRound(!w ? 'Nobody takes round ' + e.round : w.id === G.me ? 'Round ' + e.round + ' is yours' : w.name + ' takes round ' + e.round, C.ROUND_END_T);
+          ui.endRound(!w ? 'Nobody takes round ' + e.round : w.id === G.me ? 'Round ' + e.round + ' is yours' : w.name + ' takes round ' + e.round, state.matchWinner >= 0 ? C.MATCH_END_T : C.ROUND_END_T);
           // the round that decides the match gets the match's tune, the moment it is decided
           if (state.matchWinner < 0) sfx(w && w.id === G.me ? 'roundWon' : 'roundLost');
           else sfx(state.matchWinner === G.me ? 'matchWon' : 'matchLost');
@@ -270,7 +270,21 @@
           ui.showEnd(state.players[e.winner]);
           break;
         // someone playing with you closed the game: their disc plays on as a bot
-        case 'left': if (match) ui.banner(state.players[e.id].name + ' left', 'A bot has their seat.', 2.4); sfx('playerLeft'); break;
+        case 'left': {
+          if (!match) break;
+          const p = state.players[e.id], who = typeof e.who === 'string' ? e.who : p.name;
+          const bot = typeof e.bot === 'string' && Object.prototype.hasOwnProperty.call(Cast.BY_KEY, e.bot) ? Cast.BY_KEY[e.bot] : null;
+          if (bot) {
+            p.human = false; p.name = bot.name; p.type = bot.key; p.bot = null; p.wins = 0;
+            G.colors[p.id] = { fill: bot.color, text: bot.light ? PAL.DEEP : PAL.PLANK };
+          }
+          let sub = bot ? bot.name + ' joins in their place.' : 'A bot plays their disc now.';
+          if (Net.party() && who === hostWas && Net.members[0]) sub += Net.you === 0 ? ' You start the matches now.' : ' ' + Net.members[0].name + ' starts the matches now.';
+          if (Net.members[0]) hostWas = Net.members[0].name;
+          ui.banner(who + ' left', sub, 4);
+          sfx('playerLeft');
+          break;
+        }
       }
     }
     if (myFall && match && state.phase === 'play') {
@@ -334,7 +348,10 @@
     stickDrop();
   }
 
+  // who started this match, to say when it was them that left
+  let hostWas = '';
   function enter(roster, me, seed) {
+    hostWas = Net.members[0] ? Net.members[0].name : '';
     Sfx.unlock();
     Sfx.setPaused(false);
     Sfx.play('click');
@@ -351,7 +368,7 @@
 
   // Alone: you and three bots. With friends: everyone in the room, in the order
   // they came in, and bots in the seats left over. Whoever may start it (Net.lead)
-  // does; the rest wait.
+  // does; the rest wait (or, in a private room, sit it out).
   function startMatch() {
     // on the game server the room runs the match: ask it to start one
     if (Net.server) { if (Net.lead()) Net.go(); return; }
@@ -414,7 +431,7 @@
     const offlinePractice = onlineFromStart && why === Net.OFFLINE && !Net.ready;
     onlineFromStart = false;
     Net.leave();
-    if (Net.codeFrom(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+    if (Net.codeFrom(location.hash)) window.history.replaceState(null, '', location.pathname + location.search);
     paused = false;
     Sfx.setPaused(false);
     G.mode = 'attract';
@@ -437,23 +454,39 @@
   // that one; quick puts you in a public room with whoever else is looking
   function openRoom(code, quick) {
     Sfx.unlock();
-    crowd = -1; waitWas = -1;
+    crowd = -1; crowdNames = []; waitWas = -1;
     ui.showLobby();
     if (Net.usesServer()) Net.connect(code, myName, quick); else if (code) Net.join(code, myName); else Net.host(myName);
   }
   // Someone coming into the room or leaving it is heard, and so are the last three
   // seconds before a public room starts. Not during a match: a leaver there has a
   // banner and a sound of their own, and a newcomer is waiting for the next one.
-  let crowd = -1, waitWas = -1;
+  let crowd = -1, crowdNames = [], waitWas = -1;
   Net.on.lobby = () => {
     if (Net.ready) onlineFromStart = false;
     const n = Net.ready ? Net.members.length : -1, playing = G.mode === 'match' && !ui.coverOpen();
     if (!playing && crowd > 0 && n > 0 && n !== crowd) Sfx.play(n > crowd ? 'join' : 'leave');
-    if (!playing && Net.open && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
-    crowd = n; waitWas = Net.wait;
+    if (!playing && (Net.open || Net.auto) && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
+    // someone left: a banner says who, and who starts the matches now if it was them
+    // (mid-match, a player who leaves gets the match's own banner instead)
+    const names = Net.ready ? Net.members.map((m) => m.name) : [];
+    if (!playing && crowd > 0 && n > 0 && n < crowd) {
+      const rest = names.slice();
+      const gone = crowdNames.filter((x) => { const k = rest.indexOf(x); if (k < 0) return true; rest.splice(k, 1); return false; });
+      const lead = !Net.open && crowdNames[0] !== names[0];
+      if (gone.length) ui.banner(gone.join(' and ') + ' left', lead ? (Net.you === 0 ? 'You start the matches now.' : names[0] + ' starts the matches now.') : '', 3.2);
+    }
+    crowd = n; crowdNames = names; waitWas = Net.wait;
     ui.lobby();
   };
   Net.on.closed = (why) => quitToStart(why);
+  // somebody in the room reacted: on their seat in the room, by their name on the score bar
+  Net.on.emote = (i, seat, k) => { ui.emote(i, seat, k); Sfx.play('emote', Net.EMOTES[k]); };
+  // sending one: refused while the last is still cooling down, and that is heard, never silent
+  G.react = (k) => {
+    if (!Net.emote(k)) { Sfx.play('nope'); return; }
+    ui.cool(Net.EMOTE_GAP);
+  };
   // the host started a match and this machine has a seat in it
   Net.on.start = (list, seed, you) => {
     if (list.length < 2 || list.length > Net.SEATS) return;
@@ -468,8 +501,8 @@
   Net.on.left = (id) => {
     const p = G.mode === 'match' && G.state.players[id];
     if (!p || !p.human || id === G.me) return;
-    p.human = false;
-    const e = { type: 'left', id: id };
+    const bot = Cast.replacement(G.state.players, id, Math.random);
+    const e = { type: 'left', id: id, who: p.name, bot: bot.type };
     outbox.push(e);
     react([e]);
   };
@@ -507,6 +540,8 @@
     if (e.target && e.target.tagName === 'INPUT') { if (e.code === 'Enter' || e.code === 'Escape') e.target.blur(); return; }
     if (e.code === 'Escape' && inMatch()) { e.preventDefault(); Sfx.play('click'); setPaused(!paused); return; }
     if (e.code === 'KeyM' && inMatch() && !e.repeat) { toggleSound(); return; }
+    // a reaction, in a room, from the room screen, the result or the match itself
+    if (Net.role && /^Digit[1-9]$/.test(e.code) && !e.repeat) { G.react(+e.code.slice(5) - 1); return; }
     if (paused) return;
     if (!inMatch()) {
       if (e.code === 'Enter') { e.preventDefault(); requestStart(); }
@@ -625,26 +660,29 @@
     try { localStorage.setItem('overboard-name', myName); } catch (e) { /* private window */ }
     Net.rename(myName);
   });
-  $('invite').addEventListener('click', () => {
+  // the room's code alone, or the invite link (the page's address and the code)
+  function copy(what) {
     Sfx.play('click');
-    const url = location.origin + location.pathname + '#' + Net.code;
+    const text = what === 'code' ? Net.code : location.origin + location.pathname + '#' + Net.code;
     // The clipboard API only exists on https and localhost. Anywhere else (a preview
     // over the home network), copy the old way: select the text in a field and ask
     // the browser to copy the selection.
     const byHand = () => {
       const box = document.createElement('textarea');
-      box.value = url; box.readOnly = true;
+      box.value = text; box.readOnly = true;
       box.style.cssText = 'position:fixed;left:0;top:0;opacity:0;-webkit-user-select:text;user-select:text';
       document.body.appendChild(box);
-      box.select(); box.setSelectionRange(0, url.length);
+      box.select(); box.setSelectionRange(0, text.length);
       let ok = false;
       try { ok = document.execCommand('copy'); } catch (e) { /* not allowed here */ }
       box.remove();
       return ok;
     };
-    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => ui.copied(true, url), () => ui.copied(byHand(), url));
-    else ui.copied(byHand(), url);
-  });
+    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => ui.copied(true, what), () => ui.copied(byHand(), what));
+    else ui.copied(byHand(), what);
+  }
+  $('copy-code').addEventListener('click', () => copy('code'));
+  $('copy-link').addEventListener('click', () => copy('link'));
   // a guest never presses Start, so any press in the room is what lets their sound play
   window.addEventListener('pointerdown', () => { if (Net.role) Sfx.unlock(); }, true);
 

@@ -58,6 +58,138 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
   assert(sent.length === 0, 'a bot, a draw, a player who left or a browser with no id was credited: ' + JSON.stringify(sent));
 }
 
+// A private room is a party: everyone plays the next match unless they sit it out,
+// only whoever has been there longest starts it or sends someone out, and the room
+// counts each person's match wins. Reactions go to everyone, from a fixed list.
+{
+  const quiet = { idFromName: () => 'x', get: () => ({ fetch: () => Promise.resolve() }) };
+  const socket = () => { const ws = { got: [], addEventListener() {}, send(s) { ws.got.push(JSON.parse(s)); }, close() {} }; return ws; };
+  const last = (ws, t) => ws.got.filter((d) => d.t === t).pop();
+  const room = () => { const r = new Room({ waitUntil() {} }, { DESK: quiet, STATS: quiet }); r.code = 'ABCDE'; return r; };
+
+  const r = room();
+  const a = socket(), b = socket(), c = socket();
+  r.join(a, 'US', 'w1', 'id1'); r.join(b, 'US', 'w2', 'id2'); r.join(c, 'US', 'w3', 'id3');
+  const [A, B, C] = r.members;
+  assert.deepStrictEqual(last(b, 'lobby').sit, [false, false, false], 'everyone should be in by default');
+  r.hear(B, '{"t":"go"}');
+  assert(!r.playing, 'someone other than the first in the room started the match');
+  r.hear(A, '{"t":"sit","on":true}');
+  assert(!A.sit, 'whoever starts the match sat it out');
+  r.hear(C, '{"t":"sit","on":true}');
+  assert.deepStrictEqual(last(a, 'lobby').sit, [false, false, true], 'the room did not say who is sitting out');
+  r.hear(A, '{"t":"go"}');
+  assert(r.playing && A.seat === 0 && B.seat === 1 && C.seat === -1, 'the one sitting out was seated, or someone in was not');
+  assert(last(a, 'start') && last(b, 'start') && !last(c, 'start'), 'the start went to the wrong people');
+
+  // reactions: to everyone, with the seat they play in; nothing outside the list, and not too fast
+  r.hear(B, '{"t":"emote","k":4}');
+  assert.deepStrictEqual(last(c, 'emote'), { t: 'emote', i: 1, s: 1, k: 4 }, 'a reaction did not reach the room');
+  r.hear(B, '{"t":"emote","k":1}');
+  r.hear(C, '{"t":"emote","k":99}'); r.hear(C, '{"t":"emote","k":"lol"}'); r.hear(C, '{"t":"emote","k":-1}');
+  assert(a.got.filter((d) => d.t === 'emote').length === 1, 'a reaction too soon after the last, or one not on the list, went out');
+
+  // the match ends with seat 1 on top: the room scores it, and everyone is in the next one again
+  r.state.phase = 'matchEnd'; r.state.matchWinner = 1;
+  r.tick();
+  assert(!r.playing && B.wins === 1 && A.wins === 0, 'the room did not count the match win');
+  assert.deepStrictEqual(last(c, 'lobby').wins, [0, 1, 0], 'the room did not tell its score');
+  assert(!C.sit, 'sitting out should not carry over to the next match');
+  B.emoteAt = 0; r.hear(B, '{"t":"emote","k":4}');
+  assert(last(a, 'emote').s === 1, 'a reaction on the result should still carry the seat just played');
+
+  // only the first in the room sends someone out, and never themselves
+  r.hear(B, '{"t":"kick","i":2}'); r.hear(A, '{"t":"kick","i":0}'); r.hear(A, '{"t":"kick","i":"2"}');
+  assert(r.members.length === 3, 'someone was sent out who should not have been');
+  r.hear(A, '{"t":"kick","i":2}');
+  assert(r.members.length === 2 && last(c, 'kicked'), 'the one sent out was not told, or is still there');
+  r.shut();
+
+  const d = room(), host = socket(), guest = socket();
+  d.join(host, 'US', 'w1', 'id1'); d.join(guest, 'US', 'w2', 'id2');
+  const leaving = d.members[1];
+  d.hear(d.members[0], '{"t":"go"}');
+  const oldName = d.state.players[1].name;
+  d.state.players[1].wins = 2;
+  d.drop(leaving);
+  const bot = d.state.players[1], event = d.outbox.find((e) => e.type === 'left');
+  assert(!bot.human && bot.type && bot.name !== oldName && bot.wins === 0, 'the departed player kept their identity or score');
+  assert(event.who === oldName && event.bot === bot.type, 'the departure event did not name the new bot');
+  d.shut();
+}
+
+// Private-room auto-start belongs to the current host, pauses for Sit out, and
+// waits for the result screen before counting down again. Idle rooms stay idle.
+{
+  const quiet = { idFromName: () => 'x', get: () => ({ fetch: () => Promise.resolve() }) };
+  const socket = () => { const ws = { got: [], addEventListener() {}, send(s) { ws.got.push(JSON.parse(s)); }, close() {} }; return ws; };
+  const last = (ws, t) => ws.got.filter((d) => d.t === t).pop();
+  const realNow = Date.now;
+  let time = 1000000;
+  Date.now = () => time;
+  const r = new Room({ waitUntil() {} }, { DESK: quiet, STATS: quiet });
+  r.code = 'ABCDE';
+  try {
+    const a = socket(), b = socket();
+    r.join(a, 'US', 'w1', 'id1'); r.join(b, 'US', 'w2', 'id2');
+    const [A, B] = r.members;
+    r.hear(B, '{"t":"auto","on":true}');
+    assert(!r.auto && !r.goAt, 'a guest enabled auto-start');
+    r.hear(A, '{"t":"auto","on":true}');
+    assert(r.auto && !r.goAt && last(b, 'lobby').wait === -1, 'auto-start counted down before the first manual match');
+    time += 3000;
+    A.seen = B.seen = time;
+    r.heartbeat();
+    assert(!r.playing, 'auto-start began the first match');
+    r.hear(A, '{"t":"go"}');
+    assert(r.playing && last(b, 'start'), 'the host could not start the first match manually');
+    r.state.phase = 'matchEnd'; r.state.matchWinner = 0; r.tick();
+    assert(!r.playing && r.restUntil === time + 3000 && A.boardHold && last(a, 'lobby').hold[0], 'the winner was not given time to answer the leaderboard prompt');
+    time += 3000;
+    A.seen = B.seen = time; // clients keep their socket alive with pings
+    r.heartbeat();
+    assert(!r.goAt && last(a, 'lobby').wait === -1, 'auto-start interrupted the leaderboard prompt');
+    r.hear(B, '{"t":"board","done":true}');
+    assert(A.boardHold, 'another player released the winner’s prompt');
+    r.hear(A, '{"t":"go"}');
+    assert(!r.playing, 'the host started a match while the result prompt was open');
+    r.hear(A, '{"t":"board","done":true}');
+    assert(!A.boardHold && last(a, 'lobby').wait === 3, 'finishing the prompt did not start the countdown');
+    r.hear(A, '{"t":"auto","on":false}');
+    assert(!r.auto && !r.goAt && last(b, 'lobby').wait === -1, 'turning auto-start off did not cancel the countdown');
+    r.hear(A, '{"t":"auto","on":true}');
+    r.hear(B, '{"t":"sit","on":true}');
+    assert(!r.goAt && last(a, 'lobby').wait === -1, 'Sit out did not cancel the countdown');
+    time += 1000;
+    r.hear(B, '{"t":"sit","on":false}');
+    assert(r.goAt === time + 3000, 'returning to the match did not restart the countdown');
+    time += 3000;
+    A.seen = B.seen = time;
+    r.heartbeat();
+    assert(r.playing, 'the next match did not auto-start');
+    r.state.phase = 'matchEnd'; r.state.matchWinner = 0; r.tick();
+    r.drop(B);
+    assert(!r.goAt && last(a, 'lobby').wait === -1, 'one remaining player still had an auto-start countdown');
+    time += 3000;
+    A.seen = time;
+    r.heartbeat();
+    assert(!r.playing && !r.goAt, 'a one-player room auto-started');
+    const c = socket();
+    r.join(c, 'US', 'w3', 'id3');
+    const C = r.members[1];
+    assert(!r.goAt && A.boardHold, 'a new player bypassed the winner’s prompt');
+    r.hear(A, '{"t":"board","done":true}');
+    assert(r.goAt === time + 3000 && last(a, 'lobby').wait === 3, 'the countdown did not resume when the winner finished');
+    A.active = C.active = time - 121000;
+    A.seen = C.seen = time;
+    r.heartbeat();
+    assert(!r.playing && !r.goAt && last(a, 'lobby').wait === -1, 'an inactive room kept starting matches');
+  } finally {
+    r.shut();
+    Date.now = realNow;
+  }
+}
+
 // who a limit is counted against: an IPv6 address is its /64, however it is written
 assert(subnet('203.0.113.7') === '203.0.113.7' && subnet('203.0.113.7') !== subnet('203.0.113.8'), 'an IPv4 address is kept whole');
 assert(subnet('::ffff:203.0.113.7') === '203.0.113.7', 'IPv4 written the IPv6 way');

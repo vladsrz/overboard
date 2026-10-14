@@ -350,6 +350,41 @@
     }
   }
 
+  // A reaction in a match: a small badge on the top-right corner of the sender's disc,
+  // the way it sits on their seat in the room (or by their aim, in the water), for 2.6
+  // seconds. Drawn as big as a disc over it, it hid the player. Never on someone you
+  // cannot see.
+  const SAY_T = 2600;
+  function drawSays(state, me) {
+    const now = performance.now();
+    for (const id in G.says) {
+      const s = G.says[id], p = state.players[id], t = now - s.at;
+      if (!p || t > SAY_T) { delete G.says[id]; continue; }
+      if (p !== me && p.state === 'alive' && !Sim.visible(p)) continue;
+      const size = Math.max(1, Math.min(1.4, 0.65 / view.scale));
+      const r = p.state === 'ghost' ? 10 : Sim.radius(p);
+      // the corner: just past the disc's edge, up and to the right
+      const cx = (p.state === 'ghost' ? p.cx : p.x) + r * 0.62, cy = (p.state === 'ghost' ? p.cy : p.y) - r * 0.62;
+      const pop = reduced ? 1 : Math.min(1, t / 140) * (1 + 0.15 * Math.max(0, 1 - Math.abs(t - 140) / 140));
+      ctx.globalAlpha = t > SAY_T - 400 ? (SAY_T - t) / 400 : 1;
+      const img = G.faceImg[s.name];
+      if (img && img.complete) {
+        const d = 28 * size * pop;
+        ctx.drawImage(img, cx - d * 0.3, cy - d * 0.7, d, d);
+      } else if (!img) {
+        // words: a dark tag with a plank outline, like on the page, running right from the corner
+        const f = Math.round(12 * size * pop);
+        ctx.font = '700 ' + f + 'px ' + FONT;
+        const w = ctx.measureText(s.name).width + f * 1.3, h = f * 1.9;
+        ctx.fillStyle = DEEP; ctx.strokeStyle = PLANK; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(cx - h * 0.3, cy - h * 0.7, w, h, h / 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = PLANK; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(s.name, cx - h * 0.3 + f * 0.65, cy - h * 0.2 + 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function drawFloats(dt) {
     for (let i = floats.length - 1; i >= 0; i--) {
       const f = floats[i], k = f.t / 0.9;
@@ -381,6 +416,7 @@
     drawWaves(state, me);
     drawPlayers(state, me);
     drawGhosts(state, me);
+    if (G.mode === 'match') drawSays(state, me);
     drawRings(true, dt);
     drawFloats(dt);
   };

@@ -61,6 +61,9 @@ kbd {
 .crew li.over .disc { background: transparent !important; color: var(--plank) !important; border-color: currentColor; border-style: solid; }
 .crew .name { font-weight: 600; }
 .crew .where { font-size: 12px; opacity: 0.7; }
+/* someone who left: their label always shows, even where the others are left out for room,
+   because without it the bot playing their disc passes for them */
+.crew li.gone .where { display: inline !important; opacity: 1; }
 .crew .wins { display: flex; gap: 3px; }
 .crew .wins i { width: 14px; height: 7px; border: 1.5px solid var(--plank); border-radius: 2px; }
 .crew .wins i.won { background: var(--plank); }
@@ -73,6 +76,7 @@ kbd {
   background: var(--plank); color: var(--ink);
   border-radius: 6px;
   pointer-events: none;
+  z-index: 4; /* over the room screen too: someone leaving it is news */
 }
 /* no spare water beside the raft: it gets its own lane under the score bar, and the
    raft is drawn lower to make room (the same query is in draw.js) */
@@ -108,6 +112,23 @@ kbd {
 .cover button.quiet { background: transparent; color: var(--plank); border: 2px solid var(--plank); padding: 13px 28px 14px; }
 .cover button.quiet:hover { background: var(--plank); color: var(--ink); }
 .side .esc { white-space: nowrap; font-size: 12px; }
+/* In a match: every reaction beside its key, one to a line, quiet like the other key hints
+   and clickable, down the middle of the right edge in the open water beside the raft (where
+   a phone keeps them too). A row by the bottom key hints piled words into that corner and
+   squeezed the water hints off the screen; at the top it ran into reactions on the score bar. */
+.react-strip {
+  position: fixed; right: calc(24px + env(safe-area-inset-right)); top: 50%; bottom: auto; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+}
+/* where the raft fills the width, or the window is very short, it would cover the raft */
+@media (max-aspect-ratio: 11/10), (max-height: 420px) { .react-strip { display: none !important; } }
+.side .react-strip button.mini {
+  display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none;
+  color: var(--plank); font: 500 13px/1 var(--ui); white-space: nowrap;
+}
+.side .react-strip button.mini:hover { background: none; color: #fff; }
+.react-strip kbd { margin-right: 0; }
+.react-strip .face { width: 20px; height: 20px; }
 
 /* controls */
 .keys {
@@ -223,6 +244,21 @@ kbd {
 /* with friends: the second button on the start screen, then the room */
 .more { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
 .cover .more button { margin-top: 0; }
+.cover button.auto-start {
+  position: relative; min-height: 40px; margin: 8px 0 0; padding: 8px 8px 8px 44px;
+  border: 0; background: transparent; color: var(--plank); font: 600 13px/1.2 var(--ui);
+}
+.cover button.auto-start:hover { background: transparent; color: #fff; }
+.cover button.auto-start::before {
+  content: ''; position: absolute; left: 5px; top: 50%; width: 29px; height: 17px;
+  border: 1.5px solid var(--plank); border-radius: 999px; transform: translateY(-50%);
+}
+.cover button.auto-start::after {
+  content: ''; position: absolute; left: 9px; top: 50%; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--plank); transform: translateY(-50%);
+}
+.cover button.auto-start[aria-pressed="true"]::before { background: var(--plank); }
+.cover button.auto-start[aria-pressed="true"]::after { left: 21px; background: var(--ink); }
 /* a room code typed on the start screen: five characters and you are in */
 .code-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 14px; opacity: 1; }
 #code {
@@ -243,6 +279,21 @@ kbd {
 .room-code { display: flex; align-items: baseline; gap: 12px; margin: 0 0 24px; font-size: 14px; }
 .room-code, .room-code * { -webkit-user-select: text; user-select: text; }
 .room-code b { font: 900 30px/1 var(--display); letter-spacing: 0.14em; }
+/* The small square buttons: beside the code, copy the code and copy the invite link (a tick
+   once it is copied); beside the main button, the reactions. One look for all of them. */
+.cover button.icon {
+  align-self: center; width: 32px; height: 32px; margin: 0; padding: 0;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--plank); border-radius: 6px; background: transparent; color: var(--plank);
+}
+.room-code b + button.icon { margin-left: 4px; }
+.cover button.icon:hover, .cover button.icon[aria-expanded="true"] { background: var(--plank); color: var(--ink); }
+.cover .icon svg, .emote-open svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cover .actions button.icon { width: 36px; height: 36px; }
+.emote-open svg { width: 22px; height: 22px; }
+.room-code .icon .ok, .room-code .icon.done .glyph { display: none; }
+.room-code .icon.done .ok { display: inline; }
+.room-link { margin: -14px 0 18px; }
 /* four seats in the colours they will play in; an empty one is a dashed ring a bot will fill */
 .seats { display: flex; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .seats li { width: 108px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -255,6 +306,58 @@ kbd {
 .seats .name { max-width: 100%; height: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px/26px var(--ui); }
 .seats .empty .disc { border: 2px dashed var(--plank); opacity: 0.45; }
 .seats .empty .name { font-weight: 400; opacity: 0.6; }
+/* under each name: sitting out, and match wins in this room; for whoever starts, a way to send someone out */
+.seats li { position: relative; }
+.seats .note { height: 16px; margin-top: -4px; font: 600 12px/16px var(--ui); white-space: nowrap; opacity: 0.7; }
+.seats li.in .note { color: var(--foam); opacity: 1; }
+.cover .seats button.kick { margin: -4px 0 0; padding: 2px 6px; font-size: 12px; opacity: 0.55; }
+/* a reaction: a small dark tag with a plank outline over the seat, or under the name on the
+   score bar (a plank-coloured one was hard to read, and lost its face against it) */
+.say {
+  position: absolute; left: 50%; transform: translate(-50%, 4px); z-index: 2;
+  padding: 4px 10px 5px; border: 1.5px solid var(--plank); border-radius: 999px;
+  background: var(--water-deep); color: var(--plank);
+  font: 700 13px/1 var(--ui); white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s, transform 0.15s;
+}
+/* a face needs no tag around it: it is a disc with its own outline, like the players' */
+.say.has-face { padding: 0; border: 0; background: none; }
+/* the game's own faces: discs like the players', plank with ink */
+.face { display: block; width: 22px; height: 22px; }
+.say .face { width: 34px; height: 34px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25)); }
+.crew .say .face { width: 28px; height: 28px; }
+.face .f-disc { fill: var(--plank); stroke: var(--ink); stroke-width: 1.5; }
+/* cooling down after sending one: dimmed until another can go (a press meanwhile says no).
+   Dimmed by colour, never by opacity: the panel sits over other things, and a see-through
+   panel showed the Leave room link through it. */
+.cool, .emotes.cool button { filter: grayscale(1) brightness(0.55); transition: filter 0.2s; }
+.emotes.cool, .cool[aria-expanded="true"] { filter: none; }
+.face .f-ink { fill: var(--ink); }
+.face .f-line { fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.say.on { opacity: 1; transform: translate(-50%, 0); }
+/* on a seat it sits on the disc's top-right corner, like a badge, so it needs no room of its own */
+.seats .say { top: -14px; left: calc(50% + 12px); transform: translateY(4px); }
+.seats .say.on { transform: none; }
+.crew li { position: relative; }
+.crew .say { top: calc(100% + 6px); left: 11px; }
+/* the reactions to pick from, once the small button opens them: a row of outlined tags, keys 1 to 9 */
+.emotes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 92vw; margin-top: 12px; }
+.cover .emotes button, .emotes button {
+  margin: 0; padding: 9px 12px 10px; border: 1.5px solid var(--plank); border-radius: 999px;
+  background: transparent; color: var(--plank); font: 600 13px/1 var(--ui); opacity: 0.75;
+}
+.cover .emotes button:hover, .emotes button:active { background: var(--plank); color: var(--ink); opacity: 1; }
+/* on a phone, mid-match: one small button under the pause button opens them */
+.emote-open {
+  position: absolute; right: calc(10px + env(safe-area-inset-right)); top: calc(112px + env(safe-area-inset-top));
+  width: 44px; height: 44px; border-radius: 6px; border: 1.5px solid var(--plank); background: transparent;
+  color: var(--plank); display: grid; place-items: center; pointer-events: auto;
+}
+.emotes.column {
+  position: absolute; right: calc(62px + env(safe-area-inset-right)); top: calc(112px + env(safe-area-inset-top));
+  flex-direction: column; align-items: flex-end; margin: 0; pointer-events: auto;
+}
+.emotes.column button { background: var(--water-deep); opacity: 1; }
 /* Your name is typed on your own seat: the one place on the page where text is
    typed and selected. Until the room is open the field has no seat and stays hidden. */
 .room > #my-name { display: none; }
@@ -268,9 +371,26 @@ kbd {
 #my-name::placeholder { color: var(--plank); opacity: 0.55; font-weight: 400; }
 #my-name:focus-visible { outline: 0; border-bottom-color: var(--foam); background: rgba(11, 57, 54, 0.6); }
 .cover .room button { max-width: 92vw; overflow-wrap: anywhere; }
-.cover.room #start { margin-top: 22px; }
-/* the link shown to copy by hand, when the browser would not copy it */
-.cover .room button.typed, .cover .room button.typed * { -webkit-user-select: text; user-select: text; cursor: text; }
+.actions { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 34px; }
+/* opened from the small button: a panel just under it, over whatever is below, so nothing moves */
+.emotes.pop {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 3;
+  width: max-content; max-width: min(92vw, 640px); margin: 0; padding: 8px;
+  border-radius: 10px; background: var(--water-deep); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.emotes.pop button { opacity: 1; }
+.cover .emotes button.has-face, .emotes button.has-face { padding: 3px 6px; }
+.emotes .face { width: 28px; height: 28px; }
+/* the key that sends it, on its corner */
+.emotes button { position: relative; }
+.emotes .key {
+  position: absolute; top: -6px; left: -5px; min-width: 15px; height: 15px; padding: 0 3px;
+  border-radius: 4px; background: var(--plank); color: var(--ink);
+  font: 800 10px/15px var(--ui); text-align: center;
+}
+body.touch .emotes .key { display: none; }
+.cover .actions > button { margin-top: 0; }
+.cover.room .actions { margin-top: 22px; }
 body.touch .cover.room { touch-action: pan-y; overflow-y: auto; }
 @media (max-width: 470px) { .seats { gap: 2px; } .seats li { width: 82px; } .seats .name, #my-name { font-size: 12px; } }
 .rotate-hint { display: none; margin: 18px 0 0; color: var(--foam); font-size: 13px; }
@@ -377,13 +497,14 @@ body.touch .banner { max-width: calc(100vw - 120px); }
   .cover h1 { font-size: clamp(40px, 12vh, 72px); }
   .lede { margin-top: 12px; font-size: 16px; }
   .cover button { margin-top: 18px; }
-  .more, .code-row, .cover.room #start { margin-top: 8px; }
+  .actions { margin-top: 18px; }
+  .more, .code-row, .cover.room .actions { margin-top: 8px; }
   .room-code { margin-bottom: 10px; }
   .room-code b { font-size: 22px; }
   .results { row-gap: 5px; margin-top: 12px; }
   .results li { font-size: 15px; }
   .results .disc { width: 24px; height: 24px; font-size: 11px; border-width: 2px; }
-  .room, .cover .room button, .cover.room #start, .cover button.plain { margin-top: 10px; }
+  .room, .cover .room button, .cover.room .actions, .cover button.plain { margin-top: 10px; }
   .cover.room { justify-content: flex-start; }
   .seats .disc { width: 34px; height: 34px; font-size: 15px; }
   .seats li { gap: 4px; }
