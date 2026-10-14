@@ -119,7 +119,7 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
 }
 
 // Private-room auto-start belongs to the current host, pauses for Sit out, and
-// waits for the result screen before counting down again. Idle rooms stay idle.
+// counts down on the result screen. Idle rooms stay idle.
 {
   const quiet = { idFromName: () => 'x', get: () => ({ fetch: () => Promise.resolve() }) };
   const socket = () => { const ws = { got: [], addEventListener() {}, send(s) { ws.got.push(JSON.parse(s)); }, close() {} }; return ws; };
@@ -144,7 +144,7 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
     r.hear(A, '{"t":"go"}');
     assert(r.playing && last(b, 'start'), 'the host could not start the first match manually');
     r.state.phase = 'matchEnd'; r.state.matchWinner = 0; r.tick();
-    assert(!r.playing && r.restUntil === time + 3000 && A.boardHold && last(a, 'lobby').hold[0], 'the winner was not given time to answer the leaderboard prompt');
+    assert(!r.playing && A.boardHold && last(a, 'lobby').hold[0], 'the winner was not given time to answer the leaderboard prompt');
     time += 3000;
     A.seen = B.seen = time; // clients keep their socket alive with pings
     r.heartbeat();
@@ -153,8 +153,11 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
     assert(A.boardHold, 'another player released the winner’s prompt');
     r.hear(A, '{"t":"go"}');
     assert(!r.playing, 'the host started a match while the result prompt was open');
+    r.hear(A, '{"t":"auto","on":false}');
+    assert(!r.auto && !r.goAt, 'the host could not switch off auto-start on the result');
+    r.hear(A, '{"t":"auto","on":true}');
     r.hear(A, '{"t":"board","done":true}');
-    assert(!A.boardHold && last(a, 'lobby').wait === 3, 'finishing the prompt did not start the countdown');
+    assert(!A.boardHold && last(a, 'lobby').wait === 5, 'finishing the prompt did not show the five-second countdown');
     r.hear(A, '{"t":"auto","on":false}');
     assert(!r.auto && !r.goAt && last(b, 'lobby').wait === -1, 'turning auto-start off did not cancel the countdown');
     r.hear(A, '{"t":"auto","on":true}');
@@ -162,8 +165,8 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
     assert(!r.goAt && last(a, 'lobby').wait === -1, 'Sit out did not cancel the countdown');
     time += 1000;
     r.hear(B, '{"t":"sit","on":false}');
-    assert(r.goAt === time + 3000, 'returning to the match did not restart the countdown');
-    time += 3000;
+    assert(r.goAt === time + 5000 && last(b, 'lobby').wait === 5, 'returning to the match did not restart the countdown');
+    time += 5000;
     A.seen = B.seen = time;
     r.heartbeat();
     assert(r.playing, 'the next match did not auto-start');
@@ -179,7 +182,7 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
     const C = r.members[1];
     assert(!r.goAt && A.boardHold, 'a new player bypassed the winner’s prompt');
     r.hear(A, '{"t":"board","done":true}');
-    assert(r.goAt === time + 3000 && last(a, 'lobby').wait === 3, 'the countdown did not resume when the winner finished');
+    assert(r.goAt === time + 5000 && last(a, 'lobby').wait === 5, 'the countdown did not resume when the winner finished');
     A.active = C.active = time - 121000;
     A.seen = C.seen = time;
     r.heartbeat();

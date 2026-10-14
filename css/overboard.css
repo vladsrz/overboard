@@ -249,6 +249,7 @@ kbd {
   border: 0; background: transparent; color: var(--plank); font: 600 13px/1.2 var(--ui);
 }
 .cover button.auto-start:hover { background: transparent; color: #fff; }
+.cover button.auto-start:disabled { cursor: default; color: var(--plank); opacity: 0.65; }
 .cover button.auto-start::before {
   content: ''; position: absolute; left: 5px; top: 50%; width: 29px; height: 17px;
   border: 1.5px solid var(--plank); border-radius: 999px; transform: translateY(-50%);

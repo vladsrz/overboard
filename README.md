@@ -4,7 +4,7 @@ Bumper sumo on a raft. Knock the others off. If you fall in, you are not out: yo
 
 **Play it:** https://overboard-game.vercel.app/ (on a computer, or a phone in portrait or landscape)
 
-Four on the raft. Bots fill the empty seats, drawn each match from a cast of seventeen with their own habits; play alone and it is you against three of them. First to win 3 rounds. In a private room, the host can turn on Auto-start for later matches; the first starts manually, and later ones count down when at least two people are in.
+Four on the raft. Bots fill the empty seats, drawn each match from a cast of seventeen with their own habits; play alone and it is you against three of them. First to win 3 rounds. In a private room, the host can turn on Auto-start for later matches; the first starts manually, and later ones count down for five seconds on the result screen when at least two people are in. Everyone can see the setting, and guests can Sit out to cancel a countdown.
 
 **Play online** is the big button. It puts you in a public room that is still gathering players, with bots filling empty seats. If you are alone, press **Start now** to skip the countdown. If the server cannot connect, it starts an unranked local match instead. **Play solo (unranked)** always starts that local solo match. To play with friends, press **Create room**, copy the invite link or share the five-character code. Up to four people share the raft; bots fill the rest. Room matches run on a Cloudflare Worker in `server/`.
 
