@@ -161,9 +161,9 @@
     const n = state.players.length;
     state.players.forEach((p, i) => {
       const a = Math.PI / 2 + (i * Math.PI * 2) / n;
-      // Start on plank centres, including in rooms with fewer than four seats.
-      p.x = (Math.round(Math.cos(a) * 4) || 0) * C.TILE;
-      p.y = (Math.round(Math.sin(a) * 4) || 0) * C.TILE;
+      // Half-tile steps put each disc on the seam between two planks.
+      p.x = (Math.trunc(Math.cos(a) * 7) || 0) * C.TILE / 2;
+      p.y = (Math.trunc(Math.sin(a) * 7) || 0) * C.TILE / 2;
       p.vx = 0; p.vy = 0;
       p.faceX = -Math.cos(a); p.faceY = -Math.sin(a);
       p.state = 'alive'; p.fallT = 0; p.offT = 0; p.idleT = 0;

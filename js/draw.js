@@ -9,6 +9,7 @@
   // Nothing drawn on the raft is black: lines and tokens use the water teal.
   const PAL = (G.PAL = { PLANK: '#efe9da', WATER: '#12504c', DEEP: '#0b3936', FOAM: '#bfe3db' });
   const PLANK = PAL.PLANK, WATER = PAL.WATER, DEEP = PAL.DEEP, FOAM = PAL.FOAM, LINE = PAL.WATER;
+  const CROWN_GOLD = '#ffd34d', CROWN_BLUE = '#86cfff';
   // the one exception: planks the raft pulls on its own flash black
   const BLACK = '#14211f';
   const FONT = '"Instrument Sans", system-ui, sans-serif';
@@ -243,20 +244,20 @@
     ctx.globalAlpha = 1;
   }
 
-  // The lone score leader wears a crown on their disc. A tie has no leader.
-  function leaderId(state) {
-    let id = -1, high = 0;
+  // A sole leader gets gold. A tie only gets crowns when everyone tied is on match point.
+  function crownLeaders(state) {
+    let high = 0, tied = 0;
     for (const p of state.players) {
-      if (p.wins > high) { high = p.wins; id = p.id; }
-      else if (p.wins === high) id = -1;
+      if (p.wins > high) { high = p.wins; tied = 1; }
+      else if (p.wins === high) tied++;
     }
-    return id;
+    return { high, color: high === 0 ? null : tied === 1 ? CROWN_GOLD : high === C.WINS - 1 ? CROWN_BLUE : null };
   }
 
-  function drawCrown(x, y) {
+  function drawCrown(x, y, color) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.fillStyle = '#ffd34d'; ctx.strokeStyle = WATER;
+    ctx.fillStyle = color; ctx.strokeStyle = WATER;
     ctx.lineWidth = 2; ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(-12, -6); ctx.lineTo(-6, -1); ctx.lineTo(0, -11);
@@ -269,7 +270,7 @@
   }
 
   function drawPlayers(state, me) {
-    const leader = leaderId(state);
+    const crown = crownLeaders(state);
     for (const p of state.players) {
       if (p.state === 'ghost') continue;
       const col = G.colors[p.id];
@@ -304,12 +305,12 @@
       ctx.fillText(p.name[0], p.x, p.y + 1);
 
       // Seat the crown on the disc, clear of the charge bar, without revealing a hidden opponent.
-      if (G.mode === 'match' && p.id === leader && p.state === 'alive' && alpha === 1) {
+      if (G.mode === 'match' && crown.color && p.wins === crown.high && p.state === 'alive' && alpha === 1) {
         const size = 0.85 * Math.max(1, Math.min(1.4, 0.65 / view.scale));
         ctx.save();
         ctx.translate(p.x, p.y - r + 2 * size);
         ctx.scale(size, size);
-        drawCrown(0, 0);
+        drawCrown(0, 0, crown.color);
         ctx.restore();
       }
 

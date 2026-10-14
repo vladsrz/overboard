@@ -9,17 +9,20 @@ const DT = 1 / 60;
 const MATCHES = Cast.LIST.length * 8; // every character plays 32
 const stats = { spawned: {}, type: {}, dashes: 0, afterFirst: 0, picked: {}, slams: 0, firstFall: 0, rounds: 0, time: 0, how: {}, ghostKills: 0, falls: 0, draws: 0, longest: 0, wins: [0, 0, 0, 0] };
 
-// Every seat starts in the middle of its own plank, whatever the room size.
+// Every seat starts over the seam between two solid planks, whatever the room size.
 for (let seats = 1; seats <= 4; seats++) {
   const s = Sim.createMatch({ players: Array.from({ length: seats }, (_, i) => ({ name: 'Player' + i })) });
-  const tiles = new Set();
+  const starts = new Set();
   for (const p of s.players) {
-    const tile = Sim.tileIndexAt(p.x, p.y);
-    assert(p.x === Sim.tileX(tile) && p.y === Sim.tileY(tile), 'player started off a plank centre');
-    assert.strictEqual(s.tiles[tile], Sim.SOLID);
-    tiles.add(tile);
+    const seamX = Math.abs(p.x % Sim.C.TILE) === Sim.C.TILE / 2;
+    const seamY = Math.abs(p.y % Sim.C.TILE) === Sim.C.TILE / 2;
+    assert(seamX !== seamY, 'player should straddle exactly two planks');
+    const dx = seamX ? Sim.C.TILE / 2 : 0, dy = seamY ? Sim.C.TILE / 2 : 0;
+    assert.strictEqual(s.tiles[Sim.tileIndexAt(p.x - dx, p.y - dy)], Sim.SOLID);
+    assert.strictEqual(s.tiles[Sim.tileIndexAt(p.x + dx, p.y + dy)], Sim.SOLID);
+    starts.add(p.x + ',' + p.y);
   }
-  assert.strictEqual(tiles.size, seats, 'players need separate starting planks');
+  assert.strictEqual(starts.size, seats, 'players need separate starting spots');
 }
 
 for (let seed = 1; seed <= MATCHES; seed++) {
