@@ -46,6 +46,9 @@
   </div>
   <button class="act" id="act" type="button">Dash</button>
   <button class="pause" id="pause" type="button" aria-label="Pause"><i></i><i></i></button>
+  <!-- in a room: reactions, behind one small button -->
+  <button class="emote-open" id="emote-open" type="button" aria-label="React" aria-expanded="false" hidden>☺</button>
+  <div class="emotes column" id="emotes-pad" hidden></div>
 </div>
 
 <section class="cover menu" id="menu" hidden>
@@ -80,6 +83,7 @@
     <span><kbd>Space</kbd> wave that shoves them toward your cursor</span>
   </div>
   <div class="side">
+    <span class="react" id="react-key" hidden><kbd>1</kbd>–<kbd>8</kbd> react</span>
     <span class="esc"><kbd>Esc</kbd> menu</span>
     <div class="level" id="level" title="Which way the raft is tipping"><b id="level-dot"></b></div>
   </div>
@@ -106,6 +110,8 @@
     <button id="invite" type="button" class="quiet small" hidden>Copy invite link</button>
   </div>
   <button id="start" type="button" autofocus>Play online</button>
+  <button id="sit" type="button" class="quiet small" hidden>Sit out</button>
+  <div class="emotes" id="emotes" aria-label="Reactions" hidden></div>
   <div class="more" id="more">
     <button id="practice" type="button" class="quiet small">Play solo (unranked)</button>
     <button id="friends" type="button" class="quiet small">Create room</button>

@@ -124,7 +124,7 @@
   // ?lag=MS on a local page simulates delay (see net.js).
   const PREDICT = /[?&]predict=1\b/.test(location.search);
   let base = null, baseStep = 0, stepN = 0, rtt = 0, lastAck = 0;
-  const history = [];
+  const history = []; // the inputs sent, not the browser's history (that is window.history)
   G.lag = () => Math.round(rtt); // the round trip the prediction allows for, in ms (for testing)
   function tickGuest() {
     const state = G.state, me = G.human(), mine = humanInput();
@@ -351,16 +351,10 @@
 
   // Alone: you and three bots. With friends: everyone in the room, in the order
   // they came in, and bots in the seats left over. Whoever may start it (Net.lead)
-  // does; the rest wait. A private room on the server starts once everyone is ready.
+  // does; the rest wait (or, in a private room, sit it out).
   function startMatch() {
-    // on the game server the room runs the match: say you are ready, or ask it to start one
-    if (Net.server) {
-      const me = Net.members[Net.you];
-      // ready from the result goes back to the room, where the seats say who else is
-      if (Net.together() && me && !me.ready) { Net.readyUp(); ui.showLobby(); }
-      else if (Net.together() ? Net.out === 0 && Net.unready().length : Net.lead()) Net.go();
-      return;
-    }
+    // on the game server the room runs the match: ask it to start one
+    if (Net.server) { if (Net.lead()) Net.go(); return; }
     if (Net.role === 'guest' || (Net.role === 'host' && !Net.ready)) return;
     const seed = newSeed();
     if (!Net.role) { enter([{ name: 'You', human: true }].concat(Cast.draw(3, Math.random)), 0, seed); return; }
@@ -377,7 +371,7 @@
 
   function requestStart(practice = false) {
     const guide = $('install-guide');
-    if (guide.open || (Net.role && !Net.lead() && !Net.together())) return;
+    if (guide.open || (Net.role && !Net.lead())) return;
     // The start screen's main action joins public play. Room and result screens
     // keep their own Start now / Play again behavior.
     if (!practice && !Net.role && G.mode !== 'match') {
@@ -420,7 +414,7 @@
     const offlinePractice = onlineFromStart && why === Net.OFFLINE && !Net.ready;
     onlineFromStart = false;
     Net.leave();
-    if (Net.codeFrom(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+    if (Net.codeFrom(location.hash)) window.history.replaceState(null, '', location.pathname + location.search);
     paused = false;
     Sfx.setPaused(false);
     G.mode = 'attract';
@@ -455,11 +449,13 @@
     if (Net.ready) onlineFromStart = false;
     const n = Net.ready ? Net.members.length : -1, playing = G.mode === 'match' && !ui.coverOpen();
     if (!playing && crowd > 0 && n > 0 && n !== crowd) Sfx.play(n > crowd ? 'join' : 'leave');
-    if (!playing && (Net.open || Net.together()) && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
+    if (!playing && Net.open && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
     crowd = n; waitWas = Net.wait;
     ui.lobby();
   };
   Net.on.closed = (why) => quitToStart(why);
+  // somebody in the room reacted: on their seat in the room, by their name on the score bar
+  Net.on.emote = (i, seat, k) => { ui.emote(i, seat, Net.EMOTES[k]); Sfx.play('emote'); };
   // the host started a match and this machine has a seat in it
   Net.on.start = (list, seed, you) => {
     if (list.length < 2 || list.length > Net.SEATS) return;
@@ -513,6 +509,8 @@
     if (e.target && e.target.tagName === 'INPUT') { if (e.code === 'Enter' || e.code === 'Escape') e.target.blur(); return; }
     if (e.code === 'Escape' && inMatch()) { e.preventDefault(); Sfx.play('click'); setPaused(!paused); return; }
     if (e.code === 'KeyM' && inMatch() && !e.repeat) { toggleSound(); return; }
+    // a reaction, in a room, from the room screen, the result or the match itself
+    if (Net.role && /^Digit[1-8]$/.test(e.code) && !e.repeat) { Net.emote(+e.code.slice(5) - 1); return; }
     if (paused) return;
     if (!inMatch()) {
       if (e.code === 'Enter') { e.preventDefault(); requestStart(); }

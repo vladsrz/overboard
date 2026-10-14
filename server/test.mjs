@@ -58,52 +58,51 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
   assert(sent.length === 0, 'a bot, a draw, a player who left or a browser with no id was credited: ' + JSON.stringify(sent));
 }
 
-// A private room starts when everyone in it is ready. Anyone ready may start without
-// the rest once they have waited, and whoever was not ready sits that match out.
-// The room counts each person's match wins.
+// A private room is a party: everyone plays the next match unless they sit it out,
+// only whoever has been there longest starts it or sends someone out, and the room
+// counts each person's match wins. Reactions go to everyone, from a fixed list.
 {
   const quiet = { idFromName: () => 'x', get: () => ({ fetch: () => Promise.resolve() }) };
   const socket = () => { const ws = { got: [], addEventListener() {}, send(s) { ws.got.push(JSON.parse(s)); }, close() {} }; return ws; };
   const last = (ws, t) => ws.got.filter((d) => d.t === t).pop();
   const room = () => { const r = new Room({ waitUntil() {} }, { DESK: quiet, STATS: quiet }); r.code = 'ABCDE'; return r; };
 
-  let r = room();
-  const a = socket(), b = socket();
-  r.join(a, 'US', 'w1', 'id1'); r.join(b, 'US', 'w2', 'id2');
-  const [A, B] = r.members;
-  r.hear(A, '{"t":"ready"}');
-  assert(!r.goAt && r.readySince, 'one of two ready should not count down');
-  assert.deepStrictEqual(last(b, 'lobby').ready, [true, false], 'the room did not say who is ready');
-  assert(last(b, 'lobby').out === 15 && last(b, 'lobby').wait === -1, 'the wait for the rest was not told');
-  r.hear(A, '{"t":"go"}');
-  assert(!r.playing, 'started without the rest before waiting');
+  const r = room();
+  const a = socket(), b = socket(), c = socket();
+  r.join(a, 'US', 'w1', 'id1'); r.join(b, 'US', 'w2', 'id2'); r.join(c, 'US', 'w3', 'id3');
+  const [A, B, C] = r.members;
+  assert.deepStrictEqual(last(b, 'lobby').sit, [false, false, false], 'everyone should be in by default');
   r.hear(B, '{"t":"go"}');
-  assert(!r.playing, 'someone not ready started the match');
-  r.readySince -= 16000;
+  assert(!r.playing, 'someone other than the first in the room started the match');
+  r.hear(A, '{"t":"sit","on":true}');
+  assert(!A.sit, 'whoever starts the match sat it out');
+  r.hear(C, '{"t":"sit","on":true}');
+  assert.deepStrictEqual(last(a, 'lobby').sit, [false, false, true], 'the room did not say who is sitting out');
   r.hear(A, '{"t":"go"}');
-  assert(r.playing && A.seat === 0 && B.seat === -1, 'did not start without the one who was not ready');
-  assert(last(a, 'start') && !last(b, 'start'), 'the one not ready was given a seat');
-  assert(!A.ready && !B.ready, 'ready should not carry over to the next match');
-  // the match ends with the person in seat 0 on top
-  r.state.phase = 'matchEnd'; r.state.matchWinner = 0;
-  r.tick();
-  assert(!r.playing && A.wins === 1 && B.wins === 0, 'the room did not count the match win');
-  assert.deepStrictEqual(last(b, 'lobby').wins, [1, 0], 'the room did not tell its score');
-  r.shut();
+  assert(r.playing && A.seat === 0 && B.seat === 1 && C.seat === -1, 'the one sitting out was seated, or someone in was not');
+  assert(last(a, 'start') && last(b, 'start') && !last(c, 'start'), 'the start went to the wrong people');
 
-  r = room();
-  const c = socket(), d = socket();
-  r.join(c, 'US', 'w1', 'id1'); r.join(d, 'US', 'w2', 'id2');
-  const [C, D] = r.members;
-  r.hear(C, '{"t":"ready"}'); r.hear(D, '{"t":"ready"}');
-  assert(r.goAt && last(c, 'lobby').wait === 3, 'everyone ready should count down from 3');
-  r.join(socket(), 'US', 'w3', 'id3');
-  assert(!r.goAt, 'someone arriving should stop the countdown');
-  r.drop(r.members[2]);
-  assert(r.goAt, 'the countdown should come back when the newcomer leaves');
-  r.goAt = Date.now() - 1;
-  r.heartbeat();
-  assert(r.playing && C.seat === 0 && D.seat === 1, 'everyone ready did not start with everyone seated');
+  // reactions: to everyone, with the seat they play in; nothing outside the list, and not too fast
+  r.hear(B, '{"t":"emote","k":4}');
+  assert.deepStrictEqual(last(c, 'emote'), { t: 'emote', i: 1, s: 1, k: 4 }, 'a reaction did not reach the room');
+  r.hear(B, '{"t":"emote","k":1}');
+  r.hear(C, '{"t":"emote","k":99}'); r.hear(C, '{"t":"emote","k":"lol"}'); r.hear(C, '{"t":"emote","k":-1}');
+  assert(a.got.filter((d) => d.t === 'emote').length === 1, 'a reaction too soon after the last, or one not on the list, went out');
+
+  // the match ends with seat 1 on top: the room scores it, and everyone is in the next one again
+  r.state.phase = 'matchEnd'; r.state.matchWinner = 1;
+  r.tick();
+  assert(!r.playing && B.wins === 1 && A.wins === 0, 'the room did not count the match win');
+  assert.deepStrictEqual(last(c, 'lobby').wins, [0, 1, 0], 'the room did not tell its score');
+  assert(!C.sit, 'sitting out should not carry over to the next match');
+  B.emoteAt = 0; r.hear(B, '{"t":"emote","k":4}');
+  assert(last(a, 'emote').s === 1, 'a reaction on the result should still carry the seat just played');
+
+  // only the first in the room sends someone out, and never themselves
+  r.hear(B, '{"t":"kick","i":2}'); r.hear(A, '{"t":"kick","i":0}'); r.hear(A, '{"t":"kick","i":"2"}');
+  assert(r.members.length === 3, 'someone was sent out who should not have been');
+  r.hear(A, '{"t":"kick","i":2}');
+  assert(r.members.length === 2 && last(c, 'kicked'), 'the one sent out was not told, or is still there');
   r.shut();
 }
 

@@ -124,6 +124,8 @@
     leave: () => tune([440, 294], 0.12, { type: 'triangle', gain: 0.14 }),
     playerLeft: () => tune([440, 294], 0.12, { type: 'triangle', gain: 0.14 }),
     soon: () => tone(392, 0.08, { type: 'square', gain: 0.09 }),
+    // someone in the room reacted
+    emote: () => tone(660, 0.07, { type: 'triangle', gain: 0.1, to: 990 }),
   };
 
   // gapMs stops a pile-up from firing the same sound every frame. A louder one

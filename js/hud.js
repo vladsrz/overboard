@@ -45,7 +45,9 @@
       for (let i = 0; i < C.WINS; i++) wins.appendChild(document.createElement('i'));
       const where = document.createElement('span');
       where.className = 'where';
-      li.append(disc, name, wins, where);
+      const say = document.createElement('span');
+      say.className = 'say'; say.setAttribute('aria-live', 'polite');
+      li.append(disc, name, wins, where, say);
       ol.appendChild(li);
     }
     crewSig = '';
@@ -151,36 +153,72 @@
     else if (Net.open) say = (to === 'end' ? 'Next match in ' : 'Starting in ') + Math.max(0, Net.wait) + '.' + (to === 'end' ? '' : ' Bots fill the empty seats.');
     else if (lead) say = to === 'room' ? 'Bots fill the empty seats.' : '';
     else if (net) say = to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
-    // a private room on the server: everyone's button is Ready, and the line says who it waits for
-    $('start').disabled = false; $('start').classList.remove('done');
-    if (Net.together() && to !== 'start') {
-      const t = readyFace(to);
-      $('start').hidden = !!t.hidden; $('start').textContent = t.label || '';
-      $('start').disabled = !!t.done; $('start').classList.toggle('done', !!t.done);
+    // a private room on the server is a party: whoever starts has the button, the rest may sit out
+    $('sit').hidden = true;
+    if (Net.party() && to !== 'start') {
+      const t = partyFace(to);
+      $('start').hidden = !t.label; $('start').textContent = t.label || '';
+      $('sit').hidden = !t.sit; $('sit').textContent = t.sit || '';
       say = why || t.say;
     }
+    $('emotes').hidden = !(net && Net.ready && to !== 'start');
     if (to === 'room') $('cover-lede').textContent = say;
     $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
     $('cover').hidden = false;
     placeMini();
   }
 
-  // Ready, then: once everyone is, the room counts down. Anyone ready who has waited
-  // long enough may start without whoever is not, and they sit that match out.
-  function readyFace(to) {
-    const me = Net.members[Net.you], rest = Net.unready();
-    const names = (list) => {
-      const n = list.map((m) => (m === me ? 'you' : m.name));
-      return n.length < 2 ? n.join('') : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1];
-    };
-    if (Net.playing) return { hidden: true, say: 'A match is on. You are in the next one.' };
-    const t = !me || !me.ready ? { label: 'Ready' }
-      : rest.length && Net.out === 0 ? { label: 'Start without ' + names(rest) }
-      : { label: 'Ready', done: true };
-    t.say = Net.wait >= 0 ? 'Starting in ' + Net.wait + '.'
-      : rest.length < Net.members.length ? 'Waiting for ' + names(rest) + '.'
-      : to === 'room' ? 'Bots fill the empty seats.' : '';
-    return t;
+  // Everyone is in the next match unless they sit it out, like a party in a game with
+  // matchmaking. Whoever has been in the room longest starts it; nobody waits on anyone.
+  function partyFace(to) {
+    const me = Net.members[Net.you], host = Net.members[0];
+    if (Net.playing) return { say: 'A match is on. You are in the next one.' };
+    if (Net.you === 0) {
+      const out = Net.members.filter((m) => m.sit).map((m) => m.name);
+      const who = out.length < 2 ? out.join('') : out.slice(0, -1).join(', ') + ' and ' + out[out.length - 1];
+      return { label: to === 'end' ? 'Play again' : 'Start match',
+        say: out.length ? who + (out.length > 1 ? ' are' : ' is') + ' sitting out.' : to === 'room' ? 'Bots fill the empty seats.' : '' };
+    }
+    const sitting = !!me && me.sit;
+    return { sit: sitting ? 'I’m in' : 'Sit out',
+      say: sitting ? 'You are sitting out the next match.' : 'Waiting for ' + host.name + ' to start' + (to === 'end' ? ' the next match.' : '.') };
+  }
+  $('sit').addEventListener('click', () => { const me = Net.members[Net.you]; Sfx.play('click'); if (me) Net.sit(!me.sit); });
+
+  // the reactions to pick from: a row on the room and result screens, and behind one
+  // button on a phone mid-match
+  for (const box of [$('emotes'), $('emotes-pad')]) {
+    Net.EMOTES.forEach((text, k) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = text; b.title = 'Key ' + (k + 1);
+      b.addEventListener('click', () => { Net.emote(k); if (box === $('emotes-pad')) padEmotes(false); b.blur(); });
+      box.appendChild(b);
+    });
+  }
+  function padEmotes(on) { $('emotes-pad').hidden = !on; $('emote-open').setAttribute('aria-expanded', on ? 'true' : 'false'); }
+  $('emote-open').addEventListener('click', () => padEmotes($('emotes-pad').hidden));
+
+  // A reaction shows for a couple of seconds over the person's seat in the room, and
+  // by their name on the score bar during a match and on its result.
+  function showSay(el, text) {
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(el.sayT);
+    el.sayT = setTimeout(() => el.classList.remove('on'), 2600);
+  }
+
+  // After a match in a party room everyone is taken back to the room after a few
+  // seconds, where the seats say who is still there. Not while typing a name for the
+  // leaderboard; whoever starts may also start the next match from the result.
+  let backT = 0;
+  function backToRoom() {
+    clearInterval(backT);
+    const at = Date.now();
+    backT = setInterval(() => {
+      if (face !== 'end' || $('cover').hidden || !Net.party()) { clearInterval(backT); return; }
+      if (Date.now() - at > 5000 && $('board-ask').hidden && !Net.playing) { clearInterval(backT); G.ui.showLobby(); }
+    }, 250);
   }
 
   // After a match won in a room (the only wins the leaderboard counts), offer to put
@@ -267,17 +305,21 @@
     const ol = $('seats'), field = $('my-name');
     while (ol.children.length < Net.SEATS) {
       const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span'), note = document.createElement('span');
-      disc.className = 'disc'; name.className = 'name'; note.className = 'note';
-      li.append(disc, name, note);
+      const kick = document.createElement('button'), say = document.createElement('span');
+      disc.className = 'disc'; name.className = 'name'; note.className = 'note'; say.className = 'say';
+      kick.type = 'button'; kick.className = 'plain kick'; kick.textContent = 'remove';
+      const seat = ol.children.length;
+      kick.addEventListener('click', () => { Sfx.play('click'); Net.kick(seat); });
+      li.append(say, disc, name, note, kick);
       ol.appendChild(li);
     }
     for (let i = 0; i < Net.SEATS; i++) {
       const m = Net.members[i], who = Cast.PEOPLE[i], li = ol.children[i], mine = !!m && i === Net.you;
       const disc = li.querySelector('.disc'), name = li.querySelector('.name'), note = li.querySelector('.note');
-      const ready = !!m && m.ready && Net.together() && !Net.playing;
-      li.className = (!m ? 'empty' : mine ? 'mine' : '') + (ready ? ' ready' : '');
-      // under the name: ready, and the matches won since coming into this room
-      note.textContent = !m ? '' : [ready ? 'ready' : '', m.wins ? m.wins + (m.wins === 1 ? ' win' : ' wins') : ''].filter(Boolean).join(' · ');
+      li.className = !m ? 'empty' : mine ? 'mine' : '';
+      // under the name: sitting out, and the matches won since coming into this room
+      note.textContent = !m ? '' : [m.sit && Net.party() ? 'sitting out' : '', m.wins ? m.wins + (m.wins === 1 ? ' win' : ' wins') : ''].filter(Boolean).join(' · ');
+      li.querySelector('.kick').hidden = !(m && i > 0 && Net.party() && Net.you === 0);
       disc.textContent = m ? m.name[0] : '';
       disc.style.background = m ? who.color : ''; disc.style.color = m ? (who.light ? G.PAL.DEEP : G.PAL.PLANK) : '';
       name.textContent = m ? m.name : 'bot'; name.hidden = mine;
@@ -307,6 +349,7 @@
       buildCrew();
       $('cover').hidden = true; $('menu').hidden = true;
       $('top').hidden = false; $('keys').hidden = false; $('pad').hidden = !G.touch;
+      $('emote-open').hidden = $('react-key').hidden = !Net.role; padEmotes(false);
       $('start').blur();
       // a public room starts the next match on its own: keys belong to the match again, not to the name field
       boardN++; $('board-name').blur();
@@ -336,6 +379,7 @@
       cover('end');
       $('board-ask').hidden = $('board-line').hidden = true;
       if (won && Net.server) offerBoard(); else boardN++;
+      if (Net.party()) backToRoom();
       $('menu').hidden = true; $('pad').hidden = true;
     },
     // why: one line under the buttons, for when a room closed on you
@@ -358,6 +402,11 @@
       lobby();
     },
     lobby,
+    // i: their place in the room; seat: theirs in the match, or -1
+    emote(i, seat, text) {
+      if (!$('cover').hidden && face === 'room') showSay($('seats').children[i] && $('seats').children[i].querySelector('.say'), text);
+      if (seat >= 0 && !$('top').hidden && G.state && G.state.players[seat]) showSay($('crew').children[seat] && $('crew').children[seat].querySelector('.say'), text);
+    },
     // the link went to the clipboard, or could not, in which case it is shown to copy by hand
     copied(ok, url) {
       clearTimeout(copiedT);

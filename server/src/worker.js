@@ -36,8 +36,7 @@ const IDLE_ROOM = 15 * 60e3; // a room with no match running closes after this l
 const MAX_MSG = 600;         // characters; an input or a name is far smaller
 const MAX_RATE = 150;        // messages a second from one player before they are dropped
 const GATHER = 8;            // seconds a public room waits for more players before it starts
-const READY_GO = 3;          // seconds from everyone in a private room being ready to the match
-const WAIT_OUT = 15;         // seconds after the first is ready that anyone ready may start without the rest
+const EMOTE_GAP = 800;        // ms between one player's reactions; more are dropped
 const AWAY = 120e3;          // in a public room, a player who touches nothing for this long is let go
 const HOLD = 8;              // connections one source may have open at once: two full rooms from one home
 const HOLD_NEW = 20e3;       // a connection let in whose room has not reported it yet stops counting after this
@@ -264,8 +263,6 @@ export class Room {
     this.timer = 0; this.beat = 0; this.last = 0; this.acc = 0; this.sendN = 0; this.outbox = [];
     this.idleSince = Date.now();
     this.reported = 0;   // when the front desk was last told who is here
-    // a private room: since when someone has been ready, and when everyone being ready starts it
-    this.readySince = 0; this.goAt = 0;
   }
 
   async fetch(request) {
@@ -290,7 +287,7 @@ export class Room {
 
   // who and id: the scrambled source and the connection's own id, which the desk counts by
   join(ws, where, who, id) {
-    const m = { ws: ws, who: who, id: id, country: where, device: '', touch: false, name: 'Player ' + (this.members.length + 1), seat: -1, ready: false, wins: 0, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
+    const m = { ws: ws, who: who, id: id, country: where, device: '', touch: false, name: 'Player ' + (this.members.length + 1), seat: -1, was: -1, sit: false, wins: 0, emoteAt: 0, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
     this.members.push(m);
     ws.addEventListener('message', (e) => this.hear(m, e.data));
     ws.addEventListener('close', () => this.drop(m));
@@ -299,8 +296,6 @@ export class Room {
     this.report();
     // a full public room has nobody left to wait for
     if (this.open && !this.playing && this.members.length >= SEATS) this.startAt = Date.now();
-    // someone new is not ready yet, so a private room's countdown waits for them
-    this.readyCheck();
     this.tellLobby();
     if (!this.beat) this.beat = setInterval(() => this.heartbeat(), 1000);
   }
@@ -317,7 +312,7 @@ export class Room {
       if (this.rec) this.rec.left++;
     }
     this.report();
-    if (!this.members.length) this.shut(); else { this.readyCheck(); this.tellLobby(); }
+    if (!this.members.length) this.shut(); else this.tellLobby();
   }
 
   // the front desk is told who this room holds: it counts connections by source,
@@ -351,33 +346,17 @@ export class Room {
     if (!this.members.length) return;
     if (now - this.reported > REPORT_EVERY) this.report();
     if (this.open && !this.playing) { if (now >= this.startAt) this.start(); else this.tellLobby(); }
-    else if (!this.playing && this.goAt && now >= this.goAt) this.start();
     else if (!this.playing && now - this.idleSince > IDLE_ROOM) this.shut();
-    // the countdown and the wait for the rest, told each second while somebody is ready
-    else if (!this.playing && this.readySince) this.tellLobby();
-  }
-
-  // A private room starts when every person in it is ready. Whoever arrives or
-  // takes it back resets that; somebody leaving can complete it.
-  readyCheck() {
-    if (this.open || this.playing) return;
-    const ready = this.members.filter((m) => m.ready).length;
-    if (!ready) this.readySince = 0;
-    if (ready && ready === this.members.length) { if (!this.goAt) this.goAt = Date.now() + READY_GO * 1000; }
-    else this.goAt = 0;
   }
 
   tellLobby() {
     this.lobbyN++;
     const names = this.members.map((m) => m.name);
     // in a public room that is gathering, how many seconds until it starts
-    // (in a private room, from everyone being ready), and how long until anyone ready may
-    // start without the rest (-1 when it does not apply, 0 once they may)
-    const now = Date.now(), secs = (at) => Math.max(0, Math.ceil((at - now) / 1000));
-    const wait = this.playing ? -1 : this.open ? secs(this.startAt) : this.goAt ? secs(this.goAt) : -1;
-    const out = this.open || this.playing || !this.readySince || this.goAt ? -1 : secs(this.readySince + WAIT_OUT * 1000);
-    const ready = this.members.map((m) => m.ready), wins = this.members.map((m) => m.wins);
-    this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing, wait: wait, ready: ready, wins: wins, out: out }));
+    const wait = this.open && !this.playing ? Math.max(0, Math.ceil((this.startAt - Date.now()) / 1000)) : -1;
+    // who is sitting the next match out, and the room's score: match wins since coming in
+    const sit = this.members.map((m) => m.sit), wins = this.members.map((m) => m.wins);
+    this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing, wait: wait, sit: sit, wins: wins }));
   }
 
   hear(m, raw) {
@@ -407,27 +386,37 @@ export class Room {
       m.n = d.n;
       if (d.d || d.p || clamp(d.mx, 1) !== m.mx || clamp(d.my, 1) !== m.my) m.active = now;
       m.mx = clamp(d.mx, 1); m.my = clamp(d.my, 1); m.cx = clamp(d.cx, 2000); m.cy = clamp(d.cy, 2000); m.drop = !!d.p;
-    } else if (d.t === 'ready') {
-      // a private room starts once every person in it is ready
-      if (this.open || this.playing || m.ready) return;
-      m.ready = true; m.active = now;
-      if (!this.readySince) this.readySince = now;
-      this.readyCheck();
-      this.tellLobby();
     } else if (d.t === 'go') {
-      // A public room starts on its own, but someone alone in it need not sit through
-      // the wait: there is nobody else to wait for, and a second player who arrives first
-      // wins. In a private room, anyone ready may start without the rest once they have
-      // waited WAIT_OUT; whoever is not ready sits that match out.
-      if (this.playing) return;
-      if (this.open ? this.members.length === 1 : m.ready && this.readySince && now - this.readySince >= WAIT_OUT * 1000) this.start();
+      // Only whoever has been in the room longest may start a match. A public room
+      // starts on its own, but someone alone in it need not sit through the wait:
+      // there is nobody else to wait for, and a second player who arrives first wins.
+      if (!this.playing && (this.open ? this.members.length === 1 : m === this.members[0])) this.start();
+    } else if (d.t === 'sit') {
+      // In a private room everyone plays the next match unless they say otherwise;
+      // whoever starts it always plays.
+      const sit = !!d.on;
+      if (this.open || m === this.members[0] || sit === m.sit) return;
+      m.sit = sit; m.active = now;
+      this.tellLobby();
+    } else if (d.t === 'kick') {
+      // whoever starts a private room's matches may send someone out of it
+      const out = this.members[d.i];
+      if (this.open || m !== this.members[0] || !Number.isInteger(d.i) || d.i < 1 || !out) return;
+      this.send(out, '{"t":"kicked"}');
+      this.drop(out);
+    } else if (d.t === 'emote') {
+      // one of the reactions everyone has (never free text), passed on to the whole room
+      if (!Number.isInteger(d.k) || d.k < 0 || d.k >= Net.EMOTES.length || now - m.emoteAt < EMOTE_GAP) return;
+      m.emoteAt = now; m.active = now;
+      // s: their seat in the match on, or the one just played (its result is still on screen)
+      const msg = JSON.stringify({ t: 'emote', i: this.members.indexOf(m), s: m.was, k: d.k });
+      for (const x of this.members) this.send(x, msg);
     }
   }
 
   start() {
-    // a private room seats whoever is ready; a public one everyone
-    const seated = this.open ? this.members.slice() : this.members.filter((m) => m.ready);
-    if (!seated.length) return;
+    // everyone plays, apart from anyone in a private room sitting this one out
+    const seated = this.members.filter((m, i) => this.open || i === 0 || !m.sit);
     const people = seated.map((m) => ({ name: m.name, human: true }));
     const n = SEATS - people.length;
     // bots in none of the players' colours and, if the draw allows it, none with a letter one of them has
@@ -445,10 +434,9 @@ export class Room {
     this.rec = { seats: roster.map((p) => p.type || 'person'), rounds: [], winner: -1, left: 0 };
     this.round = null;
     this.crowd = seated.map((m) => ({ device: m.device, country: m.country, touch: m.touch }));
-    for (const m of this.members) { m.seat = -1; m.ready = false; }
-    this.readySince = 0; this.goAt = 0;
+    for (const m of this.members) { m.seat = -1; m.was = -1; }
     seated.forEach((m, i) => {
-      m.seat = i; m.mx = 0; m.my = 0; m.drop = false; m.dash = false;
+      m.seat = i; m.was = i; m.mx = 0; m.my = 0; m.drop = false; m.dash = false;
       this.send(m, { t: 'start', m: this.matchN, roster: roster, seed: seed, you: i });
     });
     this.tellLobby();
@@ -534,7 +522,8 @@ export class Room {
       if (champ) champ.wins++;
       this.idleSince = Date.now();
       this.startAt = Date.now() + GATHER * 1000;
-      for (const m of this.members) m.seat = -1;
+      // everyone is in the next match again unless they say otherwise
+      for (const m of this.members) { m.seat = -1; m.sit = false; }
       this.tellLobby();
     }
   }
