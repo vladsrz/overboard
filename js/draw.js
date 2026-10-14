@@ -257,13 +257,13 @@
     ctx.save();
     ctx.translate(x, y);
     ctx.fillStyle = '#ffd34d'; ctx.strokeStyle = WATER;
-    ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    ctx.lineWidth = 2; ctx.lineJoin = 'round';
     ctx.beginPath();
     ctx.moveTo(-12, -6); ctx.lineTo(-6, -1); ctx.lineTo(0, -11);
     ctx.lineTo(6, -1); ctx.lineTo(12, -6); ctx.lineTo(10, 7);
     ctx.lineTo(-10, 7); ctx.closePath();
     ctx.fill(); ctx.stroke();
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.1;
     ctx.beginPath(); ctx.moveTo(-9, 3); ctx.lineTo(9, 3); ctx.stroke();
     ctx.restore();
   }
@@ -305,7 +305,7 @@
 
       // Seat the crown on the disc, clear of the charge bar, without revealing a hidden opponent.
       if (G.mode === 'match' && p.id === leader && p.state === 'alive' && alpha === 1) {
-        const size = Math.max(1, Math.min(1.4, 0.65 / view.scale));
+        const size = 0.85 * Math.max(1, Math.min(1.4, 0.65 / view.scale));
         ctx.save();
         ctx.translate(p.x, p.y - r + 2 * size);
         ctx.scale(size, size);
