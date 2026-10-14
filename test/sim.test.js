@@ -9,6 +9,19 @@ const DT = 1 / 60;
 const MATCHES = Cast.LIST.length * 8; // every character plays 32
 const stats = { spawned: {}, type: {}, dashes: 0, afterFirst: 0, picked: {}, slams: 0, firstFall: 0, rounds: 0, time: 0, how: {}, ghostKills: 0, falls: 0, draws: 0, longest: 0, wins: [0, 0, 0, 0] };
 
+// Every seat starts in the middle of its own plank, whatever the room size.
+for (let seats = 1; seats <= 4; seats++) {
+  const s = Sim.createMatch({ players: Array.from({ length: seats }, (_, i) => ({ name: 'Player' + i })) });
+  const tiles = new Set();
+  for (const p of s.players) {
+    const tile = Sim.tileIndexAt(p.x, p.y);
+    assert(p.x === Sim.tileX(tile) && p.y === Sim.tileY(tile), 'player started off a plank centre');
+    assert.strictEqual(s.tiles[tile], Sim.SOLID);
+    tiles.add(tile);
+  }
+  assert.strictEqual(tiles.size, seats, 'players need separate starting planks');
+}
+
 for (let seed = 1; seed <= MATCHES; seed++) {
   // Four characters a match. Every character plays the same number of matches
   // (the offset walks the whole list) against changing company (the stride
