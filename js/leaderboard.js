@@ -63,7 +63,7 @@
   function note(text) { $('mine-note').textContent = text; $('mine-note').hidden = !text; }
 
   function load() {
-    return Promise.all([Board.top(), Board.mine().catch(() => null)]).then(([board, me]) => show(board, me))
+    return Promise.all([Board.top(true), Board.mine().catch(() => null)]).then(([board, me]) => show(board, me))
       .catch(() => { $('status').textContent = 'Could not reach the game server. Check your connection and reload.'; });
   }
 

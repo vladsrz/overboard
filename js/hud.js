@@ -133,6 +133,7 @@
     $('cover').classList.toggle('room', to === 'room');
     $('cover-how').hidden = $('cover-fine').hidden = $('cover-links').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
     if (to !== 'end') { boardN++; $('board-ask').hidden = $('board-line').hidden = true; }
+    $('board-mini').hidden = to !== 'start' || !miniRows;
     // playing strangers needs the game server to put you together
     $('quick').hidden = !Net.usesServer();
     $('room').hidden = to !== 'room';
@@ -193,6 +194,34 @@
   $('board-add').addEventListener('click', () => { Sfx.play('click'); addName(); });
   $('board-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addName(); } });
   $('board-no').addEventListener('click', () => { Sfx.play('click'); Board.decline(); boardN++; $('board-ask').hidden = true; });
+
+  // The start screen's glance at this week's leaderboard: the top five as small
+  // planks, like the leaderboard page. Nothing at all while nobody is on it, so an
+  // empty week adds nothing to the screen. Asked again at most every 30 seconds.
+  let miniRows = 0, miniAt = 0;
+  function miniBoard() {
+    if (!window.Board || !Net.usesServer() || Date.now() - miniAt < 30e3) return;
+    miniAt = Date.now();
+    Board.top().then((b) => {
+      const top = b.top.slice(0, 5), most = top.length ? top[0].wins : 1, ol = $('board-mini-list');
+      ol.textContent = '';
+      top.forEach((e, i) => {
+        const li = document.createElement('li'), rank = document.createElement('span'), name = document.createElement('span'),
+          plank = document.createElement('span'), fill = document.createElement('i'), n = document.createElement('span');
+        rank.className = 'rank'; rank.textContent = i + 1;
+        name.className = 'name'; name.textContent = e.name;
+        plank.className = 'plank'; fill.style.width = (100 * e.wins / Math.max(1, most)) + '%'; plank.appendChild(fill);
+        n.className = 'n'; n.textContent = e.wins;
+        li.setAttribute('aria-label', Board.place(i + 1) + ', ' + e.name + ', ' + Board.wins(e.wins));
+        li.append(rank, name, plank, n);
+        ol.appendChild(li);
+      });
+      miniRows = top.length;
+      $('board-mini').hidden = face !== 'start' || !miniRows;
+    }).catch(() => { /* no leaderboard today; the start screen is complete without it */ });
+  }
+  // the page opens on the start screen
+  miniBoard();
 
   // The room: four seats in the colours they will play in, empty ones marked for
   // bots. Your own seat is where you type your name. The seats are made once and
@@ -273,6 +302,7 @@
     // why: one line under the buttons, for when a room closed on you
     showStart(why) {
       clearOverlays();
+      miniBoard();
       $('cover-title').textContent = START.title; $('cover-lede').textContent = START.lede;
       $('code').value = '';
       cover('start', why);

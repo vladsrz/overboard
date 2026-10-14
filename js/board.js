@@ -6,10 +6,10 @@
   'use strict';
   const NO = 'overboard-board-no';
 
-  async function call(path, body) {
+  async function call(path, body, fresh) {
     const to = root.Net && root.Net.usesServer() ? root.Net.api() : '';
     if (!to) throw new Error('offline');
-    const res = await fetch(to + path, body ? { method: 'POST', body: JSON.stringify(body) } : {});
+    const res = await fetch(to + path, body ? { method: 'POST', body: JSON.stringify(body) } : { cache: fresh ? 'no-cache' : 'default' });
     const d = await res.json().catch(() => null);
     if (!res.ok) { const err = new Error((d && d.error) || 'http ' + res.status); err.why = (d && d.error) || (res.status === 429 ? 'slow' : 'server'); throw err; }
     return d;
@@ -17,8 +17,9 @@
   const id = () => root.Stats.device();
 
   const Board = {
-    // { week, ends, top: [{ name, wins }] }
-    top: () => call('/board'),
+    // { week, ends, top: [{ name, wins }] }. The server lets a browser keep it for 30
+    // seconds; fresh asks again anyway (the leaderboard page, right after a name changes).
+    top: (fresh) => call('/board', null, fresh),
     // this browser: { wins, name, rank, canName }
     mine: () => call('/board/me', { device: id() }),
     setName: (name) => call('/board/name', { device: id(), name: name }),

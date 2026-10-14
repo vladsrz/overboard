@@ -183,6 +183,24 @@ kbd {
 #board-name::placeholder { color: var(--plank); opacity: 0.55; font-weight: 400; }
 #board-name:focus-visible { outline: 0; border-bottom-color: var(--foam); background: rgba(11, 57, 54, 0.6); }
 .board-line { margin-top: 22px; font-size: 14px; opacity: 0.9; }
+/* The start screen's glance at this week's leaderboard: small planks, like the
+   leaderboard page. In the corner on a big screen, so the middle keeps its one big
+   button; under the links on an upright phone; left out where there is no room. */
+.board-mini { width: min(270px, 86vw); margin-top: 24px; text-align: left; font-size: 14px; }
+.board-mini h2 { margin: 0 0 9px; font: 700 11px/1 var(--ui); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
+.board-mini ol { display: grid; grid-template-columns: 1.3em minmax(0, 7.5em) 1fr 1.6em; gap: 7px 9px; align-items: center; margin: 0; padding: 0; list-style: none; }
+.board-mini li { display: contents; }
+.board-mini .rank { font: 900 11px/1 var(--display); opacity: 0.6; text-align: right; }
+.board-mini .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-mini .plank { height: 8px; border-radius: 2px; background: var(--water-deep); overflow: hidden; }
+.board-mini .plank i { display: block; height: 100%; min-width: 4px; border-radius: 2px; background: var(--plank); }
+.board-mini .n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.board-mini a { display: inline-block; margin-top: 11px; font-size: 12px; color: inherit; text-underline-offset: 3px; opacity: 0.6; }
+.board-mini a:hover { opacity: 0.9; }
+@media (min-width: 1000px) and (min-height: 600px) {
+  .board-mini { position: absolute; right: calc(32px + env(safe-area-inset-right)); bottom: calc(28px + env(safe-area-inset-bottom)); margin: 0; }
+}
+@media (max-width: 999px) and (max-height: 699px), (max-height: 599px) { .board-mini { display: none !important; } }
 .board-line a { color: inherit; text-underline-offset: 3px; }
 /* the final score: a row each, most rounds first, with the same pips as the score bar */
 .results { display: grid; grid-template-columns: auto minmax(0, max-content) auto auto; gap: 12px 14px; max-width: 92vw; margin: 30px 0 0; padding: 0; list-style: none; text-align: left; }

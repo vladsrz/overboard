@@ -118,7 +118,14 @@ async function api(request, env, url) {
     if (!allowed(request, env)) return new Response('Not from here', { status: 403 });
     const from = await source(request);
     if (await over(env.REPORTS, from)) return new Response('Slow down', { status: 429 });
-    if (url.pathname === '/board') return request.method === 'GET' ? stats.fetch('https://stats/board') : new Response('Not found', { status: 404 });
+    if (url.pathname === '/board') {
+      if (request.method !== 'GET') return new Response('Not found', { status: 404 });
+      // the same for everyone, and on every start screen: a browser keeps it half a minute
+      const res = await stats.fetch('https://stats/board');
+      const out = new Response(res.body, res);
+      out.headers.set('Cache-Control', 'public, max-age=30');
+      return out;
+    }
     if (request.method !== 'POST') return new Response('Not found', { status: 404 });
     const raw = await text(request, 1024);
     if (raw === null) return new Response('Too big', { status: 413 });
