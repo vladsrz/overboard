@@ -186,12 +186,32 @@
   }
   $('sit').addEventListener('click', () => { const me = Net.members[Net.you]; Sfx.play('click'); if (me) Net.sit(!me.sit); });
 
+  // The face reactions are the game's own, drawn like the players' discs: a plank-coloured
+  // disc with an ink outline and ink features, all at one size and line weight. Emoji looked
+  // like any other app and differed from phone to phone.
+  const DISC = '<circle cx="12" cy="12" r="10.4" class="f-disc"/>';
+  const EYES = (y) => '<circle cx="8.7" cy="' + y + '" r="1.4" class="f-ink"/><circle cx="15.3" cy="' + y + '" r="1.4" class="f-ink"/>';
+  const FACES = {
+    happy: DISC + EYES(10) + '<path d="M7.6 13.9q4.4 4.8 8.8 0" class="f-line"/>',
+    laughing: DISC + '<path d="M6.9 8.3l2.8 1.6-2.8 1.6M17.1 8.3l-2.8 1.6 2.8 1.6" class="f-line"/><path d="M7.1 13.2h9.8a4.9 4.9 0 0 1-9.8 0z" class="f-ink"/>',
+    shocked: DISC + '<path d="M6.9 7.4q1.8-1.5 3.6 0M13.5 7.4q1.8-1.5 3.6 0" class="f-line"/>' + EYES(10.4) + '<ellipse cx="12" cy="15.7" rx="2.1" ry="2.7" class="f-ink"/>',
+    angry: DISC + '<path d="M6.6 7.5l3.7 1.9M17.4 7.5l-3.7 1.9" class="f-line"/>' + EYES(11.3) + '<path d="M8.2 16.8q3.8-3.3 7.6 0" class="f-line"/>',
+  };
+  // a reaction into a button or a bubble: the face if it is one, otherwise its words
+  function putEmote(el, k) {
+    const name = Net.EMOTES[k];
+    el.textContent = '';
+    el.classList.toggle('has-face', !!FACES[name]);
+    if (FACES[name]) el.insertAdjacentHTML('beforeend', '<svg class="face" viewBox="0 0 24 24" role="img" aria-label="' + name + '">' + FACES[name] + '</svg>');
+    else el.textContent = name;
+  }
+
   // the reactions to pick from: a row on the room and result screens, and behind one
   // button on a phone mid-match
   for (const box of [$('emotes'), $('emotes-pad')]) {
     Net.EMOTES.forEach((text, k) => {
       const b = document.createElement('button');
-      b.type = 'button'; b.textContent = text; b.title = 'Key ' + (k + 1);
+      b.type = 'button'; putEmote(b, k); b.title = (FACES[text] ? text[0].toUpperCase() + text.slice(1) + ', key ' : 'Key ') + (k + 1);
       b.addEventListener('click', () => { Net.emote(k); if (box === $('emotes-pad')) padEmotes(false); else roomEmotes(false); b.blur(); });
       box.appendChild(b);
     });
@@ -207,9 +227,9 @@
 
   // A reaction shows for a couple of seconds over the person's seat in the room, and
   // by their name on the score bar during a match and on its result.
-  function showSay(el, text) {
+  function showSay(el, k) {
     if (!el) return;
-    el.textContent = text;
+    putEmote(el, k);
     el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
     clearTimeout(el.sayT);
     el.sayT = setTimeout(() => el.classList.remove('on'), 2600);
@@ -419,9 +439,9 @@
     },
     lobby,
     // i: their place in the room; seat: theirs in the match, or -1
-    emote(i, seat, text) {
-      if (!$('cover').hidden && face === 'room') showSay($('seats').children[i] && $('seats').children[i].querySelector('.say'), text);
-      if (seat >= 0 && !$('top').hidden && G.state && G.state.players[seat]) showSay($('crew').children[seat] && $('crew').children[seat].querySelector('.say'), text);
+    emote(i, seat, k) {
+      if (!$('cover').hidden && face === 'room') showSay($('seats').children[i] && $('seats').children[i].querySelector('.say'), k);
+      if (seat >= 0 && !$('top').hidden && G.state && G.state.players[seat]) showSay($('crew').children[seat] && $('crew').children[seat].querySelector('.say'), k);
     },
     // The code or the link went to the clipboard, and its button shows a tick for a moment.
     // If it could not, the link is shown to copy by hand (the code already is).

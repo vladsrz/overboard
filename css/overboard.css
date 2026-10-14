@@ -241,7 +241,8 @@ kbd {
 .cover button.plain:hover { background: transparent; opacity: 1; }
 .room { display: flex; flex-direction: column; align-items: center; margin-top: 28px; }
 /* the room's code, big enough to read out across a room; it can be selected and copied */
-.room-code { display: flex; align-items: baseline; gap: 12px; margin: 0 0 24px; font-size: 14px; }
+/* room under it for a reaction over a seat, clear of the code */
+.room-code { display: flex; align-items: baseline; gap: 12px; margin: 0 0 44px; font-size: 14px; }
 .room-code, .room-code * { -webkit-user-select: text; user-select: text; }
 .room-code b { font: 900 30px/1 var(--display); letter-spacing: 0.14em; }
 /* The small square buttons: beside the code, copy the code and copy the invite link (a tick
@@ -276,13 +277,22 @@ kbd {
 .seats .note { height: 16px; margin-top: -4px; font: 600 12px/16px var(--ui); white-space: nowrap; opacity: 0.7; }
 .seats li.in .note { color: var(--foam); opacity: 1; }
 .cover .seats button.kick { margin: -4px 0 0; padding: 2px 6px; font-size: 12px; opacity: 0.55; }
-/* a reaction: a small plank-coloured tag over the seat, or under the name on the score bar */
+/* a reaction: a small dark tag with a plank outline over the seat, or under the name on the
+   score bar (a plank-coloured one was hard to read, and lost its face against it) */
 .say {
   position: absolute; left: 50%; transform: translate(-50%, 4px); z-index: 2;
-  padding: 4px 10px 5px; border-radius: 999px; background: var(--plank); color: var(--ink);
+  padding: 4px 10px 5px; border: 1.5px solid var(--plank); border-radius: 999px;
+  background: var(--water-deep); color: var(--plank);
   font: 700 13px/1 var(--ui); white-space: nowrap; pointer-events: none;
   opacity: 0; transition: opacity 0.15s, transform 0.15s;
 }
+.say.has-face { padding: 3px; }
+/* the game's own faces: discs like the players', plank with ink */
+.face { display: block; width: 22px; height: 22px; }
+.say .face { width: 26px; height: 26px; }
+.face .f-disc { fill: var(--plank); stroke: var(--ink); stroke-width: 1.5; }
+.face .f-ink { fill: var(--ink); }
+.face .f-line { fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .say.on { opacity: 1; transform: translate(-50%, 0); }
 .seats .say { bottom: calc(100% + 4px); }
 .crew li { position: relative; }
@@ -290,7 +300,7 @@ kbd {
 /* the reactions to pick from, once the small button opens them: a row of outlined tags, keys 1 to 8 */
 .emotes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 92vw; margin-top: 12px; }
 .cover .emotes button, .emotes button {
-  margin: 0; padding: 6px 10px 7px; border: 1.5px solid var(--plank); border-radius: 999px;
+  margin: 0; padding: 9px 12px 10px; border: 1.5px solid var(--plank); border-radius: 999px;
   background: transparent; color: var(--plank); font: 600 13px/1 var(--ui); opacity: 0.75;
 }
 .cover .emotes button:hover, .emotes button:active { background: var(--plank); color: var(--ink); opacity: 1; }
@@ -322,10 +332,12 @@ kbd {
 /* opened from the small button: a panel just under it, over whatever is below, so nothing moves */
 .emotes.pop {
   position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 3;
-  width: max-content; max-width: min(92vw, 470px); margin: 0; padding: 8px;
+  width: max-content; max-width: min(92vw, 640px); margin: 0; padding: 8px;
   border-radius: 10px; background: var(--water-deep); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 .emotes.pop button { opacity: 1; }
+.cover .emotes button.has-face, .emotes button.has-face { padding: 3px 6px; }
+.emotes .face { width: 28px; height: 28px; }
 .cover .actions > button { margin-top: 0; }
 .cover.room .actions { margin-top: 22px; }
 body.touch .cover.room { touch-action: pan-y; overflow-y: auto; }

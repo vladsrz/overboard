@@ -464,7 +464,7 @@
   };
   Net.on.closed = (why) => quitToStart(why);
   // somebody in the room reacted: on their seat in the room, by their name on the score bar
-  Net.on.emote = (i, seat, k) => { ui.emote(i, seat, Net.EMOTES[k]); Sfx.play('emote'); };
+  Net.on.emote = (i, seat, k) => { ui.emote(i, seat, k); Sfx.play('emote'); };
   // the host started a match and this machine has a seat in it
   Net.on.start = (list, seed, you) => {
     if (list.length < 2 || list.length > Net.SEATS) return;
