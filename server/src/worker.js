@@ -36,7 +36,6 @@ const IDLE_ROOM = 15 * 60e3; // a room with no match running closes after this l
 const MAX_MSG = 600;         // characters; an input or a name is far smaller
 const MAX_RATE = 150;        // messages a second from one player before they are dropped
 const GATHER = 8;            // seconds a public room waits for more players before it starts
-const EMOTE_GAP = 800;        // ms between one player's reactions; more are dropped
 const AWAY = 120e3;          // in a public room, a player who touches nothing for this long is let go
 const HOLD = 8;              // connections one source may have open at once: two full rooms from one home
 const HOLD_NEW = 20e3;       // a connection let in whose room has not reported it yet stops counting after this
@@ -406,7 +405,7 @@ export class Room {
       this.drop(out);
     } else if (d.t === 'emote') {
       // one of the reactions everyone has (never free text), passed on to the whole room
-      if (!Number.isInteger(d.k) || d.k < 0 || d.k >= Net.EMOTES.length || now - m.emoteAt < EMOTE_GAP) return;
+      if (!Number.isInteger(d.k) || d.k < 0 || d.k >= Net.EMOTES.length || now - m.emoteAt < Net.EMOTE_GAP * 0.8) return;
       m.emoteAt = now; m.active = now;
       // s: their seat in the match on, or the one just played (its result is still on screen)
       const msg = JSON.stringify({ t: 'emote', i: this.members.indexOf(m), s: m.was, k: d.k });

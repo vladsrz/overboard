@@ -190,6 +190,8 @@
   // (each its own colour from the cast) with an ink outline and ink features, all at one
   // size and line weight. Emoji looked like any other app and differed from phone to phone.
   const DISC = '<circle cx="12" cy="12" r="10.4" class="f-disc"/>';
+  // each its own colour, from the cast: Otter's lavender, Wildcard's yellow, Viper's green, Heron's blue, Ram's red
+  const FACE_COLOR = { yes: '#b9a3e8', happy: '#f3b81f', laughing: '#9bc53d', shocked: '#79bfe6', angry: '#d7335f' };
   const EYES = (y) => '<circle cx="8.7" cy="' + y + '" r="1.4" class="f-ink"/><circle cx="15.3" cy="' + y + '" r="1.4" class="f-ink"/>';
   const FACES = {
     // a thumbs up: the fist and its cuff, the thumb raised
@@ -204,7 +206,7 @@
     const name = Net.EMOTES[k];
     el.textContent = '';
     el.classList.toggle('has-face', !!FACES[name]);
-    if (FACES[name]) el.insertAdjacentHTML('beforeend', '<svg class="face face-' + name + '" viewBox="0 0 24 24" role="img" aria-label="' + name + '">' + FACES[name] + '</svg>');
+    if (FACES[name]) el.insertAdjacentHTML('beforeend', '<svg class="face" viewBox="0 0 24 24" role="img" aria-label="' + name + '">' + FACES[name].replace('class="f-disc"', 'class="f-disc" style="fill:' + FACE_COLOR[name] + '"') + '</svg>');
     else el.textContent = name;
   }
 
@@ -216,7 +218,7 @@
       b.type = 'button'; putEmote(b, k); b.title = (FACES[text] ? text[0].toUpperCase() + text.slice(1) + ', key ' : 'Key ') + (k + 1);
       // its key, in the corner (not on a phone, which has none)
       if (box === $('emotes')) b.insertAdjacentHTML('beforeend', '<span class="key" aria-hidden="true">' + (k + 1) + '</span>');
-      b.addEventListener('click', () => { Net.emote(k); if (box === $('emotes-pad')) padEmotes(false); else roomEmotes(false); b.blur(); });
+      b.addEventListener('click', () => { G.react(k); if (box === $('emotes-pad')) padEmotes(false); else roomEmotes(false); b.blur(); });
       box.appendChild(b);
     });
   }
@@ -229,8 +231,25 @@
   // a press anywhere else closes it
   document.addEventListener('pointerdown', (e) => { if (!$('emotes').hidden && !e.target.closest('#emotes, #react')) roomEmotes(false); });
 
+  // The same faces as pictures, for the raft (draw.js): colours written in, since a
+  // picture cannot see the page's styles.
+  const INK = '#14211f';
+  G.faceImg = {};
+  for (const name in FACES) {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' + FACES[name]
+      .replace(/class="f-disc"/g, 'fill="' + FACE_COLOR[name] + '" stroke="' + INK + '" stroke-width="1.5"')
+      .replace(/class="f-ink"/g, 'fill="' + INK + '"')
+      .replace(/class="f-line"/g, 'fill="none" stroke="' + INK + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"') + '</svg>';
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    G.faceImg[name] = img;
+  }
+  // who is reacting on the raft right now: seat -> { name, at }
+  G.says = {};
+
   // A reaction shows for a couple of seconds over the person's seat in the room, and
-  // by their name on the score bar during a match and on its result.
+  // by their name on the score bar during a match and on its result; in a match it is
+  // also drawn big over their disc on the raft, where everyone is looking.
   function showSay(el, k) {
     if (!el) return;
     putEmote(el, k);
@@ -242,7 +261,7 @@
   // After a match in a party room everyone is taken back to the room after a few
   // seconds, where the seats say who is still there. Not while typing a name for the
   // leaderboard; whoever starts may also start the next match from the result.
-  let backT = 0;
+  let backT = 0, coolT = 0;
   function backToRoom() {
     clearInterval(backT);
     const at = Date.now();
@@ -446,6 +465,14 @@
     emote(i, seat, k) {
       if (!$('cover').hidden && face === 'room') showSay($('seats').children[i] && $('seats').children[i].querySelector('.say'), k);
       if (seat >= 0 && !$('top').hidden && G.state && G.state.players[seat]) showSay($('crew').children[seat] && $('crew').children[seat].querySelector('.say'), k);
+      if (seat >= 0 && G.mode === 'match' && G.state && G.state.players[seat]) G.says[seat] = { name: Net.EMOTES[k], at: performance.now() };
+    },
+    // after sending one: everything that sends one dims until it can again
+    cool(ms) {
+      const parts = ['react', 'emotes', 'emotes-pad', 'emote-open', 'react-key'];
+      for (const id of parts) $(id).classList.add('cool');
+      clearTimeout(coolT);
+      coolT = setTimeout(() => { for (const id of parts) $(id).classList.remove('cool'); }, ms);
     },
     // The code or the link went to the clipboard, and its button shows a tick for a moment.
     // If it could not, the link is shown to copy by hand (the code already is).

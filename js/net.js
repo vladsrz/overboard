@@ -131,6 +131,9 @@
     // goes to strangers. The server checks the number against this list. The first five
     // are drawn by the game (FACES in hud.js), not emoji.
     EMOTES: ['yes', 'happy', 'laughing', 'shocked', 'angry', 'gg', 'nice one', 'oops', 'one more?'],
+    // ms between one player's reactions. Whoever passes them on allows a little less, for the
+    // time messages take to arrive unevenly.
+    EMOTE_GAP: 3000,
     codeFrom: (hash) => { const c = String(hash || '').replace(/^#/, '').toUpperCase(); return CODE.test(c) ? c : ''; },
   };
 
@@ -172,7 +175,7 @@
   // a reaction from someone in a browser-hosted room goes to everyone, the host included
   function hostEmote(i, k) {
     const m = Net.members[i], t = now();
-    if (!m || t - (m.emoteAt || 0) < 800) return;
+    if (!m || t - (m.emoteAt || 0) < Net.EMOTE_GAP * 0.8) return;
     m.emoteAt = t;
     const msg = { t: 'emote', i: i, s: m.seat, k: k };
     for (const x of Net.members) send(x.conn, msg);
@@ -368,10 +371,14 @@
   Net.party = () => Net.server && !Net.open && Net.ready;
   Net.sit = (on) => { if (Net.party()) send(link, { t: 'sit', on: !!on }); };
   Net.kick = (i) => { if (Net.party() && Net.you === 0) send(link, { t: 'kick', i: i }); };
-  // a reaction, for everyone in the room to see
+  // a reaction, for everyone in the room to see; false if it is too soon after the last
+  let emotedAt = 0;
   Net.emote = (k) => {
-    if (!Number.isInteger(k) || k < 0 || k >= Net.EMOTES.length || !Net.ready) return;
+    if (!Number.isInteger(k) || k < 0 || k >= Net.EMOTES.length || !Net.ready) return false;
+    if (now() - emotedAt < Net.EMOTE_GAP) return false;
+    emotedAt = now();
     if (Net.role === 'host') hostEmote(0, k); else send(link, { t: 'emote', k: k });
+    return true;
   };
 
   // No code opens a new room; a code joins that one; quick joins whichever public

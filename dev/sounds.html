@@ -32,6 +32,9 @@
   <h2>Match point: not chosen</h2>
   <ul id="candidates"></ul>
 
+  <h2>Reactions: in the game now (one each)</h2>
+  <ul id="reactions"></ul>
+
   <h2>Round and match results, for comparison</h2>
   <ul id="results"></ul>
 </main>
@@ -129,6 +132,14 @@ for (const [name, key, note] of [
   ['Match won', 'matchWon', 'Plays the moment the deciding round is yours.'],
   ['Match lost', 'matchLost', 'Plays the moment someone else wins the match.'],
 ]) row('results', name, note, () => Sfx.play(key));
+for (const [name, key, note] of [
+  ['Thumbs up', 'yes', 'Two notes going up.'],
+  ['Happy', 'happy', 'A soft chime.'],
+  ['Laughing', 'laughing', 'Three quick bouncing notes.'],
+  ['Shocked', 'shocked', 'A slide up, "ooh".'],
+  ['Angry', 'angry', 'A low grumble.'],
+  ['Words', 'gg', 'gg, nice one, oops, one more?: the old pop.'],
+]) row('reactions', name, note, () => Sfx.play('emote', key));
 </script>
 </body>
 </html>

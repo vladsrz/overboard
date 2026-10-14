@@ -292,12 +292,8 @@ kbd {
 .say .face { width: 34px; height: 34px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25)); }
 .crew .say .face { width: 28px; height: 28px; }
 .face .f-disc { fill: var(--plank); stroke: var(--ink); stroke-width: 1.5; }
-/* each its own colour, from the cast: Otter's lavender, Wildcard's yellow, Viper's green, Heron's blue, Ram's red */
-.face-yes .f-disc { fill: #b9a3e8; }
-.face-happy .f-disc { fill: #f3b81f; }
-.face-laughing .f-disc { fill: #9bc53d; }
-.face-shocked .f-disc { fill: #79bfe6; }
-.face-angry .f-disc { fill: #d7335f; }
+/* cooling down after sending one: dimmed until another can go (a press meanwhile says no) */
+.cool { opacity: 0.4; transition: opacity 0.2s; }
 .face .f-ink { fill: var(--ink); }
 .face .f-line { fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .say.on { opacity: 1; transform: translate(-50%, 0); }

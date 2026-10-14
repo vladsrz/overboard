@@ -350,6 +350,38 @@
     }
   }
 
+  // A reaction in a match, big over the sender's disc (or their aim, in the water), for
+  // 2.6 seconds: it pops in and fades out. Never over someone you cannot see.
+  const SAY_T = 2600;
+  function drawSays(state, me) {
+    const now = performance.now();
+    for (const id in G.says) {
+      const s = G.says[id], p = state.players[id], t = now - s.at;
+      if (!p || t > SAY_T) { delete G.says[id]; continue; }
+      if (p !== me && p.state === 'alive' && !Sim.visible(p)) continue;
+      const size = Math.max(1, Math.min(1.4, 0.65 / view.scale));
+      const x = p.state === 'ghost' ? p.cx : p.x;
+      const y = p.state === 'ghost' ? p.cy - 42 * size : p.y - Sim.radius(p) - (p === me ? 62 : 50) * size;
+      const pop = reduced ? 1 : Math.min(1, t / 140) * (1 + 0.15 * Math.max(0, 1 - Math.abs(t - 140) / 140));
+      ctx.globalAlpha = t > SAY_T - 400 ? (SAY_T - t) / 400 : 1;
+      const img = G.faceImg[s.name];
+      if (img && img.complete) {
+        const d = 44 * size * pop;
+        ctx.drawImage(img, x - d / 2, y - d / 2, d, d);
+      } else if (!img) {
+        // words: a dark tag with a plank outline, like on the page
+        const f = Math.round(17 * size * pop);
+        ctx.font = '700 ' + f + 'px ' + FONT;
+        const w = ctx.measureText(s.name).width + f * 1.2, h = f * 1.9;
+        ctx.fillStyle = DEEP; ctx.strokeStyle = PLANK; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = PLANK; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(s.name, x, y + 1);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function drawFloats(dt) {
     for (let i = floats.length - 1; i >= 0; i--) {
       const f = floats[i], k = f.t / 0.9;
@@ -381,6 +413,7 @@
     drawWaves(state, me);
     drawPlayers(state, me);
     drawGhosts(state, me);
+    if (G.mode === 'match') drawSays(state, me);
     drawRings(true, dt);
     drawFloats(dt);
   };

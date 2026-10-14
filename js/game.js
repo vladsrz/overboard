@@ -464,7 +464,12 @@
   };
   Net.on.closed = (why) => quitToStart(why);
   // somebody in the room reacted: on their seat in the room, by their name on the score bar
-  Net.on.emote = (i, seat, k) => { ui.emote(i, seat, k); Sfx.play('emote'); };
+  Net.on.emote = (i, seat, k) => { ui.emote(i, seat, k); Sfx.play('emote', Net.EMOTES[k]); };
+  // sending one: refused while the last is still cooling down, and that is heard, never silent
+  G.react = (k) => {
+    if (!Net.emote(k)) { Sfx.play('nope'); return; }
+    ui.cool(Net.EMOTE_GAP);
+  };
   // the host started a match and this machine has a seat in it
   Net.on.start = (list, seed, you) => {
     if (list.length < 2 || list.length > Net.SEATS) return;
@@ -519,7 +524,7 @@
     if (e.code === 'Escape' && inMatch()) { e.preventDefault(); Sfx.play('click'); setPaused(!paused); return; }
     if (e.code === 'KeyM' && inMatch() && !e.repeat) { toggleSound(); return; }
     // a reaction, in a room, from the room screen, the result or the match itself
-    if (Net.role && /^Digit[1-9]$/.test(e.code) && !e.repeat) { Net.emote(+e.code.slice(5) - 1); return; }
+    if (Net.role && /^Digit[1-9]$/.test(e.code) && !e.repeat) { G.react(+e.code.slice(5) - 1); return; }
     if (paused) return;
     if (!inMatch()) {
       if (e.code === 'Enter') { e.preventDefault(); requestStart(); }
