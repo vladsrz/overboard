@@ -50,8 +50,9 @@
     THORN_T: 5, THORN_PUSH: 350, THORN_GUARD: 0.3,
     // Meteors: for METEOR_T planks come out all over the raft, one every METEOR_EVERY,
     // except within METEOR_SAFE of whoever set it off. At most one a round, and not
-    // before METEOR_FROM seconds in.
-    METEOR_T: 2.6, METEOR_EVERY: 0.065, METEOR_SAFE: 95, METEOR_FROM: 6,
+    // before METEOR_FROM seconds in. Was 2.6 / 0.065 / 95 / 6 (~40 planks); turned down
+    // so a grab is still a big swing without ending the fight on its own.
+    METEOR_T: 1.8, METEOR_EVERY: 0.1, METEOR_SAFE: 115, METEOR_FROM: 8,
     // slam: charges on its own; when full, your next dash ends in a blast
     ULT_T: 14, ULT_START: 0.3, ULT_R: 165, ULT_PUSH: 620,
     // this long on the raft without touching the controls and bots take you for an easy target
@@ -74,7 +75,7 @@
   // to win; the choice never awards a round or changes a score directly.
   function survivorTarget(state, aboard, favorLeader) {
     let choices = aboard;
-    if (favorLeader && rand(state) < 0.65) {
+    if (favorLeader && rand(state) < 0.75) {
       const high = Math.max(...aboard.map((p) => p.wins));
       choices = aboard.filter((p) => p.wins === high);
     }

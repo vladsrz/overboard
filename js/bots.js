@@ -96,8 +96,10 @@
 
   // how often a bot that notices an idle player goes for them
   const AFK_PULL = 0.75;
-  // the share of bots that, once in the water, use everything they have and not only their favourite
-  const BUSY = 0.9;
+  // the share of bots that, once in the water, use everything they have and not only their favourite.
+  // Was 0.9 with near-cooldown spam; that made solo rounds too short, so this sits lower and the
+  // keen timings below are a half-step toward the favourite-only pace.
+  const BUSY = 0.55;
   function has(T, trait) { return T.pick.indexOf(trait) >= 0; }
 
   function pickTarget(state, p, b, preferred) {
@@ -460,10 +462,9 @@
     inp.cx = b.cx; inp.cy = b.cy;
 
     // Each has a favourite way to wreck the raft, and that one it uses the moment it
-    // is back. Most of them (BUSY, decided afresh each time they go in) also do what
-    // a person in the water does: keep tipping, pulling planks and sending waves,
-    // each about as soon as it has recharged. The rest stick to the favourite and
-    // only now and then reach for anything else.
+    // is back. About half (BUSY, decided afresh each time they go in) also do what
+    // a person in the water does: keep tipping, pulling planks and sending waves.
+    // The rest stick to the favourite and only now and then reach for anything else.
     const W = b.T.water;
     if (b.busy === null) b.busy = Sim.rand(state) < BUSY;
     const keen = b.busy || W === 'all';
@@ -473,8 +474,8 @@
     b.waterAge += dt;
     if (b.waterAge < 0.3) { /* still surfacing */ } else if (p.tiltCd <= 0 || state.tiltBy === p.id) {
       if (state.tiltBy !== p.id && !b.tiltAsked) {
-        b.tiltAsked = true; b.tiltWait = keen ? 0.6 : 2;
-        b.tiltWant = Sim.rand(state) < (W === 'tilt' || keen ? 0.95 : 0.12);
+        b.tiltAsked = true; b.tiltWait = keen ? 1.1 : 2;
+        b.tiltWant = Sim.rand(state) < (W === 'tilt' || keen ? 0.85 : 0.12);
       }
       if (b.tiltWant && od > 30) { inp.mx = ox / od; inp.my = oy / od; }
       else { b.tiltWait -= dt; if (b.tiltWait <= 0) b.tiltAsked = false; }
@@ -484,16 +485,16 @@
       b.dropDelay -= dt;
       // a bot that is at it pulls whatever plank its cursor is over once it is closing on its target,
       // the way a person clicks along the way; it never wastes the click on a plank already gone
-      if (b.dropDelay <= 0 && d < (keen ? 95 : 45) && Sim.tileStateAt(state, b.cx, b.cy) === Sim.SOLID) {
+      if (b.dropDelay <= 0 && d < (keen ? 70 : 45) && Sim.tileStateAt(state, b.cx, b.cy) === Sim.SOLID) {
         inp.drop = true;
-        b.dropDelay = W === 'planks' ? 0.03 + Sim.rand(state) * 0.15 : keen ? 0.08 + Sim.rand(state) * 0.3 : 1.5 + Sim.rand(state) * 2;
+        b.dropDelay = W === 'planks' ? 0.05 + Sim.rand(state) * 0.25 : keen ? 0.3 + Sim.rand(state) * 0.7 : 1.5 + Sim.rand(state) * 2;
       }
     }
     if (p.waveCd <= 0) {
       b.waveDelay -= dt;
       if (b.waveDelay <= 0 && od > 35) {
         inp.wave = true;
-        b.waveDelay = W === 'wave' ? 0.1 + Sim.rand(state) * 0.3 : keen ? 0.2 + Sim.rand(state) * 0.6 : 4 + Sim.rand(state) * 5;
+        b.waveDelay = W === 'wave' ? 0.15 + Sim.rand(state) * 0.4 : keen ? 0.8 + Sim.rand(state) * 1.5 : 4 + Sim.rand(state) * 5;
       }
     }
   }

@@ -440,6 +440,8 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
 
 // Badger, Crab and Magpie used to reverse in place together beside broken
 // planks after the player fell. A connected-plank route gets them moving again.
+// Stuck, the best of the three moved under 4 units in a second; healthy play on
+// other seeds dips to about 16, so the line sits between.
 {
   const s = Sim.createMatch({ seed: 162, players: [
     { name: 'You', human: true },
@@ -463,7 +465,7 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
       Math.hypot(trail[60][i][0] - trail[0][i][0], trail[60][i][1] - trail[0][i][1]))));
   }
   assert(usedRoute, 'the stuck-bot recovery never ran');
-  assert(leastProgress > 25, 'three bots shook in place together: ' + leastProgress);
+  assert(leastProgress > 15, 'three bots shook in place together: ' + leastProgress);
 }
 
 // With friends, the host sends the match to the guests as a message. A guest's copy
@@ -553,7 +555,7 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   }
   stats.meteor = mine + ' of ' + start;
   assert(s.meteorBy === 0 && s.meteorT <= 0, 'the shower should have started and finished');
-  assert(mine >= 30 && mine <= 45, 'a meteor shower should pull a few dozen planks: ' + mine);
+  assert(mine >= 14 && mine <= 28, 'a meteor shower should pull a noticeable but not fatal batch of planks: ' + mine);
   assert(near === 0, 'no plank should go right under whoever set it off');
   const again = Sim.createMatch({ seed: 23 });
   let seen = 0, early = 0;
