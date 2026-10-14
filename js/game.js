@@ -437,20 +437,29 @@
   // that one; quick puts you in a public room with whoever else is looking
   function openRoom(code, quick) {
     Sfx.unlock();
-    crowd = -1; waitWas = -1;
+    crowd = -1; crowdNames = []; waitWas = -1;
     ui.showLobby();
     if (Net.usesServer()) Net.connect(code, myName, quick); else if (code) Net.join(code, myName); else Net.host(myName);
   }
   // Someone coming into the room or leaving it is heard, and so are the last three
   // seconds before a public room starts. Not during a match: a leaver there has a
   // banner and a sound of their own, and a newcomer is waiting for the next one.
-  let crowd = -1, waitWas = -1;
+  let crowd = -1, crowdNames = [], waitWas = -1;
   Net.on.lobby = () => {
     if (Net.ready) onlineFromStart = false;
     const n = Net.ready ? Net.members.length : -1, playing = G.mode === 'match' && !ui.coverOpen();
     if (!playing && crowd > 0 && n > 0 && n !== crowd) Sfx.play(n > crowd ? 'join' : 'leave');
     if (!playing && Net.open && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
-    crowd = n; waitWas = Net.wait;
+    // someone left: a banner says who, and who starts the matches now if it was them
+    // (mid-match, a player who leaves gets the match's own banner instead)
+    const names = Net.ready ? Net.members.map((m) => m.name) : [];
+    if (!playing && crowd > 0 && n > 0 && n < crowd) {
+      const rest = names.slice();
+      const gone = crowdNames.filter((x) => { const k = rest.indexOf(x); if (k < 0) return true; rest.splice(k, 1); return false; });
+      const lead = !Net.open && crowdNames[0] !== names[0];
+      if (gone.length) ui.banner(gone.join(' and ') + ' left', lead ? (Net.you === 0 ? 'You start the matches now.' : names[0] + ' starts the matches now.') : '', 3.2);
+    }
+    crowd = n; crowdNames = names; waitWas = Net.wait;
     ui.lobby();
   };
   Net.on.closed = (why) => quitToStart(why);

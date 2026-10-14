@@ -73,6 +73,7 @@ kbd {
   background: var(--plank); color: var(--ink);
   border-radius: 6px;
   pointer-events: none;
+  z-index: 4; /* over the room screen too: someone leaving it is news */
 }
 /* no spare water beside the raft: it gets its own lane under the score bar, and the
    raft is drawn lower to make room (the same query is in draw.js) */
@@ -258,6 +259,7 @@ kbd {
 /* under each name: sitting out, and match wins in this room; for whoever starts, a way to send someone out */
 .seats li { position: relative; }
 .seats .note { height: 16px; margin-top: -4px; font: 600 12px/16px var(--ui); white-space: nowrap; opacity: 0.7; }
+.seats li.in .note { color: var(--foam); opacity: 1; }
 .cover .seats button.kick { margin: -4px 0 0; padding: 2px 6px; font-size: 12px; opacity: 0.55; }
 /* a reaction: a small plank-coloured tag over the seat, or under the name on the score bar */
 .say {

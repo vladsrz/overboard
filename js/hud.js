@@ -177,7 +177,7 @@
       const out = Net.members.filter((m) => m.sit).map((m) => m.name);
       const who = out.length < 2 ? out.join('') : out.slice(0, -1).join(', ') + ' and ' + out[out.length - 1];
       return { label: to === 'end' ? 'Play again' : 'Start match',
-        say: out.length ? who + (out.length > 1 ? ' are' : ' is') + ' sitting out.' : to === 'room' ? 'Bots fill the empty seats.' : '' };
+        say: out.length ? who + (out.length > 1 ? ' are' : ' is') + ' sitting out.' : Net.members.length > 1 ? 'Everyone is ready.' : to === 'room' ? 'Bots fill the empty seats.' : '' };
     }
     const sitting = !!me && me.sit;
     return { sit: sitting ? 'I’m in' : 'Sit out',
@@ -317,8 +317,11 @@
       const m = Net.members[i], who = Cast.PEOPLE[i], li = ol.children[i], mine = !!m && i === Net.you;
       const disc = li.querySelector('.disc'), name = li.querySelector('.name'), note = li.querySelector('.note');
       li.className = !m ? 'empty' : mine ? 'mine' : '';
-      // under the name: sitting out, and the matches won since coming into this room
-      note.textContent = !m ? '' : [m.sit && Net.party() ? 'sitting out' : '', m.wins ? m.wins + (m.wins === 1 ? ' win' : ' wins') : ''].filter(Boolean).join(' · ');
+      // under the name: who starts, who is ready and who is sitting out, and the matches
+      // won since coming into this room
+      const state = !m || !Net.party() || Net.playing ? '' : i === 0 ? 'host' : m.sit ? 'sitting out' : 'ready';
+      note.textContent = !m ? '' : [state, m.wins ? m.wins + (m.wins === 1 ? ' win' : ' wins') : ''].filter(Boolean).join(' · ');
+      li.classList.toggle('in', state === 'ready');
       li.querySelector('.kick').hidden = !(m && i > 0 && Net.party() && Net.you === 0);
       disc.textContent = m ? m.name[0] : '';
       disc.style.background = m ? who.color : ''; disc.style.color = m ? (who.light ? G.PAL.DEEP : G.PAL.PLANK) : '';
