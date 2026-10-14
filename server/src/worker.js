@@ -351,8 +351,10 @@ export class Room {
     if (now - this.reported > REPORT_EVERY) this.report();
     if (this.open && !this.playing) { if (now >= this.startAt) this.start(); else this.tellLobby(); }
     else if (!this.playing) {
+      const hadCountdown = !!this.goAt;
       this.autoCheck();
       if (this.goAt) { if (now >= this.goAt) this.start(); else this.tellLobby(); }
+      else if (hadCountdown) this.tellLobby();
       else if (now - this.idleSince > IDLE_ROOM) this.shut();
     }
   }
@@ -362,7 +364,7 @@ export class Room {
   // tab open would otherwise play match after match, and a room costs while it is awake.
   autoCheck() {
     const now = Date.now();
-    const ready = this.auto && !this.open && !this.playing && this.members.length
+    const ready = this.auto && !this.open && !this.playing && this.matchN > 0 && this.members.length >= 2
       && !this.members.some((m, i) => i > 0 && m.sit) && this.members.some((m) => now - m.active < AWAY);
     if (!ready) this.goAt = 0;
     else if (!this.goAt) this.goAt = Math.max(now, this.restUntil) + AUTO_GO * 1000;

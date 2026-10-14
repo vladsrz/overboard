@@ -155,7 +155,7 @@
     if (net && !Net.ready) say = Net.open ? 'Looking for players…' : host || !Net.code ? 'Opening a room…' : 'Joining…';
     else if (Net.open && to === 'room' && Net.playing) say = 'A match is on. You are in the next one.';
     else if (Net.open) say = (to === 'end' ? 'Next match in ' : 'Starting in ') + Math.max(0, Net.wait) + '.' + (to === 'end' ? '' : ' Bots fill the empty seats.');
-    else if (lead) say = to === 'room' ? 'Bots fill the empty seats.' : '';
+    else if (lead) say = to === 'room' ? 'Invite friends with the code or link; open seats become bots.' : '';
     else if (net) say = to === 'room' && Net.playing ? 'A match is on. You are in the next one.' : 'Waiting for ' + who + ' to start' + (to === 'end' ? ' the next match.' : '.');
     // a private room on the server is a party: whoever starts has the button, the rest may sit out
     $('sit').hidden = true;
@@ -166,7 +166,7 @@
       say = why || t.say;
     }
     $('auto-start').hidden = !(Net.party() && Net.you === 0 && to === 'room');
-    $('auto-start').textContent = 'Auto-start: ' + (Net.auto ? 'on' : 'off');
+    $('auto-start').textContent = 'Auto-start later matches: ' + (Net.auto ? 'on' : 'off');
     $('auto-start').setAttribute('aria-pressed', Net.auto ? 'true' : 'false');
     $('react').hidden = !(net && Net.ready && to !== 'start');
     if ($('react').hidden) roomEmotes(false);
@@ -190,7 +190,7 @@
       const out = Net.members.filter((m) => m.sit).map((m) => m.name);
       const who = out.length < 2 ? out.join('') : out.slice(0, -1).join(', ') + ' and ' + out[out.length - 1];
       return { label: to === 'end' ? 'Play again' : 'Start match',
-        say: out.length ? who + (out.length > 1 ? ' are' : ' is') + ' sitting out.' : Net.members.length > 1 ? 'Everyone is ready.' : to === 'room' ? 'Bots fill the empty seats.' : '' };
+        say: out.length ? who + (out.length > 1 ? ' are' : ' is') + ' sitting out.' : Net.members.length > 1 ? 'Everyone is ready.' : to === 'room' ? 'Invite friends with the code or link; open seats become bots.' : '' };
     }
     const sitting = !!me && me.sit;
     return { sit: sitting ? 'I’m in' : 'Sit out',
@@ -398,7 +398,7 @@
       li.querySelector('.kick').hidden = !(m && i > 0 && Net.party() && Net.you === 0);
       disc.textContent = m ? m.name[0] : '';
       disc.style.background = m ? who.color : ''; disc.style.color = m ? (who.light ? G.PAL.DEEP : G.PAL.PLANK) : '';
-      name.textContent = m ? m.name : 'bot'; name.hidden = mine;
+      name.textContent = m ? m.name : Net.open ? 'bot' : 'open'; name.hidden = mine;
       if (mine && field.parentNode !== li) li.insertBefore(field, note);
       else if (!mine && field.parentNode === li) $('room').appendChild(field);
     }

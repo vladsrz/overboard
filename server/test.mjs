@@ -124,7 +124,19 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
     r.hear(B, '{"t":"auto","on":true}');
     assert(!r.auto && !r.goAt, 'a guest enabled auto-start');
     r.hear(A, '{"t":"auto","on":true}');
-    assert(r.auto && r.goAt === time + 3000 && last(b, 'lobby').wait === 3, 'the host did not start a three-second countdown');
+    assert(r.auto && !r.goAt && last(b, 'lobby').wait === -1, 'auto-start counted down before the first manual match');
+    time += 3000;
+    A.seen = B.seen = time;
+    r.heartbeat();
+    assert(!r.playing, 'auto-start began the first match');
+    r.hear(A, '{"t":"go"}');
+    assert(r.playing && last(b, 'start'), 'the host could not start the first match manually');
+    r.state.phase = 'matchEnd'; r.state.matchWinner = 0; r.tick();
+    assert(!r.playing && r.restUntil === time + 5000 && last(a, 'lobby').wait === -1, 'the result did not get its five seconds');
+    time += 5000;
+    A.seen = B.seen = time; // clients keep their socket alive with pings
+    r.heartbeat();
+    assert(last(a, 'lobby').wait === 3, 'the next countdown was not shown after the result');
     r.hear(A, '{"t":"auto","on":false}');
     assert(!r.auto && !r.goAt && last(b, 'lobby').wait === -1, 'turning auto-start off did not cancel the countdown');
     r.hear(A, '{"t":"auto","on":true}');
@@ -134,21 +146,22 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
     r.hear(B, '{"t":"sit","on":false}');
     assert(r.goAt === time + 3000, 'returning to the match did not restart the countdown');
     time += 3000;
-    r.heartbeat();
-    assert(r.playing && last(b, 'start'), 'the ready room did not start its match');
-    r.state.phase = 'matchEnd'; r.state.matchWinner = 0; r.tick();
-    assert(!r.playing && r.restUntil === time + 5000 && last(a, 'lobby').wait === -1, 'the result did not get its five seconds');
-    time += 5000;
-    A.seen = B.seen = time; // clients keep their socket alive with pings
-    r.heartbeat();
-    assert(last(a, 'lobby').wait === 3, 'the next countdown was not shown after the result');
-    time += 3000;
     A.seen = B.seen = time;
     r.heartbeat();
     assert(r.playing, 'the next match did not auto-start');
     r.state.phase = 'matchEnd'; r.state.matchWinner = 0; r.tick();
-    A.active = B.active = time - 121000;
-    A.seen = B.seen = time;
+    r.drop(B);
+    assert(!r.goAt && last(a, 'lobby').wait === -1, 'one remaining player still had an auto-start countdown');
+    time += 5000;
+    A.seen = time;
+    r.heartbeat();
+    assert(!r.playing && !r.goAt, 'a one-player room auto-started');
+    const c = socket();
+    r.join(c, 'US', 'w3', 'id3');
+    const C = r.members[1];
+    assert(r.goAt === time + 3000 && last(a, 'lobby').wait === 3, 'the countdown did not resume when a second player joined');
+    A.active = C.active = time - 121000;
+    A.seen = C.seen = time;
     r.heartbeat();
     assert(!r.playing && !r.goAt && last(a, 'lobby').wait === -1, 'an inactive room kept starting matches');
   } finally {
