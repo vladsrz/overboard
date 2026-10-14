@@ -119,6 +119,7 @@
     server: false,   // the room is on the game server; everyone in it is a 'guest'
     open: false,     // a public room, found through quick play: it starts on its own
     wait: -1,        // seconds until a public room starts, or -1
+    auto: false,     // private server room: the host chose automatic starts
     code: '',        // the room, once it is open
     ready: false,    // host: the room is open; guest: the host has let us in
     playing: false,  // a match is on
@@ -144,7 +145,7 @@
     clearInterval(beat);
     const old = peer, line = link;
     peer = null; link = null; pending = null; heard = []; sent = ''; sentAt = 0;
-    Net.role = null; Net.server = false; Net.open = false; Net.wait = -1; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
+    Net.role = null; Net.server = false; Net.open = false; Net.wait = -1; Net.auto = false; Net.code = ''; Net.ready = false; Net.playing = false; Net.members = []; Net.you = 0;
     if (old) try { old.destroy(); } catch (e) { /* already gone */ }
     if (line && line.ws) try { line.ws.close(); } catch (e) { /* already gone */ }
   }
@@ -311,6 +312,7 @@
       Net.you = seat(d.you, Net.members.length);
       Net.playing = !!d.playing; Net.ready = true;
       Net.wait = Number.isInteger(d.wait) ? d.wait : -1;
+      Net.auto = d.auto === true;
       Net.on.lobby();
     } else if (d.t === 'emote') {
       // who (their place in the room), their seat in the match or -1, and which reaction
@@ -365,6 +367,7 @@
   // (in a public room, nobody leads; but someone alone in it may start at once rather than wait)
   Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && (Net.open ? !Net.playing && Net.members.length === 1 : Net.you === 0)));
   Net.go = () => { if (Net.server) send(link, { t: 'go' }); };
+  Net.setAuto = (on) => { if (Net.party() && Net.you === 0) send(link, { t: 'auto', on: !!on }); };
   // A private room on the server works like a party: everyone plays the next match
   // unless they sit it out, and whoever has been in the room longest starts it and may
   // send someone out. (A browser-hosted room has none of that: everyone plays.)

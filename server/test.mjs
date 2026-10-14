@@ -106,6 +106,57 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
   r.shut();
 }
 
+// Private-room auto-start belongs to the current host, pauses for Sit out, and
+// waits for the result screen before counting down again. Idle rooms stay idle.
+{
+  const quiet = { idFromName: () => 'x', get: () => ({ fetch: () => Promise.resolve() }) };
+  const socket = () => { const ws = { got: [], addEventListener() {}, send(s) { ws.got.push(JSON.parse(s)); }, close() {} }; return ws; };
+  const last = (ws, t) => ws.got.filter((d) => d.t === t).pop();
+  const realNow = Date.now;
+  let time = 1000000;
+  Date.now = () => time;
+  const r = new Room({ waitUntil() {} }, { DESK: quiet, STATS: quiet });
+  r.code = 'ABCDE';
+  try {
+    const a = socket(), b = socket();
+    r.join(a, 'US', 'w1', 'id1'); r.join(b, 'US', 'w2', 'id2');
+    const [A, B] = r.members;
+    r.hear(B, '{"t":"auto","on":true}');
+    assert(!r.auto && !r.goAt, 'a guest enabled auto-start');
+    r.hear(A, '{"t":"auto","on":true}');
+    assert(r.auto && r.goAt === time + 3000 && last(b, 'lobby').wait === 3, 'the host did not start a three-second countdown');
+    r.hear(A, '{"t":"auto","on":false}');
+    assert(!r.auto && !r.goAt && last(b, 'lobby').wait === -1, 'turning auto-start off did not cancel the countdown');
+    r.hear(A, '{"t":"auto","on":true}');
+    r.hear(B, '{"t":"sit","on":true}');
+    assert(!r.goAt && last(a, 'lobby').wait === -1, 'Sit out did not cancel the countdown');
+    time += 1000;
+    r.hear(B, '{"t":"sit","on":false}');
+    assert(r.goAt === time + 3000, 'returning to the match did not restart the countdown');
+    time += 3000;
+    r.heartbeat();
+    assert(r.playing && last(b, 'start'), 'the ready room did not start its match');
+    r.state.phase = 'matchEnd'; r.state.matchWinner = 0; r.tick();
+    assert(!r.playing && r.restUntil === time + 5000 && last(a, 'lobby').wait === -1, 'the result did not get its five seconds');
+    time += 5000;
+    A.seen = B.seen = time; // clients keep their socket alive with pings
+    r.heartbeat();
+    assert(last(a, 'lobby').wait === 3, 'the next countdown was not shown after the result');
+    time += 3000;
+    A.seen = B.seen = time;
+    r.heartbeat();
+    assert(r.playing, 'the next match did not auto-start');
+    r.state.phase = 'matchEnd'; r.state.matchWinner = 0; r.tick();
+    A.active = B.active = time - 121000;
+    A.seen = B.seen = time;
+    r.heartbeat();
+    assert(!r.playing && !r.goAt && last(a, 'lobby').wait === -1, 'an inactive room kept starting matches');
+  } finally {
+    r.shut();
+    Date.now = realNow;
+  }
+}
+
 // who a limit is counted against: an IPv6 address is its /64, however it is written
 assert(subnet('203.0.113.7') === '203.0.113.7' && subnet('203.0.113.7') !== subnet('203.0.113.8'), 'an IPv4 address is kept whole');
 assert(subnet('::ffff:203.0.113.7') === '203.0.113.7', 'IPv4 written the IPv6 way');

@@ -165,6 +165,9 @@
       $('sit').hidden = !t.sit; $('sit').textContent = t.sit || '';
       say = why || t.say;
     }
+    $('auto-start').hidden = !(Net.party() && Net.you === 0 && to === 'room');
+    $('auto-start').textContent = 'Auto-start: ' + (Net.auto ? 'on' : 'off');
+    $('auto-start').setAttribute('aria-pressed', Net.auto ? 'true' : 'false');
     $('react').hidden = !(net && Net.ready && to !== 'start');
     if ($('react').hidden) roomEmotes(false);
     if (to === 'room') $('cover-lede').textContent = say;
@@ -178,6 +181,11 @@
   function partyFace(to) {
     const me = Net.members[Net.you], host = Net.members[0];
     if (Net.playing) return { say: 'A match is on. You are in the next one.' };
+    if (Net.auto && Net.wait >= 0) return {
+      label: Net.you === 0 ? (to === 'end' ? 'Play again' : 'Start match') : '',
+      sit: Net.you !== 0 ? 'Sit out' : '',
+      say: 'Auto-start in ' + Net.wait + '…',
+    };
     if (Net.you === 0) {
       const out = Net.members.filter((m) => m.sit).map((m) => m.name);
       const who = out.length < 2 ? out.join('') : out.slice(0, -1).join(', ') + ' and ' + out[out.length - 1];
@@ -189,6 +197,7 @@
       say: sitting ? 'You are sitting out the next match.' : 'Waiting for ' + host.name + ' to start' + (to === 'end' ? ' the next match.' : '.') };
   }
   $('sit').addEventListener('click', () => { const me = Net.members[Net.you]; Sfx.play('click'); if (me) Net.sit(!me.sit); });
+  $('auto-start').addEventListener('click', () => { Sfx.play('click'); Net.setAuto(!Net.auto); });
 
   // The face reactions are the game's own, drawn like the players' discs: a coloured disc
   // (each its own colour from the cast) with an ink outline and ink features, all at one

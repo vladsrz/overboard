@@ -462,7 +462,7 @@
     if (Net.ready) onlineFromStart = false;
     const n = Net.ready ? Net.members.length : -1, playing = G.mode === 'match' && !ui.coverOpen();
     if (!playing && crowd > 0 && n > 0 && n !== crowd) Sfx.play(n > crowd ? 'join' : 'leave');
-    if (!playing && Net.open && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
+    if (!playing && (Net.open || Net.auto) && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
     // someone left: a banner says who, and who starts the matches now if it was them
     // (mid-match, a player who leaves gets the match's own banner instead)
     const names = Net.ready ? Net.members.map((m) => m.name) : [];

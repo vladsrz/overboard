@@ -36,6 +36,8 @@ const IDLE_ROOM = 15 * 60e3; // a room with no match running closes after this l
 const MAX_MSG = 600;         // characters; an input or a name is far smaller
 const MAX_RATE = 150;        // messages a second from one player before they are dropped
 const GATHER = 8;            // seconds a public room waits for more players before it starts
+const AUTO_GO = 3;           // seconds a private room with auto-start counts down before the next match
+const AUTO_REST = 5;         // seconds of a match's result before that countdown begins (the room comes back after 5)
 const AWAY = 120e3;          // in a public room, a player who touches nothing for this long is let go
 const HOLD = 8;              // connections one source may have open at once: two full rooms from one home
 const HOLD_NEW = 20e3;       // a connection let in whose room has not reported it yet stops counting after this
@@ -262,6 +264,8 @@ export class Room {
     this.timer = 0; this.beat = 0; this.last = 0; this.acc = 0; this.sendN = 0; this.outbox = [];
     this.idleSince = Date.now();
     this.reported = 0;   // when the front desk was last told who is here
+    // a private room's auto-start: on or off, when the countdown ends, and the earliest it may begin
+    this.auto = false; this.goAt = 0; this.restUntil = 0;
   }
 
   async fetch(request) {
@@ -295,6 +299,7 @@ export class Room {
     this.report();
     // a full public room has nobody left to wait for
     if (this.open && !this.playing && this.members.length >= SEATS) this.startAt = Date.now();
+    this.autoCheck();
     this.tellLobby();
     if (!this.beat) this.beat = setInterval(() => this.heartbeat(), 1000);
   }
@@ -311,7 +316,7 @@ export class Room {
       if (this.rec) this.rec.left++;
     }
     this.report();
-    if (!this.members.length) this.shut(); else this.tellLobby();
+    if (!this.members.length) this.shut(); else { this.autoCheck(); this.tellLobby(); }
   }
 
   // the front desk is told who this room holds: it counts connections by source,
@@ -345,17 +350,34 @@ export class Room {
     if (!this.members.length) return;
     if (now - this.reported > REPORT_EVERY) this.report();
     if (this.open && !this.playing) { if (now >= this.startAt) this.start(); else this.tellLobby(); }
-    else if (!this.playing && now - this.idleSince > IDLE_ROOM) this.shut();
+    else if (!this.playing) {
+      this.autoCheck();
+      if (this.goAt) { if (now >= this.goAt) this.start(); else this.tellLobby(); }
+      else if (now - this.idleSince > IDLE_ROOM) this.shut();
+    }
+  }
+
+  // Auto-start counts down only while everyone in the room is in (nobody sitting out) and
+  // somebody has touched something lately: a room whose players all walked away with the
+  // tab open would otherwise play match after match, and a room costs while it is awake.
+  autoCheck() {
+    const now = Date.now();
+    const ready = this.auto && !this.open && !this.playing && this.members.length
+      && !this.members.some((m, i) => i > 0 && m.sit) && this.members.some((m) => now - m.active < AWAY);
+    if (!ready) this.goAt = 0;
+    else if (!this.goAt) this.goAt = Math.max(now, this.restUntil) + AUTO_GO * 1000;
   }
 
   tellLobby() {
     this.lobbyN++;
     const names = this.members.map((m) => m.name);
     // in a public room that is gathering, how many seconds until it starts
-    const wait = this.open && !this.playing ? Math.max(0, Math.ceil((this.startAt - Date.now()) / 1000)) : -1;
+    // (or, in a private room with auto-start, until the next match does)
+    const secs = (at) => Math.max(0, Math.ceil((at - Date.now()) / 1000));
+    const wait = this.playing ? -1 : this.open ? secs(this.startAt) : this.goAt && Date.now() >= this.restUntil ? secs(this.goAt) : -1;
     // who is sitting the next match out, and the room's score: match wins since coming in
     const sit = this.members.map((m) => m.sit), wins = this.members.map((m) => m.wins);
-    this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing, wait: wait, sit: sit, wins: wins }));
+    this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing, wait: wait, sit: sit, wins: wins, auto: this.auto }));
   }
 
   hear(m, raw) {
@@ -396,6 +418,13 @@ export class Room {
       const sit = !!d.on;
       if (this.open || m === this.members[0] || sit === m.sit) return;
       m.sit = sit; m.active = now;
+      this.autoCheck();
+      this.tellLobby();
+    } else if (d.t === 'auto') {
+      // whoever starts a private room's matches may let it start them on its own
+      if (this.open || m !== this.members[0]) return;
+      this.auto = d.on === true; m.active = now;
+      this.autoCheck();
       this.tellLobby();
     } else if (d.t === 'kick') {
       // whoever starts a private room's matches may send someone out of it
@@ -434,6 +463,7 @@ export class Room {
     this.round = null;
     this.crowd = seated.map((m) => ({ device: m.device, country: m.country, touch: m.touch }));
     for (const m of this.members) { m.seat = -1; m.was = -1; }
+    this.goAt = 0;
     seated.forEach((m, i) => {
       m.seat = i; m.was = i; m.mx = 0; m.my = 0; m.drop = false; m.dash = false;
       this.send(m, { t: 'start', m: this.matchN, roster: roster, seed: seed, you: i });
@@ -523,6 +553,8 @@ export class Room {
       this.startAt = Date.now() + GATHER * 1000;
       // everyone is in the next match again unless they say otherwise
       for (const m of this.members) { m.seat = -1; m.sit = false; }
+      this.restUntil = Date.now() + AUTO_REST * 1000;
+      this.autoCheck();
       this.tellLobby();
     }
   }

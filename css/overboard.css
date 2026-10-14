@@ -244,6 +244,21 @@ kbd {
 /* with friends: the second button on the start screen, then the room */
 .more { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
 .cover .more button { margin-top: 0; }
+.cover button.auto-start {
+  position: relative; min-height: 40px; margin: 8px 0 0; padding: 8px 8px 8px 44px;
+  border: 0; background: transparent; color: var(--plank); font: 600 13px/1.2 var(--ui);
+}
+.cover button.auto-start:hover { background: transparent; color: #fff; }
+.cover button.auto-start::before {
+  content: ''; position: absolute; left: 5px; top: 50%; width: 29px; height: 17px;
+  border: 1.5px solid var(--plank); border-radius: 999px; transform: translateY(-50%);
+}
+.cover button.auto-start::after {
+  content: ''; position: absolute; left: 9px; top: 50%; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--plank); transform: translateY(-50%);
+}
+.cover button.auto-start[aria-pressed="true"]::before { background: var(--plank); }
+.cover button.auto-start[aria-pressed="true"]::after { left: 21px; background: var(--ink); }
 /* a room code typed on the start screen: five characters and you are in */
 .code-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 14px; opacity: 1; }
 #code {
