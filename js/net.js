@@ -332,7 +332,8 @@
   // what goes with your name: this browser's made-up id and whether it is a phone, both only for the statistics
   const card = (name) => ({ t: 'name', name: cleanName(name, ''), id: root.Stats ? root.Stats.device() : '', touch: root.Game && root.Game.touch ? 1 : 0 });
   // may this machine start the match: the host, or on the server whoever has been in the room longest
-  Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && !Net.open && Net.you === 0));
+  // (in a public room, nobody leads; but someone alone in it may start at once rather than wait)
+  Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && (Net.open ? !Net.playing && Net.members.length === 1 : Net.you === 0)));
   Net.go = () => { if (Net.server) send(link, { t: 'go' }); };
 
   // No code opens a new room; a code joins that one; quick joins whichever public

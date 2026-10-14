@@ -141,7 +141,7 @@
     $('leave').hidden = !net;
     $('leave').textContent = host ? 'Close room' : 'Leave room';
     $('start').hidden = net && !lead;
-    $('start').textContent = to === 'end' ? 'Play again' : 'Start match';
+    $('start').textContent = Net.open ? 'Start now' : to === 'end' ? 'Play again' : 'Start match';
     // One line of words per screen. In the room it is the line under the title;
     // on the other two it is a small note under the buttons, and only when there
     // is something to say (a room that closed on you, or waiting for the host).

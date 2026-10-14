@@ -332,7 +332,8 @@
   function requestStart() {
     const guide = $('install-guide');
     if (guide.open || (Net.role && !Net.lead())) return;
-    if (G.touch && !document.body.classList.contains('standalone') && !installOffered) {
+    // a public room starts on its own, so the guide would land on top of the match
+    if (G.touch && !document.body.classList.contains('standalone') && !installOffered && !Net.open) {
       installOffered = true;
       Sfx.unlock(); Sfx.play('click');
       const apple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);

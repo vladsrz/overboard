@@ -348,8 +348,10 @@ export class Room {
       if (d.d || d.p || clamp(d.mx, 1) !== m.mx || clamp(d.my, 1) !== m.my) m.active = now;
       m.mx = clamp(d.mx, 1); m.my = clamp(d.my, 1); m.cx = clamp(d.cx, 2000); m.cy = clamp(d.cy, 2000); m.drop = !!d.p;
     } else if (d.t === 'go') {
-      // only whoever has been in the room longest may start a match
-      if (!this.open && m === this.members[0] && !this.playing) this.start();
+      // Only whoever has been in the room longest may start a match. A public room
+      // starts on its own, but someone alone in it need not sit through the wait:
+      // there is nobody else to wait for, and a second player who arrives first wins.
+      if (!this.playing && (this.open ? this.members.length === 1 : m === this.members[0])) this.start();
     }
   }
 
