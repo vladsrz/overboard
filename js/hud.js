@@ -385,15 +385,21 @@
       if (Net.party()) backToRoom();
       $('menu').hidden = true; $('pad').hidden = true;
     },
-    // why: one line under the buttons, for when a room closed on you
+    // why: what sent you back here (a room that closed on you, a code that is not one).
+    // It is news, so it is a banner at the top: its first sentence big, the rest under it.
+    // A small line under the buttons was too easy to miss.
     showStart(why) {
       clearOverlays();
       miniBoard();
       $('cover-title').textContent = START.title; $('cover-lede').textContent = START.lede;
       $('code').value = '';
-      cover('start', why);
+      cover('start');
       $('menu').hidden = true;
       $('top').hidden = true; $('keys').hidden = true; $('pad').hidden = true;
+      if (why) {
+        const k = why.indexOf('. ');
+        banner(k < 0 ? why.replace(/\.$/, '') : why.slice(0, k), k < 0 ? '' : why.slice(k + 2), 4.5);
+      }
     },
     showLobby() {
       $('cover-title').textContent = START.title;
