@@ -354,6 +354,9 @@
       if (d && d.t === 'room') { Net.code = Net.codeFrom(d.code); Net.open = !!d.open; }
       else if (d && d.t === 'closed') closed(GONE);
       else if (d && d.t === 'away') closed('You were away for a while, so you left the room.');
+      // the server turned this connection away before it reached a room
+      else if (d && d.t === 'busy') closed('Too many games are open from your network. Close one and try again.');
+      else if (d && d.t === 'slow') closed('Too many tries from your network. Wait a minute and try again.');
       else fromHost(d);
     };
     ws.onclose = () => { if (link === line) closed(Net.ready ? 'Lost the connection to the game.' : code ? GONE : OFFLINE); };

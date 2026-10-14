@@ -33,6 +33,10 @@ const MAX_MSG = 600;         // characters; an input or a name is far smaller
 const MAX_RATE = 150;        // messages a second from one player before they are dropped
 const GATHER = 8;            // seconds a public room waits for more players before it starts
 const AWAY = 120e3;          // in a public room, a player who touches nothing for this long is let go
+const HOLD = 8;              // connections one source may have open at once: two full rooms from one home
+const HOLD_NEW = 20e3;       // a connection let in whose room has not reported it yet stops counting after this
+const HOLD_OLD = 150e3;      // and one whose room has stopped reporting (rooms report once a minute)
+const REPORT_EVERY = 60e3;
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE = /^[A-HJ-NP-Z2-9]{5}$/;
 const IDLE = { mx: 0, my: 0, dash: false, drop: false, wave: false, cx: 0, cy: 0 };
@@ -58,6 +62,15 @@ async function source(request) {
 async function over(limiter, who) {
   if (!limiter) return false;
   try { return !(await limiter.limit({ key: who })).success; } catch (e) { return false; }
+}
+// A connection refused before it reaches a room, with a word the game can show:
+// 'slow' (too many tries a minute) or 'busy' (too many open at once).
+function turnAway(t) {
+  const pair = new WebSocketPair();
+  pair[1].accept();
+  pair[1].send(JSON.stringify({ t: t }));
+  pair[1].close(1000, t);
+  return new Response(null, { status: 101, webSocket: pair[0] });
 }
 // lets a page on another allowed address (the GitHub one) call this one
 function cors(request, env, res) {
@@ -107,10 +120,16 @@ export default {
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
     if (!allowed(request, env)) return new Response('Not from here', { status: 403 });
     // opening rooms, or guessing at their codes, without end
-    if (await over(env.CONNECTS, await source(request))) return new Response('Slow down', { status: 429 });
+    const who = await source(request);
+    if (await over(env.CONNECTS, who)) return turnAway('slow');
+    // An open connection keeps its room awake, and an awake room is what the free
+    // plan runs out of first, so one source may only hold so many at once. The desk
+    // counts them; if it cannot be reached, everyone is let in.
+    const id = crypto.randomUUID();
+    try { if ((await env.DESK.get(env.DESK.idFromName('quick')).fetch('https://desk/hold?who=' + who + '&id=' + id)).status !== 200) return turnAway('busy'); } catch (e) { /* let them in */ }
     // the room is told which country each player is in, for the statistics; it never sees their address
     const where = country(request.cf && request.cf.country);
-    const room = (code, how) => env.ROOMS.get(env.ROOMS.idFromName(code)).fetch('https://room/' + how + '/' + code + '/' + where, request);
+    const room = (code, how) => env.ROOMS.get(env.ROOMS.idFromName(code)).fetch('https://room/' + how + '/' + code + '/' + where + '/' + who + '/' + id, request);
     if (url.pathname === '/new') {
       // a code nobody is using; a clash is rare, so a few tries is plenty
       for (let tries = 0; tries < 5; tries++) {
@@ -131,13 +150,34 @@ export default {
   },
 };
 
-// The front desk for quick play: it remembers which public room still has space,
+// The front desk. For quick play it remembers which public room still has space,
 // so the next player is sent there, and hands out a fresh code when there is none.
-// Rooms tell it how many they hold whenever that changes.
+// It also counts every open connection by source, so one source cannot keep more
+// than HOLD rooms awake. A connection is counted from the moment it is let in; the
+// room it lands in then reports who it holds on every arrival and departure and
+// once a minute, and that report is what keeps it counted. So nothing is lost for
+// good if a room or the desk restarts: a connection whose room never reports
+// stops counting after HOLD_NEW, and one whose room stops reporting after HOLD_OLD.
 export class Desk {
-  constructor() { this.code = ''; this.n = 0; this.at = 0; }
+  constructor() { this.code = ''; this.n = 0; this.at = 0; this.conns = new Map(); }
   async fetch(request) {
-    const url = new URL(request.url);
+    const url = new URL(request.url), now = Date.now();
+    for (const [id, c] of this.conns) if (now - c.at > (c.room ? HOLD_OLD : HOLD_NEW)) this.conns.delete(id);
+    if (url.pathname === '/hold') {
+      const who = url.searchParams.get('who'), id = url.searchParams.get('id');
+      let n = 0;
+      for (const c of this.conns.values()) if (c.who === who) n++;
+      if (n >= HOLD) return new Response('busy', { status: 429 });
+      this.conns.set(id, { who: who, room: '', at: now });
+      return new Response('ok');
+    }
+    if (url.pathname === '/room') {
+      const d = await request.json();
+      for (const [id, c] of this.conns) if (c.room === d.code) this.conns.delete(id);
+      for (const [id, who] of d.held.slice(0, SEATS)) this.conns.set(id, { who: who, room: d.code, at: now });
+      if (d.open && d.code === this.code) { this.n = d.held.length; this.at = now; if (this.n <= 0) this.code = ''; }
+      return new Response('ok');
+    }
     if (url.pathname === '/pick') {
       // a room that has not reported for a while may have gone without saying so
       if (!this.code || this.n >= SEATS || Date.now() - this.at > 60e3) {
@@ -147,11 +187,6 @@ export class Desk {
       }
       this.n++; this.at = Date.now();
       return new Response(this.code);
-    }
-    if (url.pathname === '/report') {
-      const code = url.searchParams.get('code'), n = Number(url.searchParams.get('n')) || 0;
-      if (code === this.code) { this.n = n; this.at = Date.now(); if (n <= 0) this.code = ''; }
-      return new Response('ok');
     }
     return new Response('Not found', { status: 404 });
   }
@@ -169,10 +204,11 @@ export class Room {
     this.state = null; this.playing = false;
     this.timer = 0; this.beat = 0; this.last = 0; this.acc = 0; this.sendN = 0; this.outbox = [];
     this.idleSince = Date.now();
+    this.reported = 0;   // when the front desk was last told who is here
   }
 
   async fetch(request) {
-    const [, how, code, where] = new URL(request.url).pathname.split('/');
+    const [, how, code, where, who, id] = new URL(request.url).pathname.split('/');
     if (how === 'new' && this.members.length) return new Response('Taken', { status: 409 });
     const pair = new WebSocketPair();
     const ws = pair[1];
@@ -183,15 +219,16 @@ export class Room {
     else {
       if (!this.members.length) { this.open = how === 'quick'; this.startAt = Date.now() + GATHER * 1000; }
       this.code = code;
-      this.join(ws, country(where));
+      this.join(ws, country(where), who, id);
     }
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
   send(m, msg) { try { m.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); } catch (e) { /* closing; the heartbeat will notice */ } }
 
-  join(ws, where) {
-    const m = { ws: ws, country: where, device: '', touch: false, name: 'Player ' + (this.members.length + 1), seat: -1, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
+  // who and id: the scrambled source and the connection's own id, which the desk counts by
+  join(ws, where, who, id) {
+    const m = { ws: ws, who: who, id: id, country: where, device: '', touch: false, name: 'Player ' + (this.members.length + 1), seat: -1, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
     this.members.push(m);
     ws.addEventListener('message', (e) => this.hear(m, e.data));
     ws.addEventListener('close', () => this.drop(m));
@@ -219,18 +256,24 @@ export class Room {
     if (!this.members.length) this.shut(); else this.tellLobby();
   }
 
-  // a public room keeps the front desk up to date on how many it holds
+  // the front desk is told who this room holds: it counts connections by source,
+  // and for a public room how many seats are taken
   report() {
-    if (!this.open) return;
-    this.env.DESK.get(this.env.DESK.idFromName('quick')).fetch('https://desk/report?code=' + this.code + '&n=' + this.members.length).catch(() => {});
+    this.reported = Date.now();
+    const held = this.members.filter((m) => m.id).map((m) => [m.id, m.who]);
+    this.env.DESK.get(this.env.DESK.idFromName('quick')).fetch('https://desk/room', {
+      method: 'POST', body: JSON.stringify({ code: this.code, open: this.open, held: held }),
+    }).catch(() => {});
   }
 
-  // nobody left: stop everything, so the room goes back to sleep
+  // nobody left, or nobody playing for too long: stop everything, so the room goes back to sleep
   shut() {
     if (this.playing) this.file(); // abandoned part-way: still worth knowing
     clearInterval(this.timer); clearInterval(this.beat);
     this.timer = 0; this.beat = 0; this.playing = false; this.state = null;
-    for (const m of this.members.splice(0)) { try { m.ws.close(1000, 'closed'); } catch (e) { /* gone */ } }
+    const gone = this.members.splice(0);
+    for (const m of gone) { try { m.ws.close(1000, 'closed'); } catch (e) { /* gone */ } }
+    if (gone.length) this.report();
   }
 
   heartbeat() {
@@ -242,6 +285,7 @@ export class Room {
       else if (!this.playing || m.seat < 0) this.send(m, '{"t":"ping"}');
     }
     if (!this.members.length) return;
+    if (now - this.reported > REPORT_EVERY) this.report();
     if (this.open && !this.playing) { if (now >= this.startAt) this.start(); else this.tellLobby(); }
     else if (!this.playing && now - this.idleSince > IDLE_ROOM) this.shut();
   }
