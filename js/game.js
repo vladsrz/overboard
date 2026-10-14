@@ -119,6 +119,8 @@
   // falls, round results) only ever come from their copy, never from the guess.
   // Without `ack` (an older server) it only runs on a step or two, as it used to.
   const PREDICT_MAX = 18; // steps played on at most: 0.3 s
+  // ?predict=0 turns it off, to compare (with ?lag=MS on a local page, see net.js)
+  const PREDICT = !/[?&]predict=0\b/.test(location.search);
   let base = null, baseStep = 0, stepN = 0, rtt = 0, lastAck = 0;
   const history = [];
   G.lag = () => Math.round(rtt); // the round trip the prediction allows for, in ms (for testing)
@@ -136,7 +138,7 @@
       if (got.snap) {
         steer = got.snap.in.map((i) => ({ mx: +i[0] || 0, my: +i[1] || 0, dash: false, drop: false, wave: false, cx: +i[2] || 0, cy: +i[3] || 0 }));
         ahead = 0;
-        const ack = Array.isArray(got.snap.ack) ? got.snap.ack[G.me] : undefined;
+        const ack = PREDICT && Array.isArray(got.snap.ack) ? got.snap.ack[G.me] : undefined;
         // the round trip: from sending an input to a copy that has used it
         if (Number.isFinite(ack) && ack > lastAck) {
           const at = Net.sentAt(ack), took = at ? Date.now() - at : 0;
