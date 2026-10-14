@@ -286,10 +286,12 @@ kbd {
   font: 700 13px/1 var(--ui); white-space: nowrap; pointer-events: none;
   opacity: 0; transition: opacity 0.15s, transform 0.15s;
 }
-.say.has-face { padding: 3px; }
+/* a face needs no tag around it: it is a disc with its own outline, like the players' */
+.say.has-face { padding: 0; border: 0; background: none; }
 /* the game's own faces: discs like the players', plank with ink */
 .face { display: block; width: 22px; height: 22px; }
-.say .face { width: 26px; height: 26px; }
+.say .face { width: 34px; height: 34px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25)); }
+.crew .say .face { width: 28px; height: 28px; }
 .face .f-disc { fill: var(--plank); stroke: var(--ink); stroke-width: 1.5; }
 /* each its own colour, from the cast: Otter's lavender, Wildcard's yellow, Viper's green, Heron's blue, Ram's red */
 .face-yes .f-disc { fill: #b9a3e8; }
