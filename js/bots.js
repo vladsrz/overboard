@@ -100,6 +100,7 @@
 
   function pickTarget(state, p, b, preferred) {
     const T = b.T, fighting = p.state === 'alive';
+    const finale = state.players.some((o) => o.human) && !state.players.some((o) => o.human && o.state === 'alive');
     // nobody sensible rams a player wearing thorns, unless they are wearing them too
     const others = state.players.filter((o) => o.id !== p.id && o.state === 'alive' && Sim.visible(o)
       && (!fighting || p.thornT > 0 || o.thornT <= 0));
@@ -140,6 +141,9 @@
         if (has(T, 'edge')) v *= edge < 90 ? 3.5 : edge < 150 ? 1.6 : 0.5;
         else if (edge < 90) v *= 1.6;
         if (has(T, 'leader')) v *= 1 + 1.5 * o.wins;
+        // Once every person is out, more bots go after whoever is closest to
+        // ending the match. A trailing bot still has to win the actual fight.
+        if (finale) v *= Math.pow(4, o.wins);
         if (fighting) {
           const d = Math.hypot(o.x - p.x, o.y - p.y);
           v /= has(T, 'near') ? Math.pow(0.25 + d / 120, 1.5) : 0.5 + d / 200;

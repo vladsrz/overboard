@@ -29,11 +29,11 @@
     STALL_T: 8, STALL_EVERY: 0.6,
     // If the first plank losses still have not caused a fall, aim a short meteor
     // shower near the survivors. Give people a full warning before each impact.
-    STALL_METEOR_T: 18, STALL_METEOR_T_BOTS: 9,
+    STALL_METEOR_T: 18, STALL_METEOR_T_BOTS: 3,
     STALL_METEOR_EVERY: 0.16, STALL_METEOR_R: 90,
     // with every real player already in the water it is quicker on both counts, so
     // nobody sits waiting for bots to finish each other off
-    STALL_T_BOTS: 3, STALL_EVERY_BOTS: 0.25,
+    STALL_T_BOTS: 0.5, STALL_EVERY_BOTS: 0.18,
     COUNTDOWN_T: 2.4, ROUND_END_T: 2.6,
     WINS: 3,
     // pickups
@@ -67,6 +67,18 @@
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+  // After every person is in the water, the leading bot gets more of the
+  // environmental pressure. It still has to lose on the raft for anyone else
+  // to win; the choice never awards a round or changes a score directly.
+  function survivorTarget(state, aboard, favorLeader) {
+    let choices = aboard;
+    if (favorLeader && rand(state) < 0.95) {
+      const high = Math.max(...aboard.map((p) => p.wins));
+      choices = aboard.filter((p) => p.wins === high);
+    }
+    return choices[Math.floor(rand(state) * choices.length)];
   }
 
   function tileIndexAt(x, y) {
@@ -119,7 +131,7 @@
       tilt: { x: 0, y: 0 }, tiltBy: -1, tiltT: 0, tiltGap: 0, tiltX: 0, tiltY: 0,
       waves: [],
       pickups: [], pickupT: 0, lastPickup: '', lastPickupAt: null,
-      lastFallT: 0, stallT: 0, stallCalled: false, stallMeteorCalled: false,
+      lastFallT: 0, botFinishT: 0, stallT: 0, stallCalled: false, stallMeteorCalled: false,
       meteorT: 0, meteorNext: 0, meteorBy: -1, meteorSeen: false,
       events: [],
       roundWinner: -1, matchWinner: -1,
@@ -137,7 +149,7 @@
     state.waves.length = 0;
     state.pickups.length = 0;
     state.pickupT = C.PICKUP_FIRST; state.lastPickup = ''; state.lastPickupAt = null;
-    state.lastFallT = 0; state.stallT = 0; state.stallCalled = false; state.stallMeteorCalled = false;
+    state.lastFallT = 0; state.botFinishT = 0; state.stallT = 0; state.stallCalled = false; state.stallMeteorCalled = false;
     state.meteorT = 0; state.meteorNext = 0; state.meteorBy = -1; state.meteorSeen = false;
     state.roundWinner = -1;
     for (let i = 0; i < N; i++) {
@@ -380,15 +392,17 @@
     // on, otherwise anywhere.
     const people = ps.filter((p) => p.human);
     const botsOnly = people.length > 0 && !people.some((p) => p.state === 'alive');
-    if (live && state.time - state.lastFallT > (botsOnly ? C.STALL_T_BOTS : C.STALL_T)) {
+    state.botFinishT = botsOnly && live ? state.botFinishT + dt : 0;
+    const quietFor = botsOnly ? state.botFinishT : state.time - state.lastFallT;
+    if (live && quietFor > (botsOnly ? C.STALL_T_BOTS : C.STALL_T)) {
       if (!state.stallCalled) { state.stallCalled = true; state.events.push({ type: 'stall' }); }
       state.stallT -= dt;
       if (state.stallT <= 0) {
         state.stallT = botsOnly ? C.STALL_EVERY_BOTS : C.STALL_EVERY;
         let pick = -1;
         const aboard = ps.filter((p) => p.state === 'alive');
-        if (aboard.length && rand(state) < 0.5) {
-          const o = aboard[Math.floor(rand(state) * aboard.length)];
+        if (aboard.length && rand(state) < (botsOnly ? 1 : 0.5)) {
+          const o = survivorTarget(state, aboard, botsOnly);
           const i = tileIndexAt(o.x + o.vx * 0.4, o.y + o.vy * 0.4);
           if (i >= 0 && state.tiles[i] === SOLID) pick = i;
         }
@@ -405,11 +419,11 @@
 
     // One aimed shower per stretch without a fall. The pickup's shower keeps its
     // separate all-over-the-raft behavior and never targets its owner.
-    if (live && !state.stallMeteorCalled && state.meteorT <= 0 &&
-        state.time - state.lastFallT >= (botsOnly ? C.STALL_METEOR_T_BOTS : C.STALL_METEOR_T)) {
+    if (live && (botsOnly || !state.stallMeteorCalled) && state.meteorT <= 0 &&
+        quietFor >= (botsOnly ? C.STALL_METEOR_T_BOTS : C.STALL_METEOR_T)) {
+      if (!state.stallMeteorCalled) state.events.push({ type: 'stallMeteor' });
       state.stallMeteorCalled = true;
       state.meteorT = C.METEOR_T; state.meteorNext = 0; state.meteorBy = -1;
-      state.events.push({ type: 'stallMeteor' });
     }
     // a pickup shower scatters planks across the raft; an automatic shower aims
     // near the people still standing, using the same one-second plank warning
@@ -423,7 +437,7 @@
         if (aimed) {
           const aboard = ps.filter((p) => p.state === 'alive');
           if (aboard.length) {
-            const target = aboard[Math.floor(rand(state) * aboard.length)];
+            const target = survivorTarget(state, aboard, botsOnly);
             const x = target.x + target.vx * 0.25, y = target.y + target.vy * 0.25;
             const near = [];
             for (let i = 0; i < N; i++) if (state.tiles[i] === SOLID && Math.hypot(tileX(i) - x, tileY(i) - y) <= C.STALL_METEOR_R) near.push(i);
@@ -466,9 +480,10 @@
         else if (i >= 0 && state.tiles[i] === GONE && state.tileT[i] > 0) how = 'plank';
         p.state = 'falling'; p.fallT = C.FALL_T; p.killer = by;
         state.lastFallT = state.time;
-        state.stallCalled = false;
-        state.stallMeteorCalled = false;
-        if (state.meteorBy < 0) state.meteorT = 0;
+        if (!botsOnly) {
+          state.stallCalled = false; state.stallMeteorCalled = false;
+          if (state.meteorBy < 0) state.meteorT = 0;
+        }
         p.bigT = 0; p.powerT = 0; p.hideT = 0; p.thornT = 0; p.slam = false;
         state.events.push({ type: 'fall', id: p.id, by: by, how: how });
       }

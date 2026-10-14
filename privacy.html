@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overboard — Privacy</title>
+<meta name="description" content="What Overboard collects, and what it does not.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#12504c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --water: #12504c;
+    --plank: #efe9da;
+    --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+    --ui: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+    background: var(--water);
+    color: var(--plank);
+    font: 16px/1.5 var(--ui);
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 36em; margin: 0 auto; }
+  h1 { margin: 0 0 8px; font: 900 28px/1.1 var(--display); }
+  h2 { margin: 28px 0 8px; font: 700 15px/1.3 var(--ui); letter-spacing: 0.02em; text-transform: uppercase; opacity: 0.85; }
+  p, li { margin: 0 0 10px; opacity: 0.9; }
+  ul { margin: 0 0 10px; padding-left: 1.2em; }
+  a { color: inherit; }
+  .back { display: inline-block; margin-bottom: 28px; font-weight: 500; text-underline-offset: 3px; opacity: 0.75; }
+  .back:hover { opacity: 1; }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Back to Overboard</a>
+  <h1>Privacy</h1>
+  <p>Play activity, device type and country are collected. No names.</p>
+
+  <h2>What is sent</h2>
+  <ul>
+    <li>That someone opened the game, and when a match finishes (rounds, falls, pickups, who won — seats are “person” or a bot, never a typed name).</li>
+    <li>A random id made in this browser, so repeat visits can be counted without knowing who you are.</li>
+    <li>Rough device type (touch or not) and country, from the network path to the game server.</li>
+  </ul>
+
+  <h2>What is not</h2>
+  <ul>
+    <li>Names, room codes you type, or anything else you enter.</li>
+    <li>IP addresses in the play record.</li>
+  </ul>
+
+  <h2>Why</h2>
+  <p>To see how the game is played and tune it. These counts are not for prizes or rankings.</p>
+
+  <h2>On this device</h2>
+  <p>A longer record of matches stays in this browser’s local storage so you can review it at <a href="dev/stats.html">dev/stats.html</a> on the same address. Clearing site data clears it.</p>
+</main>
+</body>
+</html>

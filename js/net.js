@@ -18,7 +18,7 @@
 
   // every field of the match and of a player that the rules read; a bot's memory stays with the host
   const MATCH = ['rng', 'phase', 'phaseT', 'round', 'time', 'tiltBy', 'tiltT', 'tiltGap', 'tiltX', 'tiltY',
-    'pickupT', 'lastPickup', 'lastFallT', 'stallT', 'stallCalled', 'stallMeteorCalled', 'meteorT', 'meteorNext', 'meteorBy', 'meteorSeen',
+    'pickupT', 'lastPickup', 'lastFallT', 'botFinishT', 'stallT', 'stallCalled', 'stallMeteorCalled', 'meteorT', 'meteorNext', 'meteorBy', 'meteorSeen',
     'roundWinner', 'matchWinner'];
   const PLAYER = ['human', 'wins', 'x', 'y', 'vx', 'vy', 'state', 'fallT', 'offT', 'idleT', 'dashCd', 'dashT', 'dashX', 'dashY', 'faceX', 'faceY',
     'bigT', 'powerT', 'hideT', 'seenT', 'thornT', 'ult', 'slam', 'lastHitBy', 'lastHitT', 'lastHitHow', 'lastHitPower',

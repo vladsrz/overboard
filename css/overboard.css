@@ -149,6 +149,7 @@ kbd {
 }
 .cover.end h1 { font-size: clamp(28px, 6vw, 72px); line-height: 1.05; }
 .lede { max-width: 30em; margin: 22px 0 0; font-size: 18px; font-weight: 500; }
+.cover.end .lede { margin-top: 12px; }
 /* the only instructions on the start screen; everything else is taught as it comes up */
 .how { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 26px; margin: 26px 0 0; }
 .how span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
@@ -162,7 +163,9 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
-.fine small { display: inline-block; margin-top: 6px; font-size: 11px; opacity: 0.8; }
+.privacy { margin-top: 10px; font: 500 12px/1.2 var(--ui); color: inherit; text-decoration: underline; text-underline-offset: 3px; opacity: 0.55; }
+.privacy:hover { opacity: 0.9; }
+.cover.menu .privacy { margin-top: 4px; }
 /* the final score: a row each, most rounds first, with the same pips as the score bar */
 .results { display: grid; grid-template-columns: auto minmax(0, max-content) auto auto; gap: 12px 14px; max-width: 92vw; margin: 30px 0 0; padding: 0; list-style: none; text-align: left; }
 .results li { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; font-size: 18px; font-weight: 500; opacity: 0.8; }

@@ -27,6 +27,7 @@ A few things worth knowing:
 - Pickups appear on the raft: Bomb, Big, Power, Unseen, Thorns, Charge and Meteors. Each says what it does the first time you grab it.
 - A single missing plank can be run over if you are quick. A dash clears up to three.
 - If nobody falls for a while, the raft starts pulling its own planks. A longer stalemate brings meteors near the players still aboard.
+- Once every human player is in the water, the raft and bots hurry the round toward a finish.
 
 ## Run it locally
 

@@ -238,6 +238,65 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   assert(run(true) >= 5, 'with you in the water the raft should already be losing planks');
 }
 
+// The fast finish begins only after the last human falls. A bot falling later
+// must not restart its clock while the others remain on the raft.
+{
+  const s = Sim.createMatch({ seed: 29, players: [
+    { name: 'Ann', human: true }, { name: 'Bo', human: true },
+    { name: 'Ram', type: 'ram' }, { name: 'Crab', type: 'crab' },
+  ] });
+  while (s.phase !== 'play') Sim.step(s, [], DT);
+  const park = () => {
+    s.pickupT = 99; s.stallT = 99;
+    s.players.forEach((p, i) => { if (p.state === 'alive') { p.x = (i - 1.5) * 70; p.y = 0; p.vx = 0; p.vy = 0; p.offT = 0; } });
+  };
+  s.players[0].state = 'ghost';
+  for (let t = 0; t < 30; t++) { park(); Sim.step(s, [], DT); }
+  assert.strictEqual(s.botFinishT, 0, 'the second human is still aboard');
+  s.players[1].state = 'ghost';
+  for (let t = 0; t < 45; t++) { park(); Sim.step(s, [], DT); }
+  assert(s.botFinishT > 0.7 && s.stallCalled, 'the bot finish did not begin after both people fell');
+  const elapsed = s.botFinishT;
+  s.players[2].state = 'ghost';
+  park(); Sim.step(s, [], DT);
+  assert(s.botFinishT > elapsed, 'a bot fall restarted the finish clock');
+}
+
+// Solo rounds should finish promptly after the player falls. With different
+// scores among surviving bots, the one with fewer wins should usually survive;
+// the winner is still decided by play rather than reassigned after the fight.
+{
+  const waits = [];
+  let eligible = 0, trailingWins = 0;
+  for (let seed = 1; seed <= 500; seed++) {
+    let drawN = 0;
+    const cast = Cast.draw(3, () => Sim.rand({ rng: seed * 31 + drawN++ }));
+    const s = Sim.createMatch({ seed: seed * 104729, players: [{ name: 'You', human: true }, ...cast] });
+    let outAt = null, trailing = null;
+    for (let t = 0; t < 60 * 70 && s.round === 1 && s.phase !== 'roundEnd'; t++) {
+      Sim.step(s, s.players.map((p) => p.human ? { mx: 0, my: 0 } : Bots.input(s, p, DT)), DT);
+      if (outAt === null && s.players[0].state !== 'alive') {
+        outAt = s.time;
+        const aboard = s.players.filter((p) => !p.human && p.state === 'alive');
+        if (aboard.length >= 2) {
+          for (const p of s.players.slice(1)) p.wins = (p.id - 1 + seed) % 3;
+          const fewest = Math.min(...aboard.map((p) => p.wins));
+          if (aboard.some((p) => p.wins > fewest)) trailing = new Set(aboard.filter((p) => p.wins === fewest).map((p) => p.id));
+        }
+      }
+      if (s.events.some((e) => e.type === 'roundEnd')) break;
+    }
+    if (outAt === null) continue;
+    assert(s.phase === 'roundEnd' || s.phase === 'matchEnd', 'bots never finished seed ' + seed);
+    waits.push(s.time - outAt);
+    if (trailing) { eligible++; if (trailing.has(s.roundWinner)) trailingWins++; }
+  }
+  waits.sort((a, b) => a - b);
+  assert(waits.length > 480 && waits[Math.floor(waits.length * 0.9)] < 13, 'too many long waits after the player fell');
+  assert(eligible > 450 && trailingWins / eligible > 0.52 && trailingWins / eligible < 0.7,
+    'trailing bot should win a majority, not every time: ' + trailingWins + '/' + eligible);
+}
+
 // A long no-fall stretch starts one aimed shower, not the scattered pickup shower.
 // Its warnings stay near surviving players and stop being added after a fall.
 {

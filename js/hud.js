@@ -131,11 +131,12 @@
     const net = !!Net.role, host = Net.role === 'host', lead = Net.lead();
     $('cover').classList.toggle('end', to === 'end');
     $('cover').classList.toggle('room', to === 'room');
-    $('cover-how').hidden = $('cover-fine').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
+    $('cover-how').hidden = $('cover-fine').hidden = $('cover-privacy').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
     // playing strangers needs the game server to put you together
     $('quick').hidden = !Net.usesServer();
     $('room').hidden = to !== 'room';
-    $('results').hidden = to !== 'end'; $('cover-lede').hidden = to === 'end';
+    $('results').hidden = to !== 'end';
+    $('cover-lede').hidden = to === 'end' && !$('cover-lede').textContent;
     $('leave').hidden = !net;
     $('leave').textContent = host ? 'Close room' : 'Leave room';
     $('start').hidden = net && !lead;
@@ -204,7 +205,9 @@
     },
     showEnd(winner) {
       clearOverlays();
-      $('cover-title').textContent = winner.id === G.me ? 'You won the match' : winner.name + ' won the match';
+      const won = winner.id === G.me;
+      $('cover-title').textContent = won ? 'You won the match' : 'You lost the match';
+      $('cover-lede').textContent = won ? '' : winner.name + ' won the match.';
       // the final score: one row each, most rounds first, drawn like the score bar
       const ol = $('results');
       ol.textContent = '';
