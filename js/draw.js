@@ -243,7 +243,7 @@
     ctx.globalAlpha = 1;
   }
 
-  // The lone score leader wears a small crown beside their disc. A tie has no leader.
+  // The lone score leader wears a crown on their disc. A tie has no leader.
   function leaderId(state) {
     let id = -1, high = 0;
     for (const p of state.players) {
@@ -256,13 +256,15 @@
   function drawCrown(x, y) {
     ctx.save();
     ctx.translate(x, y);
-    ctx.fillStyle = PLANK; ctx.strokeStyle = WATER;
-    ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.fillStyle = '#ffd34d'; ctx.strokeStyle = WATER;
+    ctx.lineWidth = 3; ctx.lineJoin = 'round';
     ctx.beginPath();
-    ctx.moveTo(-11, -5); ctx.lineTo(-6, -1); ctx.lineTo(0, -9);
-    ctx.lineTo(6, -1); ctx.lineTo(11, -5); ctx.lineTo(9, 6);
-    ctx.lineTo(-9, 6); ctx.closePath();
+    ctx.moveTo(-12, -6); ctx.lineTo(-6, -1); ctx.lineTo(0, -11);
+    ctx.lineTo(6, -1); ctx.lineTo(12, -6); ctx.lineTo(10, 7);
+    ctx.lineTo(-10, 7); ctx.closePath();
     ctx.fill(); ctx.stroke();
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-9, 3); ctx.lineTo(9, 3); ctx.stroke();
     ctx.restore();
   }
 
@@ -301,11 +303,11 @@
       ctx.font = '700 ' + Math.round(r * 0.8) + 'px ' + FONT;
       ctx.fillText(p.name[0], p.x, p.y + 1);
 
-      // Keep the crown off the charge bar and do not reveal a hidden opponent.
+      // Seat the crown on the disc, clear of the charge bar, without revealing a hidden opponent.
       if (G.mode === 'match' && p.id === leader && p.state === 'alive' && alpha === 1) {
-        const size = view.scale < 0.8 ? 0.8 / view.scale : 1;
+        const size = Math.max(1, Math.min(1.4, 0.65 / view.scale));
         ctx.save();
-        ctx.translate(p.x + r + 8, p.y - r - 4);
+        ctx.translate(p.x, p.y - r + 2 * size);
         ctx.scale(size, size);
         drawCrown(0, 0);
         ctx.restore();
