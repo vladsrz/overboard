@@ -131,7 +131,8 @@
     const net = !!Net.role, host = Net.role === 'host', lead = Net.lead();
     $('cover').classList.toggle('end', to === 'end');
     $('cover').classList.toggle('room', to === 'room');
-    $('cover-how').hidden = $('cover-fine').hidden = $('cover-privacy').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
+    $('cover-how').hidden = $('cover-fine').hidden = $('cover-links').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
+    if (to !== 'end') { boardN++; $('board-ask').hidden = $('board-line').hidden = true; }
     // playing strangers needs the game server to put you together
     $('quick').hidden = !Net.usesServer();
     $('room').hidden = to !== 'room';
@@ -155,6 +156,43 @@
     $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
     $('cover').hidden = false;
   }
+
+  // After a match won in a room (the only wins the leaderboard counts), offer to put
+  // the player's name up, or say where they are if it is up already. Asked once
+  // the server has had a moment to count the win; a later screen cancels it.
+  let boardN = 0;
+  function offerBoard() {
+    const asked = ++boardN;
+    setTimeout(() => {
+      if (asked !== boardN) return;
+      Board.mine().then((s) => {
+        if (asked !== boardN || face !== 'end') return;
+        if (s.name) boardLine(s);
+        else if (s.canName && !Board.declined()) {
+          const mine = Net.members[Net.you];
+          $('board-name').value = mine && !/^Player \d$/.test(mine.name) ? mine.name : '';
+          $('board-say').textContent = 'Put your name on this week’s leaderboard?';
+          $('board-ask').hidden = false;
+        }
+      }).catch(() => { /* no leaderboard today; the result stands without it */ });
+    }, 1200);
+  }
+  function boardLine(s) {
+    $('board-ask').hidden = true;
+    $('board-line-text').textContent = s.rank ? 'You are ' + Board.place(s.rank) + ' on this week’s leaderboard, with ' + Board.wins(s.wins) + '.'
+      : 'Your name is on the leaderboard.';
+    $('board-line').hidden = false;
+  }
+  function addName() {
+    const asked = boardN;
+    $('board-add').disabled = true;
+    Board.setName($('board-name').value).then((s) => { if (asked === boardN) boardLine(s); })
+      .catch((err) => { if (asked === boardN) $('board-say').textContent = Board.why(err); })
+      .finally(() => { $('board-add').disabled = false; });
+  }
+  $('board-add').addEventListener('click', () => { Sfx.play('click'); addName(); });
+  $('board-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addName(); } });
+  $('board-no').addEventListener('click', () => { Sfx.play('click'); Board.decline(); boardN++; $('board-ask').hidden = true; });
 
   // The room: four seats in the colours they will play in, empty ones marked for
   // bots. Your own seat is where you type your name. The seats are made once and
@@ -202,6 +240,8 @@
       $('cover').hidden = true; $('menu').hidden = true;
       $('top').hidden = false; $('keys').hidden = false; $('pad').hidden = !G.touch;
       $('start').blur();
+      // a public room starts the next match on its own: keys belong to the match again, not to the name field
+      boardN++; $('board-name').blur();
     },
     showEnd(winner) {
       clearOverlays();
@@ -226,6 +266,8 @@
         ol.appendChild(li);
       }
       cover('end');
+      $('board-ask').hidden = $('board-line').hidden = true;
+      if (won && Net.server) offerBoard(); else boardN++;
       $('menu').hidden = true; $('pad').hidden = true;
     },
     // why: one line under the buttons, for when a room closed on you

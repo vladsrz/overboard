@@ -98,6 +98,16 @@ The server now gathers shared play stats in a `Stats` Durable Object (`server/sr
 
 For numbers that do not depend on anyone playing, `node test/sim.test.js` already prints bot-against-bot statistics.
 
+## Leaderboard
+`leaderboard.html` (with `js/leaderboard.js`) lists this week's match wins; a week starts Monday 00:00 UTC and the page gives that in the reader's own time. The owner chose three things: **only matches the game server ran count** (a private room or Play online, against people or bots), because Start match runs in the browser and its result could be made up; **ranked by match wins this week**, a tie going to whoever got there first; and **nobody is listed until they add a name**, which they can only do once they have a win.
+
+- **Where a win comes from.** When a room's match ends, `Room.credit` posts the winner's browser id (the made-up one from `Stats.device()`, sent with the player's name card) to the `Stats` object's internal `/win`. The Worker never routes `/win`, so no request from outside can add one. A seat whose player left is a bot by the end and credits nobody.
+- **What a browser can do.** `GET /board` (top 20 names), `POST /board/me` (its own wins, name and place) and `POST /board/name` (add or change its name, or `remove: true`), all by its id and all under the `REPORTS` limit. The id is the only key: whoever has it can rename that entry, which is why it is never shown anywhere.
+- **Names** get the room's clean-up (`Net.cleanName`) in the Worker and are checked again in `Stats` (`boardName`): at most 12 letters, digits and a little punctuation, and nothing `rude()` lets through, private room or not, because strangers read the board.
+- **Kept** eight weeks of wins (`BOARD_WEEKS`); a name is deleted with its last win. `privacy.html` says this.
+- **In the game.** After a match won in a room, the end screen asks "Put your name on this week's leaderboard?" with the room name filled in (`offerBoard` in `hud.js`), about a second later so the server has counted the win. "No thanks" is remembered in this browser and it does not ask again; the page still offers it. A player whose name is up gets one line with their place instead. The start screen has a quiet Leaderboard link next to Privacy.
+- `node server/test.mjs` covers the week boundary, names, ranking and ties, taking a name off, the weekly reset, pruning, and which seat a room credits.
+
 ## Icon and link preview
 `favicon.svg` is the tab icon. `og.png` (1200 x 630) is what a pasted link shows; its source is `dev/og.html`. To redo it, serve the folder, screenshot that page at 1200 x 630 with headless Chrome and crop to size.
 

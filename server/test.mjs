@@ -2,7 +2,8 @@
 // Run: node server/test.mjs
 import assert from 'node:assert';
 import { rude } from './src/names.js';
-import { Stats, clean, device, country, subnet, text, BODY_MAX } from './src/stats.js';
+import { Stats, clean, device, country, subnet, text, BODY_MAX, week, weekEnds, boardName } from './src/stats.js';
+import { Room } from './src/worker.js';
 
 for (const ok of ['Ann', 'Bo', 'Sam PC', 'me On Phone', 'Grape', 'Cockpit Sam', 'Raccoon', 'Analyst', 'Night Owl', 'Player 2', 'Dr. Who', 'Assassin']) assert(!rude(ok), 'refused an ordinary name: ' + ok);
 for (const bad of ['fuck you', 'F U C K', 'fuuuuck', 'sh1t', 'b!tch', 'n1gg4', 'hitler', 'N a z i', 'ass', 'k y s']) assert(rude(bad), 'let through: ' + bad);
@@ -28,6 +29,32 @@ assert(twist((c) => { c.rounds[0].picks = new Array(80).fill([2, 'bomb']); }).ro
 assert(clean(null) === null && clean('x') === null && clean({}) === null);
 assert(device('abc123def456') === 'abc123def456' && device('ABC') === '' && device('a'.repeat(40)) === '' && device(5) === '');
 assert(country('US') === 'US' && country('usa') === '??' && country(undefined) === '??');
+
+// the leaderboard's week starts on Monday at 00:00 UTC
+assert(week(Date.UTC(2026, 9, 12)) === week(Date.UTC(2026, 9, 18, 23, 59)) && week(Date.UTC(2026, 9, 19)) === week(Date.UTC(2026, 9, 12)) + 1, 'a week is not Monday to Sunday');
+assert(weekEnds(week(Date.UTC(2026, 9, 14, 12))) === Date.UTC(2026, 9, 19), 'the week does not end at midnight going into Monday');
+// a name strangers will read: the room's own rule, and nothing rude
+for (const ok of ['Ann', 'Night Owl', 'Олена', "O'Neil", 'Dr. Who', 'x'.repeat(12)]) assert(boardName(ok) === ok, 'refused a board name: ' + ok);
+for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh1t', 'N a z i', '-Ann', 5, null]) assert(boardName(bad) === '', 'took a board name: ' + bad);
+
+// Who a room credits with a win: the person in the winning seat, if they are still
+// there, under the id their browser sent. A seat whose player left is a bot by then.
+{
+  const sent = [];
+  const room = (players, members) => Object.assign(Object.create(Room.prototype), {
+    state: { players: players }, members: members, ctx: { waitUntil() {} },
+    env: { STATS: { idFromName: () => 'all', get: () => ({ fetch: (url, init) => { sent.push([url, JSON.parse(init.body)]); return Promise.resolve(); } }) } },
+  });
+  const seats = [{ human: true }, { human: true }, { human: false }, { human: false }];
+  room(seats, [{ seat: 0, device: 'alice123456' }, { seat: 1, device: 'bobby123456' }]).credit(1);
+  assert.deepStrictEqual(sent.splice(0), [['https://stats/win', { device: 'bobby123456' }]], 'the winning seat was not the one credited');
+  room(seats, [{ seat: 0, device: 'alice123456' }]).credit(2);
+  room(seats, [{ seat: 0, device: 'alice123456' }]).credit(-1);
+  room([{ human: false }, { human: true }], [{ seat: 1, device: 'bobby123456' }]).credit(0);
+  room(seats, [{ seat: 0, device: '' }]).credit(0);
+  room(seats, [{ seat: 0, device: 'alice123456' }]).credit(1); // Bob left, and his seat is still marked human for a moment
+  assert(sent.length === 0, 'a bot, a draw, a player who left or a browser with no id was credited: ' + JSON.stringify(sent));
+}
 
 // who a limit is counted against: an IPv6 address is its /64, however it is written
 assert(subnet('203.0.113.7') === '203.0.113.7' && subnet('203.0.113.7') !== subnet('203.0.113.8'), 'an IPv4 address is kept whole');
@@ -91,5 +118,44 @@ else {
   assert.deepStrictEqual(db.prepare('SELECT device FROM seen ORDER BY day').all().map((r) => r.device), ['newdevice1', 'newdevice2', 'abc123def456'], 'not the last 400 days of devices');
   stats.prune();
   assert(count('matches') === 20000 && count('seen') === 3, 'pruning twice took more');
+
+  // the leaderboard, on a clock that moves on a little with every reading, so no
+  // two wins land in the same millisecond
+  const clock = Date.now;
+  let now = Date.UTC(2026, 9, 14, 12);
+  Date.now = () => now++;
+  try {
+    const ask = async (how, d) => { const res = await send(how, d); return { status: res.status, body: await res.json().catch(() => null) }; };
+    const top = async () => (await (await stats.fetch(new Request('https://stats/board'))).json()).top;
+    const win = async (id, times) => { for (let i = 0; i < times; i++) await send('win', { device: id }); };
+    assert((await send('win', { device: 'NOT AN ID' })).status === 400 && count('wins') === 0, 'a win went to something that is not a browser id');
+    assert((await ask('board/name', { device: 'nowins12345', name: 'Ann' })).status === 403 && count('names') === 0, 'a name went up with no win behind it');
+    await win('alice123456', 3); await win('bobby123456', 3); await win('carol123456', 5); await win('dave1234567', 1);
+    assert((await top()).length === 0, 'someone was listed without adding a name');
+    let r = await ask('board/me', { device: 'alice123456' });
+    assert(r.body.wins === 3 && r.body.name === '' && r.body.rank === 0 && r.body.canName, 'a winner with no name has the wrong standing');
+    for (const bad of ['fuck', '<img src=x>', ' ', 'x'.repeat(13)]) assert((await ask('board/name', { device: 'alice123456', name: bad })).status === 400, 'a bad name went up: ' + bad);
+    assert((await ask('board/name', { device: 'alice123456', name: 'Alice' })).body.rank === 1);
+    // a tie goes to whoever reached it first: Alice got to 3 before Bob did
+    assert((await ask('board/name', { device: 'bobby123456', name: 'Bob' })).body.rank === 2, 'a tie went to whoever got there last');
+    assert((await ask('board/name', { device: 'carol123456', name: 'Carol' })).body.rank === 1);
+    assert.deepStrictEqual(await top(), [{ name: 'Carol', wins: 5 }, { name: 'Alice', wins: 3 }, { name: 'Bob', wins: 3 }], 'the board is in the wrong order');
+    assert((await ask('board/me', { device: 'alice123456' })).body.rank === 2, 'Alice did not move down behind Carol');
+    // a new name replaces the old one, and an empty one takes it off
+    await ask('board/name', { device: 'bobby123456', name: 'Bobby' });
+    assert(count('names') === 3 && (await top())[2].name === 'Bobby', 'changing a name added a second one');
+    r = await ask('board/name', { device: 'alice123456', name: '' });
+    assert(r.status === 200 && r.body.name === '' && r.body.rank === 0 && r.body.wins === 3, 'taking a name off did not');
+    assert.deepStrictEqual((await top()).map((x) => x.name), ['Carol', 'Bobby'], 'a name that was taken off is still listed');
+    // a new week starts empty; last week's winners can still put a name back up
+    now += 7 * 864e5;
+    assert((await top()).length === 0, 'last week\'s wins count this week');
+    r = await ask('board/me', { device: 'carol123456' });
+    assert(r.body.wins === 0 && r.body.rank === 0 && r.body.name === 'Carol' && r.body.canName, 'a new week lost a name or kept old wins');
+    // wins are kept eight weeks, and a name goes with the last of them
+    now += 8 * 7 * 864e5;
+    stats.prune();
+    assert(count('wins') === 0 && count('names') === 0, 'old wins or their names were kept');
+  } finally { Date.now = clock; }
 }
 console.log('ok');

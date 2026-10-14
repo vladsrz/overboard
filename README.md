@@ -28,6 +28,7 @@ A few things worth knowing:
 - A single missing plank can be run over if you are quick. A dash clears up to three.
 - If nobody falls for a while, the raft starts pulling its own planks. A longer stalemate brings meteors near the players still aboard.
 - Once every human player is in the water, the raft and bots hurry the round toward a finish.
+- Matches won in a room or Play online count toward a weekly leaderboard. You are only listed if you add your name after a win.
 
 ## Run it locally
 

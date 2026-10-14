@@ -8,6 +8,9 @@
 //   GET /quick        (WebSocket)  join whichever public room has space, or open one
 //   POST /stat                     a browser reporting a visit or a finished solo match
 //   GET /admin/stats, /admin/export   the play statistics, for whoever holds the key
+//   GET /board                     this week's leaderboard
+//   POST /board/me                 a browser's own place on it, by its made-up id
+//   POST /board/name               a browser adding, changing or taking off its own name
 //
 // Connecting and reporting are each limited per caller (see `over`), and a report
 // longer than 16 KB is refused unread.
@@ -108,13 +111,32 @@ async function api(request, env, url) {
     if (!env.STATS_KEY || !key || !sameKey(key, env.STATS_KEY)) return new Response('Not found', { status: 404 });
     return stats.fetch('https://stats/' + (url.pathname === '/admin/stats' ? 'summary' : 'export'));
   }
+  // The weekly leaderboard. Anyone may read it. A browser asks for its own place, or
+  // puts up its own name, by its made-up id; the wins themselves only ever come from
+  // a room (see Room.tick), so nothing sent here can add one.
+  if (url.pathname === '/board' || url.pathname === '/board/me' || url.pathname === '/board/name') {
+    if (!allowed(request, env)) return new Response('Not from here', { status: 403 });
+    const from = await source(request);
+    if (await over(env.REPORTS, from)) return new Response('Slow down', { status: 429 });
+    if (url.pathname === '/board') return request.method === 'GET' ? stats.fetch('https://stats/board') : new Response('Not found', { status: 404 });
+    if (request.method !== 'POST') return new Response('Not found', { status: 404 });
+    const raw = await text(request, 1024);
+    if (raw === null) return new Response('Too big', { status: 413 });
+    let d = null;
+    try { d = JSON.parse(raw); } catch (e) { return new Response('bad', { status: 400 }); }
+    if (!d || typeof d !== 'object') return new Response('bad', { status: 400 });
+    const ask = { from: from, device: device(d.device) };
+    // the same clean-up as a name in a room; whatever is left is checked again, and for rudeness, by Stats
+    if (url.pathname === '/board/name') ask.name = d.remove === true ? '' : Net.cleanName(typeof d.name === 'string' ? d.name : '', '') || null;
+    return stats.fetch('https://stats' + url.pathname, { method: 'POST', body: JSON.stringify(ask) });
+  }
   return new Response('Not found', { status: 404 });
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === '/stat' || url.pathname.startsWith('/admin/')) return cors(request, env, await api(request, env, url));
+    if (url.pathname === '/stat' || url.pathname.startsWith('/admin/') || url.pathname === '/board' || url.pathname.startsWith('/board/')) return cors(request, env, await api(request, env, url));
     // anything that is not one of the game's files (those are served before this runs) or a room
     if (!/^\/(new|quick|join\/[A-Za-z0-9]{5})$/.test(url.pathname)) return new Response('Not found', { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
@@ -380,6 +402,18 @@ export class Room {
     this.ctx.waitUntil(write);
   }
 
+  // A match won by a person still in the room goes on the weekly leaderboard, under
+  // the made-up id their browser sent with its name. A seat whose player left is a
+  // bot by the end, so its win is nobody's.
+  credit(seat) {
+    const m = seat >= 0 && this.state.players[seat].human ? this.members.find((x) => x.seat === seat) : null;
+    if (!m || !device(m.device)) return;
+    const write = this.env.STATS.get(this.env.STATS.idFromName('all')).fetch('https://stats/win', {
+      method: 'POST', body: JSON.stringify({ device: m.device }),
+    }).catch(() => {});
+    this.ctx.waitUntil(write);
+  }
+
   // run the match up to now, in whole steps
   pump() {
     const now = Date.now();
@@ -412,6 +446,7 @@ export class Room {
       this.playing = false;
       clearInterval(this.timer); this.timer = 0;
       this.file();
+      this.credit(state.matchWinner);
       this.idleSince = Date.now();
       this.startAt = Date.now() + GATHER * 1000;
       for (const m of this.members) m.seat = -1;

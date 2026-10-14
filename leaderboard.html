@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overboard — Leaderboard</title>
+<meta name="description" content="This week's Overboard leaderboard: match wins in rooms and Play online.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#12504c">
+<link rel="stylesheet" href="css/fonts.css">
+<style>
+  :root {
+    --water: #12504c;
+    --deep: #0b3936;
+    --foam: #bfe3db;
+    --plank: #efe9da;
+    --ink: #14211f;
+    --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+    --ui: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: var(--water);
+    color: var(--plank);
+    font: 16px/1.5 var(--ui);
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 34em; margin: 0 auto; }
+  a { color: inherit; text-underline-offset: 3px; }
+  .back { display: inline-block; margin-bottom: 28px; font-weight: 500; opacity: 0.75; }
+  .back:hover { opacity: 1; }
+  h1 { margin: 0 0 8px; font: 900 clamp(30px, 8vw, 44px)/1.05 var(--display); letter-spacing: -0.01em; }
+  .lede { margin: 0 0 30px; opacity: 0.85; }
+
+  /* the board: one plank per name, as long as its wins against the leader's */
+  .board { display: grid; grid-template-columns: 2.4em minmax(0, 8.5em) 1fr 2.2em; gap: 10px 12px; margin: 0; padding: 0; list-style: none; align-items: center; }
+  .board li { display: contents; }
+  .rank { font: 900 15px/1 var(--display); opacity: 0.6; text-align: right; font-variant-numeric: tabular-nums; }
+  .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plank { height: 18px; border-radius: 3px; background: var(--deep); overflow: hidden; }
+  .plank i { display: block; height: 100%; min-width: 6px; border-radius: 3px; background: var(--plank); transform-origin: left; animation: lay 0.5s cubic-bezier(.2, .7, .2, 1) both; }
+  .n { font: 700 16px/1 var(--ui); font-variant-numeric: tabular-nums; }
+  .board li:first-child .rank { opacity: 1; }
+  /* your own row: the one thing on the page in the foam colour */
+  .board .you .name, .board .you .n, .board .you .rank { color: var(--foam); opacity: 1; }
+  .board .you .plank i { background: var(--foam); }
+  .board .gap { grid-column: 1 / -1; height: 4px; border-top: 1.5px dashed var(--plank); opacity: 0.25; }
+  @keyframes lay { from { transform: scaleX(0); } }
+  @media (prefers-reduced-motion: reduce) { .plank i { animation: none; } }
+
+  .empty { margin: 0; padding: 18px 0; border-top: 1.5px solid rgba(239, 233, 218, 0.25); border-bottom: 1.5px solid rgba(239, 233, 218, 0.25); }
+  .status { margin: 0; opacity: 0.8; }
+
+  /* what you can do about your own name */
+  .mine { margin-top: 36px; padding-top: 22px; border-top: 1.5px solid rgba(239, 233, 218, 0.25); }
+  .mine p { margin: 0 0 12px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  input {
+    width: 10em; height: 34px; padding: 0 2px;
+    border: 0; border-bottom: 1.5px solid var(--plank); border-radius: 0;
+    background: transparent; color: var(--plank);
+    font: 600 16px/32px var(--ui);
+  }
+  input::placeholder { color: var(--plank); opacity: 0.55; font-weight: 400; }
+  input:focus-visible { outline: 0; border-bottom-color: var(--foam); background: rgba(11, 57, 54, 0.6); }
+  button {
+    padding: 9px 18px 10px; border: 1.5px solid var(--plank); border-radius: 6px;
+    background: transparent; color: var(--plank); font: 600 14px/1.2 var(--ui); cursor: pointer;
+  }
+  button:hover { background: var(--plank); color: var(--ink); }
+  button:focus-visible, a:focus-visible { outline: 3px solid var(--foam); outline-offset: 3px; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.plain { padding: 6px 0; border: 0; text-decoration: underline; text-underline-offset: 3px; font-weight: 500; opacity: 0.75; }
+  button.plain:hover { background: transparent; color: var(--plank); opacity: 1; }
+  .note { margin: 10px 0 0; font-size: 14px; color: var(--foam); }
+  .fine { margin: 40px 0 0; font-size: 13px; opacity: 0.65; }
+  [hidden] { display: none !important; }
+  @media (max-width: 420px) { .board { grid-template-columns: 1.8em minmax(0, 7em) 1fr 2em; gap: 10px 9px; } }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Back to Overboard</a>
+  <h1>Leaderboard</h1>
+  <p class="lede" id="lede">Match wins this week, in rooms and Play online.</p>
+
+  <p class="status" id="status" role="status">Loading…</p>
+  <ol class="board" id="board" aria-label="This week's leaderboard" hidden></ol>
+  <p class="empty" id="empty" hidden>No names on the board yet this week. Win a match in a room or Play online, then add your name.</p>
+
+  <section class="mine" id="mine" hidden>
+    <p id="mine-say"></p>
+    <div class="row" id="mine-form" hidden>
+      <input id="mine-name" type="text" maxlength="12" placeholder="your name" aria-label="Your name on the leaderboard" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">
+      <button id="mine-save" type="button">Add my name</button>
+      <button id="mine-off" type="button" class="plain" hidden>Take my name off</button>
+    </div>
+    <p class="note" id="mine-note" role="status" hidden></p>
+  </section>
+
+  <p class="fine">Only matches in a room or Play online count, because the game server runs those and can tell who won. Start match runs in your browser, so it does not count. Names are checked for rude words. <a href="privacy.html">Privacy</a></p>
+</main>
+<script src="js/net.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/board.js"></script>
+<script src="js/leaderboard.js"></script>
+</body>
+</html>

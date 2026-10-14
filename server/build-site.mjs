@@ -8,7 +8,7 @@ const root = new URL('../', import.meta.url), out = new URL('./site/', import.me
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(new URL('./dev/', out), { recursive: true });
-for (const name of ['css', 'fonts', 'js', 'vendor', 'favicon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest', 'og.png', 'privacy.html']) {
+for (const name of ['css', 'fonts', 'js', 'vendor', 'favicon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest', 'og.png', 'privacy.html', 'leaderboard.html']) {
   cpSync(new URL(name, root), new URL(name, out), { recursive: true });
 }
 for (const name of ['dev/stats.html', 'dev/stats.js', 'dev/players.html', 'dev/players.js']) {
