@@ -263,7 +263,9 @@
   // host: the match as it stands, what everyone is steering, and what happened since the last one
   Net.snap = function (state, inputs, events) {
     snapN++;
-    const msg = { t: 's', m: matchN, n: snapN, s: pack(state), in: inputs.map((i) => [i.mx || 0, i.my || 0, i.cx || 0, i.cy || 0]), ev: events };
+    // ack: for each seat, the last input of theirs this copy of the match has used (0 for a bot)
+    const ack = state.players.map((p) => { const m = Net.members.find((x) => x.seat === p.id && x.conn); return m ? m.n : 0; });
+    const msg = { t: 's', m: matchN, n: snapN, s: pack(state), in: inputs.map((i) => [i.mx || 0, i.my || 0, i.cx || 0, i.cy || 0]), ack: ack, ev: events };
     for (const m of Net.members) {
       if (!m.conn || m.seat < 0) continue;
       // a guest who cannot keep up skips a beat (but never what happened) and does not pile up a backlog
@@ -337,17 +339,27 @@
 
   // No code opens a new room; a code joins that one; quick joins whichever public
   // room has space (or opens one), where a match starts on its own.
+  // ?lag=MS on a page opened from this machine or the home network makes a room on the
+  // game server answer as if it were MS further away (half each way), to try how the
+  // game feels on a slow connection. It does nothing on the real address.
+  function testLag() {
+    const host = root.location ? root.location.hostname : '', m = root.location && /[?&]lag=(\d+)/.exec(root.location.search);
+    return LOCAL.test(host) && m ? Math.min(1000, +m[1]) : 0;
+  }
   Net.connect = function (code, name, quick) {
     reset();
+    const lag = testLag();
     Net.role = 'guest'; Net.server = true; Net.open = !!quick; Net.code = code;
     lobbyN = 0; matchN = 0; seen = now();
     let ws;
     try { ws = new root.WebSocket(serverUrl() + (quick ? '/quick' : code ? '/join/' + code : '/new')); } catch (e) { return closed(OFFLINE); }
-    const line = (link = { ws: ws, get open() { return ws.readyState === 1; }, send(msg) { ws.send(JSON.stringify(msg)); } });
+    const out = (s) => { try { ws.send(s); } catch (e) { /* closing */ } };
+    const line = (link = { ws: ws, get open() { return ws.readyState === 1; }, send(msg) { const s = JSON.stringify(msg); if (lag) setTimeout(() => out(s), lag / 2); else ws.send(s); } });
     const GONE = 'That room is not open. Ask for a new link.';
     wanted = name;
     ws.onopen = () => { seen = now(); send(line, card(wanted)); };
-    ws.onmessage = (e) => {
+    ws.onmessage = (e) => { if (lag) setTimeout(() => hear(e), lag / 2); else hear(e); };
+    const hear = (e) => {
       if (link !== line) return;
       let d = null;
       try { d = JSON.parse(e.data); } catch (err) { return; }
@@ -369,14 +381,23 @@
   // What you are pressing goes out when it changes, and a couple of times a second
   // otherwise so the other end knows you are still there.
   const r3 = (v) => Math.round((v || 0) * 1000) / 1000;
+  // Returns the input as whoever runs the match will read it (rounded the same way),
+  // which is what a guest's own prediction has to use.
+  const sentTimes = new Map();
   Net.sendInput = function (inp) {
     const what = [r3(inp.mx), r3(inp.my), Math.round(inp.cx || 0), Math.round(inp.cy || 0), inp.drop ? 1 : 0, inp.dash ? 1 : 0];
+    const wire = { mx: what[0], my: what[1], cx: what[2], cy: what[3], drop: !!what[4], dash: !!what[5] };
     const same = what.join() === sent;
-    if (same && now() - sentAt < 400) return;
+    if (same && now() - sentAt < 400) return wire;
     sent = what.join(); sentAt = now();
     inputN++;
+    sentTimes.set(inputN, sentAt);
+    if (sentTimes.size > 200) sentTimes.delete(inputN - 200);
     send(link, { t: 'i', n: inputN, mx: what[0], my: what[1], cx: what[2], cy: what[3], p: what[4], d: what[5] });
+    return wire;
   };
+  // when input number n went out (Date.now), for timing the round trip
+  Net.sentAt = (n) => sentTimes.get(n) || 0;
   // guest: the newest match from the host if one came in, and everything that happened
   Net.take = function () {
     const got = { snap: pending, events: heard };

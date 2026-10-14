@@ -447,7 +447,10 @@ export class Room {
     // players get the match every other step, and at once when it ends
     if (++this.sendN % 2 === 0 || over) {
       this.snapN++;
-      const msg = JSON.stringify({ t: 's', m: this.matchN, n: this.snapN, s: Net.pack(state), in: inputs.map((i) => [i.mx || 0, i.my || 0, i.cx || 0, i.cy || 0]), ev: this.outbox });
+      // ack: each seat's last input this copy has used, so a player's screen can play
+      // on with the ones still on their way here (see tickGuest in game.js); 0 for a bot
+      const ack = state.players.map((p) => { const m = this.members.find((x) => x.seat === p.id); return m ? m.n : 0; });
+      const msg = JSON.stringify({ t: 's', m: this.matchN, n: this.snapN, s: Net.pack(state), in: inputs.map((i) => [i.mx || 0, i.my || 0, i.cx || 0, i.cy || 0]), ack: ack, ev: this.outbox });
       this.outbox = [];
       for (const m of this.members) if (m.seat >= 0) this.send(m, msg);
     }

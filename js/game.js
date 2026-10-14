@@ -109,26 +109,62 @@
     }
   }
 
-  // Joined to a friend's match: the host runs it. Send what you are pressing, take
-  // the match as the host last had it, and between those run it on a step or two
-  // with everyone steering the way they were, so it moves smoothly.
+  // Joined a match someone else runs (the game server, or a friend's browser). Send
+  // what you are pressing and take the match as they last had it. That copy is a round
+  // trip old by the time your keys show in it, so your own disc would answer late.
+  // Instead, every step, the screen starts again from their latest copy and plays it on
+  // to now: your own presses since, the ones it had not had yet (it says which it has,
+  // `ack`), and everyone else steering the way they last were. A guess that turns out
+  // wrong (a bump you did not see coming) is put right by the next copy. Events (sounds,
+  // falls, round results) only ever come from their copy, never from the guess.
+  // Without `ack` (an older server) it only runs on a step or two, as it used to.
+  const PREDICT_MAX = 18; // steps played on at most: 0.3 s
+  let base = null, baseStep = 0, stepN = 0, rtt = 0, lastAck = 0;
+  const history = [];
+  G.lag = () => Math.round(rtt); // the round trip the prediction allows for, in ms (for testing)
   function tickGuest() {
     const state = G.state, me = G.human(), mine = humanInput();
-    Net.sendInput(mine);
+    const wire = Net.sendInput(mine);
+    stepN++;
+    // what this step's press will be to whoever runs the match
+    history.push({ step: stepN, inp: { mx: wire.mx, my: wire.my, dash: wire.dash, wave: wire.dash, drop: wire.drop, cx: wire.cx, cy: wire.cy } });
+    if (history.length > PREDICT_MAX + 30) history.shift();
     spaceQueued = false;
     clickBuf = Math.max(0, clickBuf - DT);
     const got = Net.take();
     try {
       if (got.snap) {
-        Net.unpack(state, got.snap.s);
         steer = got.snap.in.map((i) => ({ mx: +i[0] || 0, my: +i[1] || 0, dash: false, drop: false, wave: false, cx: +i[2] || 0, cy: +i[3] || 0 }));
         ahead = 0;
-      } else if (steer && steer.length === state.players.length && ahead < 4) {
+        const ack = Array.isArray(got.snap.ack) ? got.snap.ack[G.me] : undefined;
+        // the round trip: from sending an input to a copy that has used it
+        if (Number.isFinite(ack) && ack > lastAck) {
+          const at = Net.sentAt(ack), took = at ? Date.now() - at : 0;
+          if (took > 0 && took < 2000) rtt = rtt ? rtt * 0.85 + Math.min(took, rtt * 2 + 50) * 0.15 : took;
+          lastAck = ack;
+        }
+        base = Number.isFinite(ack) ? got.snap.s : null;
+        baseStep = stepN;
+        if (!base) Net.unpack(state, got.snap.s);
+      }
+      if (base && steer && steer.length === state.players.length) {
+        Net.unpack(state, base);
+        // From their copy to now: the steps since it arrived, plus a round trip, because
+        // it was made half a trip ago and what you press now reaches them half a trip on.
+        const lead = Math.min(PREDICT_MAX, Math.round(rtt / (DT * 1000)) + (stepN - baseStep));
+        for (const h of history) {
+          if (h.step <= stepN - lead) continue;
+          // only during play: a guess must not carry the match into the next round
+          if (state.phase !== 'play') break;
+          Sim.step(state, steer.map((s, i) => (i === G.me ? h.inp : s)), DT);
+          state.events.length = 0;
+        }
+      } else if (!base && steer && steer.length === state.players.length && ahead < 4) {
         Sim.step(state, steer, DT);
         state.events.length = 0;
         ahead++;
       }
-    } catch (err) { steer = null; /* a message that does not fit this match is skipped */ }
+    } catch (err) { steer = null; base = null; /* a message that does not fit this match is skipped */ }
     // your own aim follows your cursor without waiting for the round trip
     if (me.state === 'ghost') { me.cx = mine.cx; me.cy = mine.cy; }
     const n = state.players.length;
@@ -302,7 +338,7 @@
     G.mode = 'match';
     newMatch(roster, me, seed);
     Stats.begin(G.state, me, Net.role || 'solo');
-    outbox = []; sendN = 0; steer = null; ahead = 0;
+    outbox = []; sendN = 0; steer = null; ahead = 0; base = null; history.length = 0;
     clearInput();
     ui.showMatch();
     const cast = G.state.players.filter((p) => p.id !== me).map((p) => p.name);
