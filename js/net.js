@@ -18,7 +18,7 @@
 
   // every field of the match and of a player that the rules read; a bot's memory stays with the host
   const MATCH = ['rng', 'phase', 'phaseT', 'round', 'time', 'tiltBy', 'tiltT', 'tiltGap', 'tiltX', 'tiltY',
-    'pickupT', 'lastPickup', 'lastFallT', 'stallT', 'stallCalled', 'meteorT', 'meteorNext', 'meteorBy', 'meteorSeen',
+    'pickupT', 'lastPickup', 'lastFallT', 'stallT', 'stallCalled', 'stallMeteorCalled', 'meteorT', 'meteorNext', 'meteorBy', 'meteorSeen',
     'roundWinner', 'matchWinner'];
   const PLAYER = ['human', 'wins', 'x', 'y', 'vx', 'vy', 'state', 'fallT', 'offT', 'idleT', 'dashCd', 'dashT', 'dashX', 'dashY', 'faceX', 'faceY',
     'bigT', 'powerT', 'hideT', 'seenT', 'thornT', 'ult', 'slam', 'lastHitBy', 'lastHitT', 'lastHitHow', 'lastHitPower',
@@ -52,6 +52,7 @@
   const num = (v) => (Number.isFinite(v) ? v : 0);
   // a seat number, or -1 for nobody
   const seat = (v, n) => (Number.isInteger(v) && v >= 0 && v < n ? v : -1);
+  const markBy = (v, n) => v === -2 ? -2 : seat(v, n); // -2 marks an automatic meteor target
 
   // Writes a packed match over `state`, which must be a match with the same seats.
   // Throws on anything that does not fit, leaving it to the caller to skip it.
@@ -71,7 +72,7 @@
     for (let j = 0; j + 2 < d.marks.length; j += 3) {
       const i = d.marks[j];
       if (!(i >= 0 && i < N)) continue;
-      state.tileT[i] = num(d.marks[j + 1]); state.tileBy[i] = seat(d.marks[j + 2], n);
+      state.tileT[i] = num(d.marks[j + 1]); state.tileBy[i] = markBy(d.marks[j + 2], n);
     }
     state.waves = d.waves.slice(0, 16).map((w) => ({
       dx: num(w[0]), dy: num(w[1]), s: num(w[2]), by: seat(w[3], n),

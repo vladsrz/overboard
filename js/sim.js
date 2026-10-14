@@ -27,6 +27,10 @@
     // If nobody goes in the water for STALL_T, the raft starts pulling its own planks,
     // one every STALL_EVERY, until somebody does. Then the clock starts again.
     STALL_T: 8, STALL_EVERY: 0.6,
+    // If the first plank losses still have not caused a fall, aim a short meteor
+    // shower near the survivors. Give people a full warning before each impact.
+    STALL_METEOR_T: 18, STALL_METEOR_T_BOTS: 9,
+    STALL_METEOR_EVERY: 0.16, STALL_METEOR_R: 90,
     // with every real player already in the water it is quicker on both counts, so
     // nobody sits waiting for bots to finish each other off
     STALL_T_BOTS: 3, STALL_EVERY_BOTS: 0.25,
@@ -115,7 +119,7 @@
       tilt: { x: 0, y: 0 }, tiltBy: -1, tiltT: 0, tiltGap: 0, tiltX: 0, tiltY: 0,
       waves: [],
       pickups: [], pickupT: 0, lastPickup: '', lastPickupAt: null,
-      lastFallT: 0, stallT: 0, stallCalled: false,
+      lastFallT: 0, stallT: 0, stallCalled: false, stallMeteorCalled: false,
       meteorT: 0, meteorNext: 0, meteorBy: -1, meteorSeen: false,
       events: [],
       roundWinner: -1, matchWinner: -1,
@@ -133,7 +137,7 @@
     state.waves.length = 0;
     state.pickups.length = 0;
     state.pickupT = C.PICKUP_FIRST; state.lastPickup = ''; state.lastPickupAt = null;
-    state.lastFallT = 0; state.stallT = 0; state.stallCalled = false;
+    state.lastFallT = 0; state.stallT = 0; state.stallCalled = false; state.stallMeteorCalled = false;
     state.meteorT = 0; state.meteorNext = 0; state.meteorBy = -1; state.meteorSeen = false;
     state.roundWinner = -1;
     for (let i = 0; i < N; i++) {
@@ -399,19 +403,42 @@
       }
     } else state.stallT = 0;
 
-    // a meteor shower: planks go all over the raft, in the colour of whoever set it off
+    // One aimed shower per stretch without a fall. The pickup's shower keeps its
+    // separate all-over-the-raft behavior and never targets its owner.
+    if (live && !state.stallMeteorCalled && state.meteorT <= 0 &&
+        state.time - state.lastFallT >= (botsOnly ? C.STALL_METEOR_T_BOTS : C.STALL_METEOR_T)) {
+      state.stallMeteorCalled = true;
+      state.meteorT = C.METEOR_T; state.meteorNext = 0; state.meteorBy = -1;
+      state.events.push({ type: 'stallMeteor' });
+    }
+    // a pickup shower scatters planks across the raft; an automatic shower aims
+    // near the people still standing, using the same one-second plank warning
     if (live && state.meteorT > 0) {
       state.meteorT -= dt; state.meteorNext -= dt;
-      const safe = ps[state.meteorBy] && ps[state.meteorBy].state === 'alive' ? ps[state.meteorBy] : null;
+      const aimed = state.meteorBy < 0;
+      const safe = !aimed && ps[state.meteorBy] && ps[state.meteorBy].state === 'alive' ? ps[state.meteorBy] : null;
       while (state.meteorNext <= 0) {
-        state.meteorNext += C.METEOR_EVERY;
-        for (let tries = 0; tries < 8; tries++) {
+        state.meteorNext += aimed ? C.STALL_METEOR_EVERY : C.METEOR_EVERY;
+        let pick = -1;
+        if (aimed) {
+          const aboard = ps.filter((p) => p.state === 'alive');
+          if (aboard.length) {
+            const target = aboard[Math.floor(rand(state) * aboard.length)];
+            const x = target.x + target.vx * 0.25, y = target.y + target.vy * 0.25;
+            const near = [];
+            for (let i = 0; i < N; i++) if (state.tiles[i] === SOLID && Math.hypot(tileX(i) - x, tileY(i) - y) <= C.STALL_METEOR_R) near.push(i);
+            if (near.length) pick = near[Math.floor(rand(state) * near.length)];
+          }
+        } else for (let tries = 0; tries < 8; tries++) {
           const i = Math.floor(rand(state) * N);
           if (state.tiles[i] !== SOLID) continue;
           if (safe && Math.hypot(tileX(i) - safe.x, tileY(i) - safe.y) < C.METEOR_SAFE) continue;
-          state.tiles[i] = WARN; state.tileT[i] = C.WARN_T; state.tileBy[i] = state.meteorBy;
-          state.events.push({ type: 'warn', tile: i, by: state.meteorBy });
-          break;
+          pick = i; break;
+        }
+        if (pick >= 0) {
+          state.tiles[pick] = WARN; state.tileT[pick] = C.WARN_T;
+          state.tileBy[pick] = aimed ? -2 : state.meteorBy; // distinct target mark; never credits a player
+          state.events.push({ type: 'warn', tile: pick, by: state.meteorBy });
         }
       }
     }
@@ -439,6 +466,9 @@
         else if (i >= 0 && state.tiles[i] === GONE && state.tileT[i] > 0) how = 'plank';
         p.state = 'falling'; p.fallT = C.FALL_T; p.killer = by;
         state.lastFallT = state.time;
+        state.stallCalled = false;
+        state.stallMeteorCalled = false;
+        if (state.meteorBy < 0) state.meteorT = 0;
         p.bigT = 0; p.powerT = 0; p.hideT = 0; p.thornT = 0; p.slam = false;
         state.events.push({ type: 'fall', id: p.id, by: by, how: how });
       }

@@ -238,6 +238,36 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   assert(run(true) >= 5, 'with you in the water the raft should already be losing planks');
 }
 
+// A long no-fall stretch starts one aimed shower, not the scattered pickup shower.
+// Its warnings stay near surviving players and stop being added after a fall.
+{
+  const s = Sim.createMatch({ seed: 47, players: [{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D' }] });
+  while (s.phase !== 'play') Sim.step(s, [], DT);
+  const spots = [[-80, -80], [80, -80], [-80, 80], [80, 80]];
+  const park = () => {
+    s.pickupT = 99; s.stallT = 99;
+    s.players.forEach((p, i) => { p.x = spots[i][0]; p.y = spots[i][1]; p.vx = 0; p.vy = 0; p.offT = 0; });
+  };
+  s.time = Sim.C.STALL_METEOR_T - 2 * DT;
+  park(); Sim.step(s, [], DT);
+  assert(!s.stallMeteorCalled && s.meteorT <= 0, 'aimed meteors began before the long stalemate');
+  let called = 0, strikes = 0;
+  for (let t = 0; t < 45; t++) {
+    park(); Sim.step(s, [], DT);
+    called += s.events.filter((e) => e.type === 'stallMeteor').length;
+    for (const e of s.events) if (e.type === 'warn' && s.tileBy[e.tile] === -2) {
+      strikes++;
+      assert(s.players.some((p) => Math.hypot(Sim.tileX(e.tile) - p.x, Sim.tileY(e.tile) - p.y) <= Sim.C.STALL_METEOR_R), 'meteor missed the survivors');
+    }
+  }
+  assert.strictEqual(called, 1, 'stalemate announced more than once');
+  assert(strikes >= 4 && strikes <= 6, 'aimed shower should warn steadily: ' + strikes);
+  s.players[3].x = 400; s.players[3].y = 0; s.players[3].offT = Sim.C.TEETER_T;
+  s.stallT = 99; s.pickupT = 99; Sim.step(s, [], DT);
+  assert(s.events.some((e) => e.type === 'fall' && e.id === 3), 'test player never fell');
+  assert(!s.stallMeteorCalled && s.meteorT <= 0, 'a fall should stop the aimed shower and restart its timer');
+}
+
 // tipping: one at a time, a fixed direction for TILT_T, and they take turns
 {
   const s = Sim.createMatch({ seed: 21 });
@@ -377,6 +407,9 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
     assert.deepStrictEqual(Net.pack(a), Net.pack(b), 'two copies of one snapshot must play out the same');
   }
   assert(checked > 4 && busy > 0, 'the snapshot test never saw a busy moment: ' + checked + ' checked, ' + busy + ' busy');
+  host.tiles[3] = Sim.WARN; host.tileT[3] = 0.5; host.tileBy[3] = -2;
+  Net.unpack(guest, JSON.parse(JSON.stringify(Net.pack(host))));
+  assert.strictEqual(guest.tileBy[3], -2, 'automatic meteor target should survive a room snapshot');
   // a message that is not a match is refused, and one with nonsense in it cannot plant a bad seat number
   assert.throws(() => Net.unpack(guest, { p: [] }));
   const bad = JSON.parse(JSON.stringify(Net.pack(host)));
