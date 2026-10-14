@@ -5,3 +5,5 @@ server/site/
 .dev.vars
 server/.stats-key
 .vercel/
+.vercel
+.env*
