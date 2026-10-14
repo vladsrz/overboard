@@ -8,6 +8,8 @@
   const START = { title: $('cover-title').textContent, lede: $('cover-lede').textContent };
 
   let bannerT = 0, crewSig = '', countN = 0, goT = 0;
+  // a person who left mid-match: their seat is played by a bot from then on, under their name
+  G.gone = (p) => !p.human && !p.type;
 
   // One banner at a time. News (a fall, a round result, the raft breaking up) shows
   // at once. A hint (what a pickup does, the slam being ready) waits its turn, and
@@ -54,7 +56,7 @@
   }
 
   function updateCrew(state) {
-    const sig = state.players.map((p) => (p.state === 'alive' ? 'a' : 'o') + p.wins).join('');
+    const sig = state.players.map((p) => (p.state === 'alive' ? 'a' : 'o') + p.wins + (p.human ? 'h' : '')).join('');
     if (sig === crewSig) return;
     crewSig = sig;
     const items = $('crew').children;
@@ -64,9 +66,11 @@
       items[i].style.color = over ? G.colors[p.id].fill : '';
       items[i].querySelector('.name').style.color = 'var(--plank)';
       items[i].querySelector('.where').style.color = 'var(--plank)';
-      // a bot's label says what it is like: on the raft, then in the water
+      // a bot's label says what it is like: on the raft, then in the water. A person who
+      // left keeps their name, so the label says a bot has it now (or it looks like them).
       const who = Cast.BY_KEY[p.type];
-      items[i].querySelector('.where').textContent = !who ? (Net.role && p.id === G.me ? 'you' : '') : over ? Cast.WATER_TAG[Bots.BRAINS[p.type].water] : who.tag;
+      items[i].classList.toggle('gone', G.gone(p));
+      items[i].querySelector('.where').textContent = G.gone(p) ? 'left · bot' : !who ? (Net.role && p.id === G.me ? 'you' : '') : over ? Cast.WATER_TAG[Bots.BRAINS[p.type].water] : who.tag;
       items[i].querySelectorAll('.wins i').forEach((el, n) => el.classList.toggle('won', n < p.wins));
       items[i].setAttribute('aria-label', p.name + ', ' + p.wins + ' of ' + C.WINS + ' rounds, ' + (over ? 'overboard' : 'aboard'));
     });
@@ -429,7 +433,7 @@
         const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span'), wins = document.createElement('span');
         disc.className = 'disc'; disc.textContent = p.name[0];
         disc.style.background = G.colors[p.id].fill; disc.style.color = G.colors[p.id].text;
-        name.className = 'name'; name.textContent = p.name + (Net.role && p.id === G.me ? ' (you)' : '');
+        name.className = 'name'; name.textContent = p.name + (Net.role && p.id === G.me ? ' (you)' : G.gone(p) ? ' (left)' : '');
         wins.className = 'wins';
         for (let i = 0; i < C.WINS; i++) wins.appendChild(document.createElement('i')).classList.toggle('won', i < p.wins);
         if (p.id === winner.id) li.className = 'first';

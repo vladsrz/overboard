@@ -61,6 +61,9 @@ kbd {
 .crew li.over .disc { background: transparent !important; color: var(--plank) !important; border-color: currentColor; border-style: solid; }
 .crew .name { font-weight: 600; }
 .crew .where { font-size: 12px; opacity: 0.7; }
+/* someone who left: their label always shows, even where the others are left out for room,
+   because without it the bot playing their disc passes for them */
+.crew li.gone .where { display: inline !important; opacity: 1; }
 .crew .wins { display: flex; gap: 3px; }
 .crew .wins i { width: 14px; height: 7px; border: 1.5px solid var(--plank); border-radius: 2px; }
 .crew .wins i.won { background: var(--plank); }
@@ -113,6 +116,8 @@ kbd {
    It has its own line just above the bottom-right corner: in the row itself it squeezed the
    longer water hints on the left onto a third line, off the bottom of the screen. */
 .react-strip { position: absolute; right: calc(20px + env(safe-area-inset-right)); bottom: 100%; display: flex; align-items: center; gap: 12px; }
+/* a short window has no room under the raft for a line of its own */
+@media (max-height: 640px) { .react-strip { display: none !important; } }
 .side .react-strip button.mini {
   display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none;
   color: var(--plank); font: 500 12px/1 var(--ui); white-space: nowrap;

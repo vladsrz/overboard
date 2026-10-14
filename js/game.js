@@ -270,7 +270,17 @@
           ui.showEnd(state.players[e.winner]);
           break;
         // someone playing with you closed the game: their disc plays on as a bot
-        case 'left': if (match) ui.banner(state.players[e.id].name + ' left', 'A bot has their seat.', 2.4); sfx('playerLeft'); break;
+        case 'left': {
+          // said plainly and long enough to read: their disc carries on under their name
+          if (!match) break;
+          const who = state.players[e.id].name;
+          let sub = 'A bot plays their disc now.';
+          if (Net.party() && who === hostWas && Net.members[0]) sub += Net.you === 0 ? ' You start the matches now.' : ' ' + Net.members[0].name + ' starts the matches now.';
+          if (Net.members[0]) hostWas = Net.members[0].name;
+          ui.banner(who + ' left', sub, 4);
+          sfx('playerLeft');
+          break;
+        }
       }
     }
     if (myFall && match && state.phase === 'play') {
@@ -334,7 +344,10 @@
     stickDrop();
   }
 
+  // who started this match, to say when it was them that left
+  let hostWas = '';
   function enter(roster, me, seed) {
+    hostWas = Net.members[0] ? Net.members[0].name : '';
     Sfx.unlock();
     Sfx.setPaused(false);
     Sfx.play('click');
