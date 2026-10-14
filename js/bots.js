@@ -101,6 +101,14 @@
   // keen timings below are a half-step toward the favourite-only pace.
   const BUSY = 0.55;
   function has(T, trait) { return T.pick.indexOf(trait) >= 0; }
+  // A person who is not ahead of everyone gets an easier time: fewer bots pick them,
+  // charges at them are looser, a cursor in the water closes on them slower, and a bot
+  // they knocked in comes back for them less. Once they lead the match, bots play them
+  // like anyone else. Takes a player or a guess at one (both carry the seat's id).
+  function easy(state, t) {
+    const o = t && state.players[t.id];
+    return !!o && o.human && state.players.some((q) => q.id !== o.id && q.wins >= o.wins);
+  }
 
   function pickTarget(state, p, b, preferred) {
     const T = b.T, fighting = p.state === 'alive';
@@ -128,6 +136,7 @@
     if (cur && b.retargetT > 0) return cur;
     b.retargetT = T.wild ? 0.8 + Sim.rand(state) : 2.5 + Sim.rand(state) * 2.5;
     let want = preferred, sure = 0.6;
+    if (easy(state, state.players[want])) sure = 0.15;
     if (has(T, 'grudge') && fighting && p.lastHitBy >= 0) { want = p.lastHitBy; sure = 0.9; }
     let pick = Sim.rand(state) < sure ? others.find((o) => o.id === want) : null;
     if (!pick) {
@@ -138,7 +147,7 @@
         // most spread out over the targets; the one that piles on wants whoever is
         // already under attack, or has just been hit
         let v = has(T, 'pile') ? (1 + 3 * crowd) * (state.time - o.lastHitT < 1.2 ? 2.5 : 1) : 1 / (1 + 2 * crowd);
-        v *= !o.human ? 1 : has(T, 'people') ? 4 : 0.85;
+        v *= !o.human ? 1 : (has(T, 'people') ? 4 : 0.85) * (easy(state, o) ? 0.3 : 1);
         // easy prey draws attention: standing still, or sitting near the edge
         if (Math.hypot(o.vx, o.vy) < 40) v *= 2.2;
         const edge = voidDir(state, o.x, o.y, tmp);
@@ -408,7 +417,7 @@
             if (holding) roam(state, p, b, rest(state, b, false));
             else if (dl < 32 || (lined > (T.wild ? 0.4 : 0.8) && d > 75 && d < 230)) {
               b.mode = 'charge'; b.modeT = 1.3; b.chargeAt = state.time; b.dashed = false;
-              b.aim = (Sim.rand(state) - 0.5) * (1.0 - 0.8 * b.skill);
+              b.aim = (Sim.rand(state) - 0.5) * (easy(state, t) ? 2.2 : 1) * (1.0 - 0.8 * b.skill);
               b.wantDash = hot || Sim.rand(state) < T.dash;
             } else {
               mx = lx / dl; my = ly / dl;
@@ -457,7 +466,7 @@
     // the cursor travels, so you can see a ghost coming for you
     const gx = t.x + t.vx * 0.35, gy = t.y + t.vy * 0.35;
     const dx = gx - b.cx, dy = gy - b.cy, d = Math.hypot(dx, dy);
-    const sp = 380 * dt;
+    const sp = (easy(state, t) ? 220 : 380) * dt;
     if (d <= sp) { b.cx = gx; b.cy = gy; } else { b.cx += (dx / d) * sp; b.cy += (dy / d) * sp; }
     inp.cx = b.cx; inp.cy = b.cy;
 
