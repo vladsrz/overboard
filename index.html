@@ -47,7 +47,7 @@
   <button class="act" id="act" type="button">Dash</button>
   <button class="pause" id="pause" type="button" aria-label="Pause"><i></i><i></i></button>
   <!-- in a room: reactions, behind one small button -->
-  <button class="emote-open" id="emote-open" type="button" aria-label="React" aria-expanded="false" hidden>☺</button>
+  <button class="emote-open" id="emote-open" type="button" aria-label="React" aria-expanded="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14a4.2 4.2 0 0 0 7 0"/><path d="M9.5 9.8v.4M14.5 9.8v.4"/></svg></button>
   <div class="emotes column" id="emotes-pad" hidden></div>
 </div>
 
@@ -113,9 +113,13 @@
     <ol class="seats" id="seats" aria-label="In the room" hidden></ol>
     <input id="my-name" type="text" maxlength="12" placeholder="your name" aria-label="Your name" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">
   </div>
-  <button id="start" type="button" autofocus>Play online</button>
-  <button id="sit" type="button" class="quiet small" hidden>Sit out</button>
-  <div class="emotes" id="emotes" aria-label="Reactions" hidden></div>
+  <!-- the main button; in a room, Sit out for anyone who does not start, and reactions behind one small button -->
+  <div class="actions">
+    <button id="start" type="button" autofocus>Play online</button>
+    <button id="sit" type="button" class="quiet small" hidden>Sit out</button>
+    <button id="react" type="button" class="icon" aria-label="React" title="React (keys 1 to 8)" aria-expanded="false" aria-controls="emotes" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14a4.2 4.2 0 0 0 7 0"/><path d="M9.5 9.8v.4M14.5 9.8v.4"/></svg></button>
+    <div class="emotes pop" id="emotes" aria-label="Reactions" hidden></div>
+  </div>
   <div class="more" id="more">
     <button id="practice" type="button" class="quiet small">Play solo (unranked)</button>
     <button id="friends" type="button" class="quiet small">Create room</button>

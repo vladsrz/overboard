@@ -161,7 +161,8 @@
       $('sit').hidden = !t.sit; $('sit').textContent = t.sit || '';
       say = why || t.say;
     }
-    $('emotes').hidden = !(net && Net.ready && to !== 'start');
+    $('react').hidden = !(net && Net.ready && to !== 'start');
+    if ($('react').hidden) roomEmotes(false);
     if (to === 'room') $('cover-lede').textContent = say;
     $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
     $('cover').hidden = false;
@@ -191,12 +192,18 @@
     Net.EMOTES.forEach((text, k) => {
       const b = document.createElement('button');
       b.type = 'button'; b.textContent = text; b.title = 'Key ' + (k + 1);
-      b.addEventListener('click', () => { Net.emote(k); if (box === $('emotes-pad')) padEmotes(false); b.blur(); });
+      b.addEventListener('click', () => { Net.emote(k); if (box === $('emotes-pad')) padEmotes(false); else roomEmotes(false); b.blur(); });
       box.appendChild(b);
     });
   }
   function padEmotes(on) { $('emotes-pad').hidden = !on; $('emote-open').setAttribute('aria-expanded', on ? 'true' : 'false'); }
   $('emote-open').addEventListener('click', () => padEmotes($('emotes-pad').hidden));
+  // on the room and result screens they stay closed until asked for: the least important
+  // thing there was the busiest-looking one
+  function roomEmotes(on) { $('emotes').hidden = !on; $('react').setAttribute('aria-expanded', on ? 'true' : 'false'); }
+  $('react').addEventListener('click', () => { Sfx.play('click'); roomEmotes($('emotes').hidden); });
+  // a press anywhere else closes it
+  document.addEventListener('pointerdown', (e) => { if (!$('emotes').hidden && !e.target.closest('#emotes, #react')) roomEmotes(false); });
 
   // A reaction shows for a couple of seconds over the person's seat in the room, and
   // by their name on the score bar during a match and on its result.
@@ -352,7 +359,7 @@
       buildCrew();
       $('cover').hidden = true; $('menu').hidden = true;
       $('top').hidden = false; $('keys').hidden = false; $('pad').hidden = !G.touch;
-      $('emote-open').hidden = $('react-key').hidden = !Net.role; padEmotes(false);
+      $('emote-open').hidden = $('react-key').hidden = !Net.role; padEmotes(false); roomEmotes(false);
       $('start').blur();
       // a public room starts the next match on its own: keys belong to the match again, not to the name field
       boardN++; $('board-name').blur();

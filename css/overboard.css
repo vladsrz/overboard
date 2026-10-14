@@ -244,15 +244,18 @@ kbd {
 .room-code { display: flex; align-items: baseline; gap: 12px; margin: 0 0 24px; font-size: 14px; }
 .room-code, .room-code * { -webkit-user-select: text; user-select: text; }
 .room-code b { font: 900 30px/1 var(--display); letter-spacing: 0.14em; }
-/* beside the code: copy the code, copy the invite link; a tick once it is copied */
-.cover .room-code button.icon {
+/* The small square buttons: beside the code, copy the code and copy the invite link (a tick
+   once it is copied); beside the main button, the reactions. One look for all of them. */
+.cover button.icon {
   align-self: center; width: 32px; height: 32px; margin: 0; padding: 0;
   display: grid; place-items: center;
   border: 1.5px solid var(--plank); border-radius: 6px; background: transparent; color: var(--plank);
 }
 .room-code b + button.icon { margin-left: 4px; }
-.cover .room-code button.icon:hover { background: var(--plank); color: var(--ink); }
-.room-code .icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cover button.icon:hover, .cover button.icon[aria-expanded="true"] { background: var(--plank); color: var(--ink); }
+.cover .icon svg, .emote-open svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cover .actions button.icon { width: 36px; height: 36px; }
+.emote-open svg { width: 22px; height: 22px; }
 .room-code .icon .ok, .room-code .icon.done .glyph { display: none; }
 .room-code .icon.done .ok { display: inline; }
 .room-link { margin: -14px 0 18px; }
@@ -284,19 +287,18 @@ kbd {
 .seats .say { bottom: calc(100% + 4px); }
 .crew li { position: relative; }
 .crew .say { top: calc(100% + 6px); left: 11px; }
-/* the reactions to pick from: a row of small outlined tags, keys 1 to 8 */
-.emotes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 92vw; margin-top: 16px; }
+/* the reactions to pick from, once the small button opens them: a row of outlined tags, keys 1 to 8 */
+.emotes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 92vw; margin-top: 12px; }
 .cover .emotes button, .emotes button {
   margin: 0; padding: 6px 10px 7px; border: 1.5px solid var(--plank); border-radius: 999px;
   background: transparent; color: var(--plank); font: 600 13px/1 var(--ui); opacity: 0.75;
 }
 .cover .emotes button:hover, .emotes button:active { background: var(--plank); color: var(--ink); opacity: 1; }
-.cover #sit { margin-top: 18px; }
 /* on a phone, mid-match: one small button under the pause button opens them */
 .emote-open {
   position: absolute; right: calc(10px + env(safe-area-inset-right)); top: calc(112px + env(safe-area-inset-top));
   width: 44px; height: 44px; border-radius: 6px; border: 1.5px solid var(--plank); background: transparent;
-  color: var(--plank); font: 400 22px/1 var(--ui); pointer-events: auto;
+  color: var(--plank); display: grid; place-items: center; pointer-events: auto;
 }
 .emotes.column {
   position: absolute; right: calc(62px + env(safe-area-inset-right)); top: calc(112px + env(safe-area-inset-top));
@@ -316,7 +318,16 @@ kbd {
 #my-name::placeholder { color: var(--plank); opacity: 0.55; font-weight: 400; }
 #my-name:focus-visible { outline: 0; border-bottom-color: var(--foam); background: rgba(11, 57, 54, 0.6); }
 .cover .room button { max-width: 92vw; overflow-wrap: anywhere; }
-.cover.room #start { margin-top: 22px; }
+.actions { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 34px; }
+/* opened from the small button: a panel just under it, over whatever is below, so nothing moves */
+.emotes.pop {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 3;
+  width: max-content; max-width: min(92vw, 470px); margin: 0; padding: 8px;
+  border-radius: 10px; background: var(--water-deep); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.emotes.pop button { opacity: 1; }
+.cover .actions > button { margin-top: 0; }
+.cover.room .actions { margin-top: 22px; }
 body.touch .cover.room { touch-action: pan-y; overflow-y: auto; }
 @media (max-width: 470px) { .seats { gap: 2px; } .seats li { width: 82px; } .seats .name, #my-name { font-size: 12px; } }
 .rotate-hint { display: none; margin: 18px 0 0; color: var(--foam); font-size: 13px; }
@@ -423,13 +434,14 @@ body.touch .banner { max-width: calc(100vw - 120px); }
   .cover h1 { font-size: clamp(40px, 12vh, 72px); }
   .lede { margin-top: 12px; font-size: 16px; }
   .cover button { margin-top: 18px; }
-  .more, .code-row, .cover.room #start { margin-top: 8px; }
+  .actions { margin-top: 18px; }
+  .more, .code-row, .cover.room .actions { margin-top: 8px; }
   .room-code { margin-bottom: 10px; }
   .room-code b { font-size: 22px; }
   .results { row-gap: 5px; margin-top: 12px; }
   .results li { font-size: 15px; }
   .results .disc { width: 24px; height: 24px; font-size: 11px; border-width: 2px; }
-  .room, .cover .room button, .cover.room #start, .cover button.plain { margin-top: 10px; }
+  .room, .cover .room button, .cover.room .actions, .cover button.plain { margin-top: 10px; }
   .cover.room { justify-content: flex-start; }
   .seats .disc { width: 34px; height: 34px; font-size: 15px; }
   .seats li { gap: 4px; }
