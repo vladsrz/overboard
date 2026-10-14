@@ -292,8 +292,11 @@ kbd {
 .say .face { width: 34px; height: 34px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25)); }
 .crew .say .face { width: 28px; height: 28px; }
 .face .f-disc { fill: var(--plank); stroke: var(--ink); stroke-width: 1.5; }
-/* cooling down after sending one: dimmed until another can go (a press meanwhile says no) */
-.cool { opacity: 0.4; transition: opacity 0.2s; }
+/* cooling down after sending one: dimmed until another can go (a press meanwhile says no).
+   Dimmed by colour, never by opacity: the panel sits over other things, and a see-through
+   panel showed the Leave room link through it. */
+.cool, .emotes.cool button { filter: grayscale(1) brightness(0.55); transition: filter 0.2s; }
+.emotes.cool, .cool[aria-expanded="true"] { filter: none; }
 .face .f-ink { fill: var(--ink); }
 .face .f-line { fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .say.on { opacity: 1; transform: translate(-50%, 0); }
@@ -319,7 +322,7 @@ kbd {
   position: absolute; right: calc(62px + env(safe-area-inset-right)); top: calc(112px + env(safe-area-inset-top));
   flex-direction: column; align-items: flex-end; margin: 0; pointer-events: auto;
 }
-.emotes.column button { background: rgba(11, 57, 54, 0.85); opacity: 1; }
+.emotes.column button { background: var(--water-deep); opacity: 1; }
 /* Your name is typed on your own seat: the one place on the page where text is
    typed and selected. Until the room is open the field has no seat and stays hidden. */
 .room > #my-name { display: none; }
