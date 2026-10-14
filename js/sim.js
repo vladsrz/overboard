@@ -74,7 +74,7 @@
   // to win; the choice never awards a round or changes a score directly.
   function survivorTarget(state, aboard, favorLeader) {
     let choices = aboard;
-    if (favorLeader && rand(state) < 0.95) {
+    if (favorLeader && rand(state) < 0.65) {
       const high = Math.max(...aboard.map((p) => p.wins));
       choices = aboard.filter((p) => p.wins === high);
     }
