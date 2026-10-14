@@ -331,7 +331,7 @@
     }
     ol.hidden = !Net.ready;
     // a private room shows its code, to read out or type in; the link carries the same one
-    $('invite').hidden = $('room-code').hidden = !(Net.ready && Net.code) || Net.open;
+    $('room-code').hidden = !(Net.ready && Net.code) || Net.open;
     $('room-code-text').textContent = Net.code;
     if (!$('cover').hidden) cover(face);
   }
@@ -406,7 +406,7 @@
       // back from a result: the last match's score bar and keys go with it
       $('top').hidden = true; $('keys').hidden = true; $('pad').hidden = true;
       clearTimeout(copiedT);
-      $('invite').textContent = 'Copy invite link'; $('invite').classList.remove('typed');
+      $('copy-code').classList.remove('done'); $('copy-link').classList.remove('done'); $('room-link').hidden = true;
       cover('room');
       lobby();
     },
@@ -416,13 +416,15 @@
       if (!$('cover').hidden && face === 'room') showSay($('seats').children[i] && $('seats').children[i].querySelector('.say'), text);
       if (seat >= 0 && !$('top').hidden && G.state && G.state.players[seat]) showSay($('crew').children[seat] && $('crew').children[seat].querySelector('.say'), text);
     },
-    // the link went to the clipboard, or could not, in which case it is shown to copy by hand
-    copied(ok, url) {
+    // The code or the link went to the clipboard, and its button shows a tick for a moment.
+    // If it could not, the link is shown to copy by hand (the code already is).
+    copied(ok, what) {
       clearTimeout(copiedT);
-      $('invite').classList.toggle('typed', !ok);
-      $('invite').textContent = ok ? 'Link copied!' : url;
-      if (ok) copiedT = setTimeout(() => { $('invite').textContent = 'Copy invite link'; }, 2000);
-      else $('cover-lede').textContent = 'Could not copy it for you. Select the link below and copy it.';
+      const btn = $(what === 'code' ? 'copy-code' : 'copy-link');
+      $('copy-code').classList.remove('done'); $('copy-link').classList.remove('done');
+      if (ok) { btn.classList.add('done'); copiedT = setTimeout(() => btn.classList.remove('done'), 1600); return; }
+      if (what === 'link') { $('room-link').textContent = location.origin + location.pathname + '#' + Net.code; $('room-link').hidden = false; }
+      $('cover-lede').textContent = 'Could not copy it for you. Select the ' + what + ' and copy it.';
     },
     showMenu(on) {
       $('restart').hidden = !!Net.role;

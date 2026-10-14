@@ -638,26 +638,29 @@
     try { localStorage.setItem('overboard-name', myName); } catch (e) { /* private window */ }
     Net.rename(myName);
   });
-  $('invite').addEventListener('click', () => {
+  // the room's code alone, or the invite link (the page's address and the code)
+  function copy(what) {
     Sfx.play('click');
-    const url = location.origin + location.pathname + '#' + Net.code;
+    const text = what === 'code' ? Net.code : location.origin + location.pathname + '#' + Net.code;
     // The clipboard API only exists on https and localhost. Anywhere else (a preview
     // over the home network), copy the old way: select the text in a field and ask
     // the browser to copy the selection.
     const byHand = () => {
       const box = document.createElement('textarea');
-      box.value = url; box.readOnly = true;
+      box.value = text; box.readOnly = true;
       box.style.cssText = 'position:fixed;left:0;top:0;opacity:0;-webkit-user-select:text;user-select:text';
       document.body.appendChild(box);
-      box.select(); box.setSelectionRange(0, url.length);
+      box.select(); box.setSelectionRange(0, text.length);
       let ok = false;
       try { ok = document.execCommand('copy'); } catch (e) { /* not allowed here */ }
       box.remove();
       return ok;
     };
-    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => ui.copied(true, url), () => ui.copied(byHand(), url));
-    else ui.copied(byHand(), url);
-  });
+    if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => ui.copied(true, what), () => ui.copied(byHand(), what));
+    else ui.copied(byHand(), what);
+  }
+  $('copy-code').addEventListener('click', () => copy('code'));
+  $('copy-link').addEventListener('click', () => copy('link'));
   // a guest never presses Start, so any press in the room is what lets their sound play
   window.addEventListener('pointerdown', () => { if (Net.role) Sfx.unlock(); }, true);
 

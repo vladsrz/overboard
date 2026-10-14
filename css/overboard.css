@@ -244,6 +244,18 @@ kbd {
 .room-code { display: flex; align-items: baseline; gap: 12px; margin: 0 0 24px; font-size: 14px; }
 .room-code, .room-code * { -webkit-user-select: text; user-select: text; }
 .room-code b { font: 900 30px/1 var(--display); letter-spacing: 0.14em; }
+/* beside the code: copy the code, copy the invite link; a tick once it is copied */
+.cover .room-code button.icon {
+  align-self: center; width: 32px; height: 32px; margin: 0; padding: 0;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--plank); border-radius: 6px; background: transparent; color: var(--plank);
+}
+.room-code b + button.icon { margin-left: 4px; }
+.cover .room-code button.icon:hover { background: var(--plank); color: var(--ink); }
+.room-code .icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.room-code .icon .ok, .room-code .icon.done .glyph { display: none; }
+.room-code .icon.done .ok { display: inline; }
+.room-link { margin: -14px 0 18px; }
 /* four seats in the colours they will play in; an empty one is a dashed ring a bot will fill */
 .seats { display: flex; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .seats li { width: 108px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -305,8 +317,6 @@ kbd {
 #my-name:focus-visible { outline: 0; border-bottom-color: var(--foam); background: rgba(11, 57, 54, 0.6); }
 .cover .room button { max-width: 92vw; overflow-wrap: anywhere; }
 .cover.room #start { margin-top: 22px; }
-/* the link shown to copy by hand, when the browser would not copy it */
-.cover .room button.typed, .cover .room button.typed * { -webkit-user-select: text; user-select: text; cursor: text; }
 body.touch .cover.room { touch-action: pan-y; overflow-y: auto; }
 @media (max-width: 470px) { .seats { gap: 2px; } .seats li { width: 82px; } .seats .name, #my-name { font-size: 12px; } }
 .rotate-hint { display: none; margin: 18px 0 0; color: var(--foam); font-size: 13px; }

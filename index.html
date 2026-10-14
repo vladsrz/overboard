@@ -104,10 +104,14 @@
   </div>
   <p class="fine board-line" id="board-line" hidden><span id="board-line-text"></span> <a href="leaderboard.html" target="_blank" rel="noopener">See the leaderboard</a></p>
   <div class="room" id="room" hidden>
-    <p class="room-code typed" id="room-code" hidden>Room code <b id="room-code-text"></b></p>
+    <!-- the code to read out, with a button that copies it and one that copies the invite link -->
+    <p class="room-code typed" id="room-code" hidden>Room code <b id="room-code-text"></b>
+      <button id="copy-code" type="button" class="icon" aria-label="Copy the room code" title="Copy the room code"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="glyph"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></g><path class="ok" d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+      <button id="copy-link" type="button" class="icon" aria-label="Copy the invite link" title="Copy the invite link"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="glyph"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></g><path class="ok" d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+    </p>
+    <p class="fine room-link typed" id="room-link" hidden></p>
     <ol class="seats" id="seats" aria-label="In the room" hidden></ol>
     <input id="my-name" type="text" maxlength="12" placeholder="your name" aria-label="Your name" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">
-    <button id="invite" type="button" class="quiet small" hidden>Copy invite link</button>
   </div>
   <button id="start" type="button" autofocus>Play online</button>
   <button id="sit" type="button" class="quiet small" hidden>Sit out</button>
