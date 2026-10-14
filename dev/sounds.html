@@ -1,7 +1,7 @@
 <!doctype html>
-<!-- A plain sheet for listening to sounds before one goes into the game. The top half
-     plays what js/sound.js has now. The candidates below it are written with the
-     same tone / noise / tune calls, so a chosen one can be pasted straight in. -->
+<!-- A plain sheet for listening to sounds before one goes into the game. The top and
+     bottom play what js/sound.js has now. The others are written with the same
+     tone / noise / tune calls, so a chosen one can be pasted straight in. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -29,7 +29,7 @@
   <h2>Match point: in the game now</h2>
   <ul id="now"></ul>
 
-  <h2>Match point: candidates</h2>
+  <h2>Match point: not chosen</h2>
   <ul id="candidates"></ul>
 
   <h2>Round and match results, for comparison</h2>
@@ -89,10 +89,8 @@ const CANDIDATES = [
       tone(3140, 0.14, { gain: 0.03, delay: d });
     }
   }],
-  ['Drum roll', 'A short roll that speeds into one hit.', () => {
-    for (let i = 0; i < 8; i++) noise(0.05, { gain: 0.1 + 0.025 * i, from: 3200, to: 1200, delay: i * 0.055 });
-    noise(0.28, { gain: 0.3, from: 5200, to: 700, delay: 0.46 });
-    tone(196, 0.3, { type: 'triangle', gain: 0.2, to: 147, delay: 0.46 });
+  ['Three notes', 'What it was before the drum roll.', () => {
+    tune([392, 392, 587], 0.13, { type: 'square', gain: 0.1 });
   }],
   ['Heartbeat', 'Two slow beats. Quiet and tense.', () => {
     for (const d of [0, 0.17, 0.62, 0.79]) {
@@ -123,7 +121,7 @@ function row(list, name, note, play) {
   document.getElementById(list).append(li);
 }
 
-row('now', 'Current', 'Three square notes.', () => Sfx.play('matchPoint'));
+row('now', 'Drum roll', 'A short roll that speeds into one hit.', () => Sfx.play('matchPoint'));
 for (const [name, note, play] of CANDIDATES) row('candidates', name, note, play);
 for (const [name, key, note] of [
   ['Round won', 'roundWon', 'You take a round.'],
