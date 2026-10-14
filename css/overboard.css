@@ -112,15 +112,19 @@ kbd {
 .cover button.quiet { background: transparent; color: var(--plank); border: 2px solid var(--plank); padding: 13px 28px 14px; }
 .cover button.quiet:hover { background: var(--plank); color: var(--ink); }
 .side .esc { white-space: nowrap; font-size: 12px; }
-/* in a match: each reaction beside its key, quiet like the other key hints, and clickable.
-   It has its own line just above the bottom-right corner: in the row itself it squeezed the
-   longer water hints on the left onto a third line, off the bottom of the screen. */
-.react-strip { position: absolute; right: calc(20px + env(safe-area-inset-right)); bottom: 100%; display: flex; align-items: center; gap: 12px; }
-/* a short window has no room under the raft for a line of its own */
-@media (max-height: 640px) { .react-strip { display: none !important; } }
+/* In a match: every reaction beside its key, one to a line, quiet like the other key hints
+   and clickable, down the middle of the right edge in the open water beside the raft (where
+   a phone keeps them too). A row by the bottom key hints piled words into that corner and
+   squeezed the water hints off the screen; at the top it ran into reactions on the score bar. */
+.react-strip {
+  position: fixed; right: calc(24px + env(safe-area-inset-right)); top: 50%; bottom: auto; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+}
+/* where the raft fills the width, or the window is very short, it would cover the raft */
+@media (max-aspect-ratio: 11/10), (max-height: 420px) { .react-strip { display: none !important; } }
 .side .react-strip button.mini {
-  display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none;
-  color: var(--plank); font: 500 12px/1 var(--ui); white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none;
+  color: var(--plank); font: 500 13px/1 var(--ui); white-space: nowrap;
 }
 .side .react-strip button.mini:hover { background: none; color: #fff; }
 .react-strip kbd { margin-right: 0; }
