@@ -156,6 +156,7 @@
     if (to === 'room') $('cover-lede').textContent = say;
     $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
     $('cover').hidden = false;
+    placeMini();
   }
 
   // After a match won in a room (the only wins the leaderboard counts), offer to put
@@ -218,8 +219,19 @@
       });
       miniRows = top.length;
       $('board-mini').hidden = face !== 'start' || !miniRows;
+      placeMini();
     }).catch(() => { /* no leaderboard today; the start screen is complete without it */ });
   }
+  // Top-right only where it clears the big title (a short laptop window puts the
+  // title right up there); otherwise back under the links.
+  function placeMini() {
+    const box = $('board-mini');
+    if (box.hidden) return;
+    box.classList.add('corner');
+    const a = box.getBoundingClientRect(), t = $('cover-title').getBoundingClientRect();
+    if (getComputedStyle(box).position !== 'absolute' || (a.bottom + 16 > t.top && a.left < t.right)) box.classList.remove('corner');
+  }
+  window.addEventListener('resize', placeMini);
   // the page opens on the start screen
   miniBoard();
 
