@@ -145,7 +145,7 @@
         if (has(T, 'leader')) v *= 1 + 1.5 * o.wins;
         // Once every person is out, more bots go after whoever is closest to
         // ending the match. A trailing bot still has to win the actual fight.
-        if (finale) v *= Math.pow(4, o.wins);
+        if (finale) v *= Math.pow(3, o.wins);
         if (fighting) {
           const d = Math.hypot(o.x - p.x, o.y - p.y);
           v /= has(T, 'near') ? Math.pow(0.25 + d / 120, 1.5) : 0.5 + d / 200;
