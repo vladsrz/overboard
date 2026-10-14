@@ -169,6 +169,7 @@ kbd {
   letter-spacing: -0.02em;
 }
 .cover.end h1 { font-size: clamp(28px, 6vw, 72px); line-height: 1.05; }
+.cover.end { justify-content: safe center; overflow-y: auto; }
 .lede { max-width: 30em; margin: 22px 0 0; font-size: 18px; font-weight: 500; }
 .cover.end .lede { margin-top: 12px; }
 /* the only instructions on the start screen; everything else is taught as it comes up */
@@ -226,7 +227,7 @@ kbd {
 @media (max-height: 719px) { .board-mini:not(.corner) { display: none !important; } }
 .board-line a { color: inherit; text-underline-offset: 3px; }
 /* the final score: a row each, most rounds first, with the same pips as the score bar */
-.results { display: grid; grid-template-columns: auto minmax(0, max-content) auto auto; gap: 12px 14px; max-width: 92vw; margin: 30px 0 0; padding: 0; list-style: none; text-align: left; }
+.results { display: grid; grid-template-columns: auto minmax(0, max-content) auto auto minmax(34px, max-content); gap: 12px 14px; max-width: 92vw; margin: 30px 0 0; padding: 0; list-style: none; text-align: left; }
 .results li { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; font-size: 18px; font-weight: 500; opacity: 0.8; }
 .results .wins { margin-left: 18px; }
 .results .n { min-width: 1ch; font-variant-numeric: tabular-nums; }
@@ -241,6 +242,13 @@ kbd {
 .results .wins { display: flex; gap: 5px; }
 .results .wins i { width: 26px; height: 12px; border: 2px solid var(--plank); border-radius: 3px; }
 .results .wins i.won { background: var(--plank); }
+.results .say { position: static; justify-self: start; transform: translateY(4px); }
+.results .say.on { transform: none; }
+@media (max-width: 600px) {
+  .results { grid-template-columns: auto minmax(0, max-content) auto auto; row-gap: 5px; }
+  .results li { grid-template-rows: auto 28px; }
+  .results .say { grid-column: 2 / -1; grid-row: 2; }
+}
 /* with friends: the second button on the start screen, then the room */
 .more { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
 .cover .more button { margin-top: 0; }
@@ -334,6 +342,7 @@ kbd {
 .cool, .emotes.cool button { filter: grayscale(1) brightness(0.55); transition: filter 0.2s; }
 .emotes.cool, .cool[aria-expanded="true"] { filter: none; }
 .face .f-ink { fill: var(--ink); }
+.face .f-tear { fill: #79bfe6; stroke: var(--ink); stroke-width: 0.6; }
 .face .f-line { fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .say.on { opacity: 1; transform: translate(-50%, 0); }
 /* on a seat it sits on the disc's top-right corner, like a badge, so it needs no room of its own */
@@ -436,7 +445,7 @@ body.touch .no-touch { display: none !important; }
 body.touch { touch-action: none; overscroll-behavior: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 /* Installation instructions can extend below a short landscape screen. Allow
    scrolling while paused; the play screen continues to suppress phone gestures. */
-body.touch:has(.menu:not([hidden]), .install-guide[open]), body.touch .menu { touch-action: pan-y; }
+body.touch:has(.menu:not([hidden]), .install-guide[open]), body.touch .menu, body.touch .cover.end { touch-action: pan-y; }
 /* the key strip is for keyboards; on touch the stick and the button say what they do */
 body.touch .keys { display: none; }
 

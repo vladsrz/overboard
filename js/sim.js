@@ -29,7 +29,7 @@
     // If the first plank losses still have not caused a fall, aim a short meteor
     // shower near the survivors. Give people a full warning before each impact.
     STALL_METEOR_T: 18, STALL_METEOR_T_BOTS: 3,
-    STALL_METEOR_EVERY: 0.16, STALL_METEOR_R: 90,
+    STALL_METEOR_EVERY: 0.22, STALL_METEOR_EVERY_BOTS: 0.16, STALL_METEOR_R: 90,
     // with every real player already in the water it is quicker on both counts, so
     // nobody sits waiting for bots to finish each other off
     STALL_T_BOTS: 0.5, STALL_EVERY_BOTS: 0.18,
@@ -433,7 +433,7 @@
       const aimed = state.meteorBy < 0;
       const safe = !aimed && ps[state.meteorBy] && ps[state.meteorBy].state === 'alive' ? ps[state.meteorBy] : null;
       while (state.meteorNext <= 0) {
-        state.meteorNext += aimed ? C.STALL_METEOR_EVERY : C.METEOR_EVERY;
+        state.meteorNext += aimed ? (botsOnly ? C.STALL_METEOR_EVERY_BOTS : C.STALL_METEOR_EVERY) : C.METEOR_EVERY;
         let pick = -1;
         if (aimed) {
           const aboard = ps.filter((p) => p.state === 'alive');
