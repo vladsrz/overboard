@@ -24,7 +24,7 @@ A few things worth knowing:
 
 - Hits land harder the faster you are going, so a run-up beats shoving from close in.
 - The bar above you charges on its own. When it is full, your next dash ends in a slam that blasts everyone near you.
-- Pickups appear on the raft: Bomb, Big, Power, Unseen, Thorns, Charge and Meteors. Each says what it does the first time you grab it.
+- Pickups appear on the raft: Bomb, Big, Power, Unseen, Thorns, Charge and Meteors. Each says what it does the first time you grab it. An active upgrade cannot be picked up again until it wears off; Big can bridge a narrow gap, though a wide hole still drops you.
 - A single missing plank can be run over if you are quick. A dash clears up to three.
 - If nobody falls for a while, the raft starts pulling its own planks. A longer stalemate makes it pull them faster, near the players still aboard.
 - Once every human player is in the water, the raft and bots hurry the round toward a finish.
