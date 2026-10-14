@@ -195,8 +195,8 @@
     if (Net.you === 0) {
       const out = Net.members.filter((m) => m.sit).map((m) => m.name);
       const who = out.length < 2 ? out.join('') : out.slice(0, -1).join(', ') + ' and ' + out[out.length - 1];
-      return { label: to === 'end' ? 'Play again' : 'Start match',
-        say: out.length ? who + (out.length > 1 ? ' are' : ' is') + ' sitting out.' : Net.members.length > 1 ? 'Everyone is ready.' : to === 'room' ? 'Invite friends with the code or link; open seats become bots.' : '' };
+      return { label: out.length ? '' : to === 'end' ? 'Play again' : 'Start match',
+        say: out.length ? 'Waiting for ' + who + ' to press I’m in.' : Net.members.length > 1 ? 'Everyone is ready.' : to === 'room' ? 'Invite friends with the code or link; open seats become bots.' : '' };
     }
     const sitting = !!me && me.sit;
     return { sit: sitting ? 'I’m in' : 'Sit out',
