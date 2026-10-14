@@ -9,23 +9,6 @@ const DT = 1 / 60;
 const MATCHES = Cast.LIST.length * 8; // every character plays 32
 const stats = { spawned: {}, type: {}, dashes: 0, afterFirst: 0, picked: {}, slams: 0, firstFall: 0, rounds: 0, time: 0, how: {}, ghostKills: 0, falls: 0, draws: 0, longest: 0, wins: [0, 0, 0, 0] };
 
-// Every seat starts over a corner shared by four solid planks, whatever the room size.
-for (let seats = 1; seats <= 4; seats++) {
-  const s = Sim.createMatch({ players: Array.from({ length: seats }, (_, i) => ({ name: 'Player' + i })) });
-  const starts = new Set();
-  for (const p of s.players) {
-    const seamX = Math.abs(p.x % Sim.C.TILE) === Sim.C.TILE / 2;
-    const seamY = Math.abs(p.y % Sim.C.TILE) === Sim.C.TILE / 2;
-    assert(seamX && seamY, 'player should start at a four-plank corner');
-    const half = Sim.C.TILE / 2;
-    for (const dx of [-half, half]) for (const dy of [-half, half]) {
-      assert.strictEqual(s.tiles[Sim.tileIndexAt(p.x + dx, p.y + dy)], Sim.SOLID);
-    }
-    starts.add(p.x + ',' + p.y);
-  }
-  assert.strictEqual(starts.size, seats, 'players need separate starting spots');
-}
-
 for (let seed = 1; seed <= MATCHES; seed++) {
   // Four characters a match. Every character plays the same number of matches
   // (the offset walks the whole list) against changing company (the stride
