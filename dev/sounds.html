@@ -1,0 +1,136 @@
+<!doctype html>
+<!-- A plain sheet for listening to sounds before one goes into the game. The top half
+     plays what js/sound.js has now. The candidates below it are written with the
+     same tone / noise / tune calls, so a chosen one can be pasted straight in. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overboard: sounds</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+  body { margin: 0; padding: 24px; background: #12504c; color: #efe9da; font: 500 16px/1.4 system-ui, -apple-system, sans-serif; }
+  main { max-width: 34em; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  h2 { margin: 30px 0 10px; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.7; }
+  p { margin: 0 0 10px; opacity: 0.8; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  li { display: grid; grid-template-columns: 9.5em 1fr; gap: 14px; align-items: center; margin: 0 0 10px; }
+  li span { font-size: 14px; opacity: 0.75; }
+  button { padding: 12px 14px; border: 0; border-radius: 8px; background: #efe9da; color: #14211f; font: 600 15px/1.2 system-ui, -apple-system, sans-serif; text-align: left; cursor: pointer; }
+  button:active { background: #fff; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sounds</h1>
+  <p>Tap to play. On a phone, switch silent mode off first.</p>
+
+  <h2>Match point: in the game now</h2>
+  <ul id="now"></ul>
+
+  <h2>Match point: candidates</h2>
+  <ul id="candidates"></ul>
+
+  <h2>Round and match results, for comparison</h2>
+  <ul id="results"></ul>
+</main>
+
+<script src="../js/sound.js"></script>
+<script>
+// The same three building blocks as js/sound.js, on this page's own audio context
+// and at the game's master level, so a candidate is as loud here as it would be there.
+let ac = null, out = null, hiss = null;
+function unlock() {
+  if (!ac) {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    out = ac.createGain(); out.gain.value = 0.6; out.connect(ac.destination);
+    hiss = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+    const d = hiss.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  if (ac.state === 'suspended') ac.resume();
+  Sfx.unlock();
+}
+function tone(freq, dur, o) {
+  o = o || {};
+  const t = ac.currentTime + (o.delay || 0);
+  const osc = ac.createOscillator(), g = ac.createGain();
+  osc.type = o.type || 'sine';
+  osc.frequency.setValueAtTime(freq, t);
+  if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(o.gain || 0.2, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g).connect(out);
+  osc.start(t); osc.stop(t + dur + 0.02);
+}
+function noise(dur, o) {
+  o = o || {};
+  const t = ac.currentTime + (o.delay || 0);
+  const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+  src.buffer = hiss; src.loop = true;
+  f.type = o.type || 'lowpass';
+  f.frequency.setValueAtTime(o.from || 1200, t);
+  if (o.to) f.frequency.exponentialRampToValueAtTime(o.to, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(o.gain || 0.2, t + (o.attack || 0.01));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(out);
+  src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.02);
+}
+const tune = (notes, step, o) => notes.forEach((n, i) => tone(n, step * 1.6, Object.assign({ delay: i * step }, o)));
+
+const CANDIDATES = [
+  ['Ring bell', 'Two strikes of a boxing bell.', () => {
+    for (const d of [0, 0.2]) {
+      tone(1175, 0.55, { gain: 0.16, delay: d });
+      tone(2350, 0.3, { gain: 0.05, delay: d });
+      tone(3140, 0.14, { gain: 0.03, delay: d });
+    }
+  }],
+  ['Drum roll', 'A short roll that speeds into one hit.', () => {
+    for (let i = 0; i < 8; i++) noise(0.05, { gain: 0.1 + 0.025 * i, from: 3200, to: 1200, delay: i * 0.055 });
+    noise(0.28, { gain: 0.3, from: 5200, to: 700, delay: 0.46 });
+    tone(196, 0.3, { type: 'triangle', gain: 0.2, to: 147, delay: 0.46 });
+  }],
+  ['Heartbeat', 'Two slow beats. Quiet and tense.', () => {
+    for (const d of [0, 0.17, 0.62, 0.79]) {
+      tone(150, 0.13, { gain: 0.4, to: 62, delay: d });
+      noise(0.04, { gain: 0.1, from: 900, to: 300, delay: d });
+    }
+  }],
+  ['Low sting', 'Two low notes, the second one held.', () => {
+    tone(196, 0.2, { type: 'sawtooth', gain: 0.13 });
+    tone(98, 0.2, { type: 'triangle', gain: 0.16 });
+    tone(185, 0.55, { type: 'sawtooth', gain: 0.15, delay: 0.22 });
+    tone(92.5, 0.55, { type: 'triangle', gain: 0.18, delay: 0.22 });
+  }],
+  ['Rising whoop', 'One note sliding up.', () => {
+    tone(330, 0.45, { type: 'triangle', gain: 0.2, to: 990 });
+    tone(660, 0.45, { type: 'triangle', gain: 0.06, to: 1980 });
+  }],
+  ['Softer horn', 'The current three notes, rounder and lower.', () => {
+    tune([294, 294, 440], 0.14, { type: 'triangle', gain: 0.2 });
+  }],
+];
+
+function row(list, name, note, play) {
+  const li = document.createElement('li'), b = document.createElement('button'), s = document.createElement('span');
+  b.type = 'button'; b.textContent = name; s.textContent = note;
+  b.addEventListener('click', () => { unlock(); play(); });
+  li.append(b, s);
+  document.getElementById(list).append(li);
+}
+
+row('now', 'Current', 'Three square notes.', () => Sfx.play('matchPoint'));
+for (const [name, note, play] of CANDIDATES) row('candidates', name, note, play);
+for (const [name, key, note] of [
+  ['Round won', 'roundWon', 'You take a round.'],
+  ['Round lost', 'roundLost', 'Someone else takes a round.'],
+  ['Match won', 'matchWon', 'Plays the moment the deciding round is yours.'],
+  ['Match lost', 'matchLost', 'Plays the moment someone else wins the match.'],
+]) row('results', name, note, () => Sfx.play(key));
+</script>
+</body>
+</html>
