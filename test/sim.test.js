@@ -438,6 +438,34 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   assert(stats.botSpeed > 90, 'bots are standing around: avg speed ' + stats.botSpeed);
 }
 
+// Badger, Crab and Magpie used to reverse in place together beside broken
+// planks after the player fell. A connected-plank route gets them moving again.
+{
+  const s = Sim.createMatch({ seed: 162, players: [
+    { name: 'You', human: true },
+    { name: 'Badger', type: 'badger' },
+    { name: 'Crab', type: 'crab' },
+    { name: 'Magpie', type: 'magpie' },
+  ] });
+  const trail = [];
+  let leastProgress = Infinity, usedRoute = false;
+  for (let tick = 0; tick < 60 * 45 && s.round === 1 && s.phase !== 'roundEnd'; tick++) {
+    Sim.step(s, s.players.map((p) => p.human ? { mx: 0, my: 0 } : Bots.input(s, p, DT)), DT);
+    if (s.players.slice(1).some((p) => p.bot && p.bot.escape.length)) usedRoute = true;
+    if (s.phase !== 'play' || s.players[0].state !== 'ghost' || s.players.slice(1).some((p) => p.state !== 'alive')) {
+      trail.length = 0;
+      continue;
+    }
+    trail.push(s.players.slice(1).map((p) => [p.x, p.y]));
+    if (trail.length > 61) trail.shift();
+    if (trail.length < 61) continue;
+    leastProgress = Math.min(leastProgress, Math.max(...[0, 1, 2].map((i) =>
+      Math.hypot(trail[60][i][0] - trail[0][i][0], trail[60][i][1] - trail[0][i][1]))));
+  }
+  assert(usedRoute, 'the stuck-bot recovery never ran');
+  assert(leastProgress > 25, 'three bots shook in place together: ' + leastProgress);
+}
+
 // With friends, the host sends the match to the guests as a message. A guest's copy
 // has to be the same match: unpacked into a fresh one and run on with the same
 // inputs, it must stay identical. Checked mid-round, with planks going, waves out,

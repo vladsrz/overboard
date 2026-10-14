@@ -57,6 +57,8 @@
         tiltAsked: false, tiltWant: false, tiltWait: 0, waterAge: 0, busy: null,
         sawX: 0, sawY: 0, guessing: false, guessT: 0, guessAge: 0, reguessT: 0, guess: { id: -1, x: 0, y: 0, vx: 0, vy: 0 },
         cx: p.x, cy: p.y, dropDelay: 0.6, waveDelay: 1 + Sim.rand(state) * 3,
+        trail: [],
+        escape: [], escapeT: 0,
       };
     }
     return p.bot;
@@ -236,6 +238,68 @@
 
   function rest(state, b, hot) { return (b.T.rest[0] + Sim.rand(state) * (b.T.rest[1] - b.T.rest[0])) * (hot ? 0.4 : 1); }
 
+  // A direct goal can end up behind missing planks. When the bot has spent a
+  // while steering without getting anywhere, follow connected solid planks
+  // instead of letting the goal and edge avoidance cancel each other out.
+  function escapeRoute(state, p, gx, gy) {
+    const start = Sim.tileIndexAt(p.x, p.y);
+    if (start < 0 || state.tiles[start] !== Sim.SOLID) return [];
+    const previous = new Int16Array(state.tiles.length).fill(-1);
+    const queue = [start];
+    previous[start] = start;
+    let best = start, bestScore = -Infinity;
+    const directions = [-C.GRID, C.GRID, -1, 1];
+    for (let head = 0; head < queue.length; head++) {
+      const i = queue[head], x = Sim.tileX(i), y = Sim.tileY(i);
+      const from = Math.hypot(x - p.x, y - p.y);
+      if (from >= C.TILE * 2 && from <= C.TILE * 5) {
+        const goal = Math.hypot(x - gx, y - gy);
+        const score = -goal + from * 0.15;
+        if (score > bestScore) { bestScore = score; best = i; }
+      }
+      for (const d of directions) {
+        const next = i + d;
+        if (next < 0 || next >= state.tiles.length || previous[next] >= 0 || state.tiles[next] !== Sim.SOLID) continue;
+        if (Math.abs((next % C.GRID) - (i % C.GRID)) + Math.abs(Math.floor(next / C.GRID) - Math.floor(i / C.GRID)) !== 1) continue;
+        previous[next] = i;
+        queue.push(next);
+      }
+    }
+    if (best === start) return [];
+    const path = [];
+    for (let i = best; i !== start; i = previous[i]) path.unshift(i);
+    return path;
+  }
+
+  function recover(state, p, b, dt, inp) {
+    if (!b.escape.length) {
+      b.trail.push([p.x, p.y, inp.mx, inp.my]);
+      if (b.trail.length > 36) b.trail.shift();
+      let turns = 0;
+      if (b.trail.length === 36) for (let i = 1; i < b.trail.length; i++) {
+        const a = b.trail[i - 1], c = b.trail[i];
+        if (Math.hypot(a[2], a[3]) > 0.35 && Math.hypot(c[2], c[3]) > 0.35 && a[2] * c[2] + a[3] * c[3] < -0.15) turns++;
+      }
+      if (turns >= 6 && Math.hypot(p.x - b.trail[0][0], p.y - b.trail[0][1]) < 15) {
+        const t = state.players[b.target];
+        const u = b.mode === 'grab' ? nearestPickup(state, p) : null;
+        const gx = u ? u.x : b.mode === 'roam' ? b.roamX : t && t.state === 'alive' ? t.x : b.centerX;
+        const gy = u ? u.y : b.mode === 'roam' ? b.roamY : t && t.state === 'alive' ? t.y : b.centerY;
+        b.escape = escapeRoute(state, p, gx, gy);
+        b.escapeT = 2.5;
+        b.trail.length = 0;
+      }
+    }
+    if (!b.escape.length) return false;
+    b.escapeT -= dt;
+    while (b.escape.length && Math.hypot(Sim.tileX(b.escape[0]) - p.x, Sim.tileY(b.escape[0]) - p.y) < 17) b.escape.shift();
+    if (!b.escape.length || b.escapeT <= 0 || state.tiles[b.escape[0]] !== Sim.SOLID) { b.escape = []; b.trail.length = 0; return false; }
+    const x = Sim.tileX(b.escape[0]) - p.x, y = Sim.tileY(b.escape[0]) - p.y;
+    const d = Math.hypot(x, y) || 1;
+    inp.mx = x / d; inp.my = y / d; inp.dash = false;
+    return true;
+  }
+
   // A bot is always doing one of four things:
   //   hunt   - get to a spot behind its target with room for a run-up
   //   charge - run (and dash) through the target toward the nearest edge
@@ -379,6 +443,7 @@
     if (am > 2.2) { mx = ax / am; my = ay / am; inp.dash = false; }
     else { mx += ax * 0.9; my += ay * 0.9; }
     inp.mx = mx; inp.my = my;
+    recover(state, p, b, dt, inp);
   }
 
   function ghostInput(state, p, b, dt, inp) {
