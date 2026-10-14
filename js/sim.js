@@ -34,7 +34,7 @@
     // with every real player already in the water it is quicker on both counts, so
     // nobody sits waiting for bots to finish each other off
     STALL_T_BOTS: 0.5, STALL_EVERY_BOTS: 0.18,
-    COUNTDOWN_T: 2.4, ROUND_END_T: 2.6,
+    COUNTDOWN_T: 2.4, ROUND_END_T: 2.6, MATCH_END_T: 0.9,
     WINS: 3,
     // pickups
     PICKUP_FIRST: 1.5, PICKUP_EVERY: 2.5, PICKUP_MAX: 5, PICKUP_R: 15, PICKUP_APART: 150,
@@ -495,12 +495,13 @@
       let alive = 0, last = -1;
       for (const p of ps) if (p.state === 'alive') { alive++; last = p.id; }
       if (alive <= 1) {
-        state.phase = 'roundEnd'; state.phaseT = C.ROUND_END_T;
+        state.phase = 'roundEnd';
         state.roundWinner = alive === 1 ? last : -1;
         if (alive === 1) {
           ps[last].wins += 1;
           if (ps[last].wins >= C.WINS) state.matchWinner = last;
         }
+        state.phaseT = state.matchWinner >= 0 ? C.MATCH_END_T : C.ROUND_END_T;
         state.events.push({ type: 'roundEnd', winner: state.roundWinner, round: state.round });
       }
     }

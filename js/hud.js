@@ -8,7 +8,7 @@
   const START = { title: $('cover-title').textContent, lede: $('cover-lede').textContent };
 
   let bannerT = 0, crewSig = '', countN = 0, goT = 0;
-  // a person who left mid-match: their seat is played by a bot from then on, under their name
+  // Older matches may have a nameless replacement; current matches use a cast bot.
   G.gone = (p) => !p.human && !p.type;
 
   // One banner at a time. News (a fall, a round result, the raft breaking up) shows
@@ -56,18 +56,20 @@
   }
 
   function updateCrew(state) {
-    const sig = state.players.map((p) => (p.state === 'alive' ? 'a' : 'o') + p.wins + (p.human ? 'h' : '')).join('');
+    const sig = state.players.map((p) => (p.state === 'alive' ? 'a' : 'o') + p.wins + (p.human ? 'h' : '') + p.name + p.type).join('|');
     if (sig === crewSig) return;
     crewSig = sig;
     const items = $('crew').children;
     state.players.forEach((p, i) => {
       const over = p.state !== 'alive';
+      const disc = items[i].querySelector('.disc');
+      disc.textContent = p.name[0]; disc.style.background = G.colors[p.id].fill; disc.style.color = G.colors[p.id].text;
+      items[i].querySelector('.name').textContent = p.name;
       items[i].classList.toggle('over', over);
       items[i].style.color = over ? G.colors[p.id].fill : '';
       items[i].querySelector('.name').style.color = 'var(--plank)';
       items[i].querySelector('.where').style.color = 'var(--plank)';
-      // a bot's label says what it is like: on the raft, then in the water. A person who
-      // left keeps their name, so the label says a bot has it now (or it looks like them).
+      // A bot's label says what it is like: on the raft, then in the water.
       const who = Cast.BY_KEY[p.type];
       items[i].classList.toggle('gone', G.gone(p));
       items[i].querySelector('.where').textContent = G.gone(p) ? 'left · bot' : !who ? (Net.role && p.id === G.me ? 'you' : '') : over ? Cast.WATER_TAG[Bots.BRAINS[p.type].water] : who.tag;
@@ -181,6 +183,9 @@
   function partyFace(to) {
     const me = Net.members[Net.you], host = Net.members[0];
     if (Net.playing) return { say: 'A match is on. You are in the next one.' };
+    const answering = Net.members.find((m) => m.hold);
+    if (answering) return { sit: Net.you !== 0 ? 'Sit out' : '',
+      say: answering === me ? 'Finish your leaderboard name to start the next match.' : 'Waiting for ' + answering.name + ' to finish the leaderboard.' };
     if (Net.auto && Net.wait >= 0) return {
       label: Net.you === 0 ? (to === 'end' ? 'Play again' : 'Start match') : '',
       sit: Net.you !== 0 ? 'Sit out' : '',
@@ -290,7 +295,7 @@
     const at = Date.now();
     backT = setInterval(() => {
       if (face !== 'end' || $('cover').hidden || !Net.party()) { clearInterval(backT); return; }
-      if (Date.now() - at > 5000 && $('board-ask').hidden && !Net.playing) { clearInterval(backT); G.ui.showLobby(); }
+      if (Date.now() - at > 3000 && $('board-ask').hidden && !Net.playing) { clearInterval(backT); G.ui.showLobby(); }
     }, 250);
   }
 
@@ -310,12 +315,13 @@
           $('board-name').value = mine && !/^Player \d$/.test(mine.name) ? mine.name : '';
           $('board-say').textContent = 'Put your name on this week’s leaderboard?';
           $('board-ask').hidden = false;
-        }
-      }).catch(() => { /* no leaderboard today; the result stands without it */ });
+        } else Net.boardDone();
+      }).catch(() => { Net.boardDone(); });
     }, 1200);
   }
   function boardLine(s) {
     $('board-ask').hidden = true;
+    Net.boardDone();
     $('board-line-text').textContent = s.rank ? 'You are ' + Board.place(s.rank) + ' on this week’s leaderboard, with ' + Board.wins(s.wins) + '.'
       : 'Your name is on the leaderboard.';
     $('board-line').hidden = false;
@@ -329,7 +335,7 @@
   }
   $('board-add').addEventListener('click', () => { Sfx.play('click'); addName(); });
   $('board-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addName(); } });
-  $('board-no').addEventListener('click', () => { Sfx.play('click'); Board.decline(); boardN++; $('board-ask').hidden = true; });
+  $('board-no').addEventListener('click', () => { Sfx.play('click'); Board.decline(); boardN++; $('board-ask').hidden = true; Net.boardDone(); });
 
   // The start screen's glance at this week's leaderboard: the top five as small
   // planks, like the leaderboard page. Nothing at all while nobody is on it, so an
@@ -392,7 +398,7 @@
       li.className = !m ? 'empty' : mine ? 'mine' : '';
       // under the name: who starts, who is ready and who is sitting out, and the matches
       // won since coming into this room
-      const state = !m || !Net.party() || Net.playing ? '' : i === 0 ? 'host' : m.sit ? 'sitting out' : 'ready';
+      const state = !m || !Net.party() || Net.playing ? '' : i === 0 ? 'host' : m.hold ? 'choosing name' : m.sit ? 'sitting out' : 'ready';
       note.textContent = !m ? '' : [state, m.wins ? m.wins + (m.wins === 1 ? ' win' : ' wins') : ''].filter(Boolean).join(' · ');
       li.classList.toggle('in', state === 'ready');
       li.querySelector('.kick').hidden = !(m && i > 0 && Net.party() && Net.you === 0);

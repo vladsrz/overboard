@@ -258,7 +258,7 @@
           if (!match) break;
           clearInput();
           const w = e.winner < 0 ? null : state.players[e.winner];
-          ui.endRound(!w ? 'Nobody takes round ' + e.round : w.id === G.me ? 'Round ' + e.round + ' is yours' : w.name + ' takes round ' + e.round, C.ROUND_END_T);
+          ui.endRound(!w ? 'Nobody takes round ' + e.round : w.id === G.me ? 'Round ' + e.round + ' is yours' : w.name + ' takes round ' + e.round, state.matchWinner >= 0 ? C.MATCH_END_T : C.ROUND_END_T);
           // the round that decides the match gets the match's tune, the moment it is decided
           if (state.matchWinner < 0) sfx(w && w.id === G.me ? 'roundWon' : 'roundLost');
           else sfx(state.matchWinner === G.me ? 'matchWon' : 'matchLost');
@@ -271,10 +271,14 @@
           break;
         // someone playing with you closed the game: their disc plays on as a bot
         case 'left': {
-          // said plainly and long enough to read: their disc carries on under their name
           if (!match) break;
-          const who = state.players[e.id].name;
-          let sub = 'A bot plays their disc now.';
+          const p = state.players[e.id], who = typeof e.who === 'string' ? e.who : p.name;
+          const bot = typeof e.bot === 'string' && Object.prototype.hasOwnProperty.call(Cast.BY_KEY, e.bot) ? Cast.BY_KEY[e.bot] : null;
+          if (bot) {
+            p.human = false; p.name = bot.name; p.type = bot.key; p.bot = null; p.wins = 0;
+            G.colors[p.id] = { fill: bot.color, text: bot.light ? PAL.DEEP : PAL.PLANK };
+          }
+          let sub = bot ? bot.name + ' joins in their place.' : 'A bot plays their disc now.';
           if (Net.party() && who === hostWas && Net.members[0]) sub += Net.you === 0 ? ' You start the matches now.' : ' ' + Net.members[0].name + ' starts the matches now.';
           if (Net.members[0]) hostWas = Net.members[0].name;
           ui.banner(who + ' left', sub, 4);
@@ -497,8 +501,8 @@
   Net.on.left = (id) => {
     const p = G.mode === 'match' && G.state.players[id];
     if (!p || !p.human || id === G.me) return;
-    p.human = false;
-    const e = { type: 'left', id: id };
+    const bot = Cast.replacement(G.state.players, id, Math.random);
+    const e = { type: 'left', id: id, who: p.name, bot: bot.type };
     outbox.push(e);
     react([e]);
   };

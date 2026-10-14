@@ -304,9 +304,9 @@
     if (d.t === 'lobby') {
       if (!(d.v > lobbyN) || !Array.isArray(d.names)) return;
       lobbyN = d.v;
-      const sit = Array.isArray(d.sit) ? d.sit : [], wins = Array.isArray(d.wins) ? d.wins : [];
+      const sit = Array.isArray(d.sit) ? d.sit : [], wins = Array.isArray(d.wins) ? d.wins : [], hold = Array.isArray(d.hold) ? d.hold : [];
       Net.members = d.names.slice(0, SEATS).map((name, i) => ({
-        name: cleanName(name, fallbackName(i)), sit: sit[i] === true,
+        name: cleanName(name, fallbackName(i)), sit: sit[i] === true, hold: hold[i] === true,
         wins: Number.isInteger(wins[i]) && wins[i] > 0 ? Math.min(wins[i], 999) : 0,
       }));
       Net.you = seat(d.you, Net.members.length);
@@ -368,6 +368,7 @@
   Net.lead = () => Net.ready && (Net.role === 'host' || (Net.server && (Net.open ? !Net.playing && Net.members.length === 1 : Net.you === 0)));
   Net.go = () => { if (Net.server) send(link, { t: 'go' }); };
   Net.setAuto = (on) => { if (Net.party() && Net.you === 0) send(link, { t: 'auto', on: !!on }); };
+  Net.boardDone = () => { if (Net.party()) send(link, { t: 'board', done: true }); };
   // A private room on the server works like a party: everyone plays the next match
   // unless they sit it out, and whoever has been in the room longest starts it and may
   // send someone out. (A browser-hosted room has none of that: everyone plays.)

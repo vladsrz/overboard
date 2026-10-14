@@ -37,7 +37,7 @@ const MAX_MSG = 600;         // characters; an input or a name is far smaller
 const MAX_RATE = 150;        // messages a second from one player before they are dropped
 const GATHER = 8;            // seconds a public room waits for more players before it starts
 const AUTO_GO = 3;           // seconds a private room with auto-start counts down before the next match
-const AUTO_REST = 5;         // seconds of a match's result before that countdown begins (the room comes back after 5)
+const AUTO_REST = 3;         // seconds to show the match result before the next countdown
 const AWAY = 120e3;          // in a public room, a player who touches nothing for this long is let go
 const HOLD = 8;              // connections one source may have open at once: two full rooms from one home
 const HOLD_NEW = 20e3;       // a connection let in whose room has not reported it yet stops counting after this
@@ -290,7 +290,7 @@ export class Room {
 
   // who and id: the scrambled source and the connection's own id, which the desk counts by
   join(ws, where, who, id) {
-    const m = { ws: ws, who: who, id: id, country: where, device: '', touch: false, name: 'Player ' + (this.members.length + 1), seat: -1, was: -1, sit: false, wins: 0, emoteAt: 0, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
+    const m = { ws: ws, who: who, id: id, country: where, device: '', touch: false, name: 'Player ' + (this.members.length + 1), seat: -1, was: -1, sit: false, boardHold: false, wins: 0, emoteAt: 0, seen: Date.now(), active: Date.now(), n: 0, mx: 0, my: 0, cx: 0, cy: 0, drop: false, dash: false, count: 0, countAt: Date.now() };
     this.members.push(m);
     ws.addEventListener('message', (e) => this.hear(m, e.data));
     ws.addEventListener('close', () => this.drop(m));
@@ -311,8 +311,9 @@ export class Room {
     try { m.ws.close(1000, 'bye'); } catch (e) { /* already closed */ }
     // their disc plays on as a bot
     if (this.playing && m.seat >= 0 && this.state.players[m.seat].human) {
-      this.state.players[m.seat].human = false;
-      this.outbox.push({ type: 'left', id: m.seat });
+      const p = this.state.players[m.seat], bot = Cast.replacement(this.state.players, m.seat, Math.random);
+      p.human = false; p.name = bot.name; p.type = bot.type; p.bot = null; p.wins = 0;
+      this.outbox.push({ type: 'left', id: m.seat, who: m.name, bot: bot.type });
       if (this.rec) this.rec.left++;
     }
     this.report();
@@ -365,7 +366,7 @@ export class Room {
   autoCheck() {
     const now = Date.now();
     const ready = this.auto && !this.open && !this.playing && this.matchN > 0 && this.members.length >= 2
-      && !this.members.some((m, i) => i > 0 && m.sit) && this.members.some((m) => now - m.active < AWAY);
+      && !this.members.some((m, i) => m.boardHold || (i > 0 && m.sit)) && this.members.some((m) => now - m.active < AWAY);
     if (!ready) this.goAt = 0;
     else if (!this.goAt) this.goAt = Math.max(now, this.restUntil) + AUTO_GO * 1000;
   }
@@ -378,8 +379,8 @@ export class Room {
     const secs = (at) => Math.max(0, Math.ceil((at - Date.now()) / 1000));
     const wait = this.playing ? -1 : this.open ? secs(this.startAt) : this.goAt && Date.now() >= this.restUntil ? secs(this.goAt) : -1;
     // who is sitting the next match out, and the room's score: match wins since coming in
-    const sit = this.members.map((m) => m.sit), wins = this.members.map((m) => m.wins);
-    this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing, wait: wait, sit: sit, wins: wins, auto: this.auto }));
+    const sit = this.members.map((m) => m.sit), wins = this.members.map((m) => m.wins), hold = this.members.map((m) => m.boardHold);
+    this.members.forEach((m, i) => this.send(m, { t: 'lobby', v: this.lobbyN, names: names, you: i, playing: this.playing, wait: wait, sit: sit, wins: wins, hold: hold, auto: this.auto }));
   }
 
   hear(m, raw) {
@@ -413,7 +414,13 @@ export class Room {
       // Only whoever has been in the room longest may start a match. A public room
       // starts on its own, but someone alone in it need not sit through the wait:
       // there is nobody else to wait for, and a second player who arrives first wins.
-      if (!this.playing && (this.open ? this.members.length === 1 : m === this.members[0])) this.start();
+      if (!this.playing && !this.members.some((x) => x.boardHold) && (this.open ? this.members.length === 1 : m === this.members[0])) this.start();
+    } else if (d.t === 'board') {
+      // Only the winning browser can release its own result prompt.
+      if (!this.playing && m.boardHold && d.done === true) {
+        m.boardHold = false; m.active = now;
+        this.autoCheck(); this.tellLobby();
+      }
     } else if (d.t === 'sit') {
       // In a private room everyone plays the next match unless they say otherwise;
       // whoever starts it always plays.
@@ -464,7 +471,7 @@ export class Room {
     this.rec = { seats: roster.map((p) => p.type || 'person'), rounds: [], winner: -1, left: 0 };
     this.round = null;
     this.crowd = seated.map((m) => ({ device: m.device, country: m.country, touch: m.touch }));
-    for (const m of this.members) { m.seat = -1; m.was = -1; }
+    for (const m of this.members) { m.seat = -1; m.was = -1; m.boardHold = false; }
     this.goAt = 0;
     seated.forEach((m, i) => {
       m.seat = i; m.was = i; m.mx = 0; m.my = 0; m.drop = false; m.dash = false;
@@ -550,7 +557,7 @@ export class Room {
       this.credit(state.matchWinner);
       // the room keeps score: match wins for each person, for as long as they stay
       const champ = state.matchWinner >= 0 && state.players[state.matchWinner].human ? this.members.find((x) => x.seat === state.matchWinner) : null;
-      if (champ) champ.wins++;
+      if (champ) { champ.wins++; if (!this.open) champ.boardHold = true; }
       this.idleSince = Date.now();
       this.startAt = Date.now() + GATHER * 1000;
       // everyone is in the next match again unless they say otherwise
