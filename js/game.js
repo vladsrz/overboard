@@ -367,9 +367,21 @@
     enter(roster, 0, seed);
   }
 
-  function requestStart() {
+  function requestStart(practice = false) {
     const guide = $('install-guide');
     if (guide.open || (Net.role && !Net.lead())) return;
+    // The start screen's main action joins public play. Room and result screens
+    // keep their own Start now / Play again behavior.
+    if (!practice && !Net.role && G.mode !== 'match') {
+      if (!Net.usesServer()) {
+        startMatch();
+        ui.banner('Offline practice', 'Online play is unavailable. This match is unranked.', 3);
+      } else {
+        onlineFromStart = true;
+        openRoom('', true);
+      }
+      return;
+    }
     // a public room starts on its own, so the guide would land on top of the match
     if (G.touch && !document.body.classList.contains('standalone') && !installOffered && !Net.open) {
       installOffered = true;
@@ -395,13 +407,21 @@
   }
 
   // why: a line for the start screen when the room closed on you
+  let onlineFromStart = false;
   function quitToStart(why) {
+    const offlinePractice = onlineFromStart && why === Net.OFFLINE && !Net.ready;
+    onlineFromStart = false;
     Net.leave();
     if (Net.codeFrom(location.hash)) history.replaceState(null, '', location.pathname + location.search);
     paused = false;
     Sfx.setPaused(false);
     G.mode = 'attract';
     attract();
+    if (offlinePractice) {
+      startMatch();
+      ui.banner('Offline practice', "The server couldn't connect. This match is unranked.", 3);
+      return;
+    }
     ui.showStart(why);
   }
 
@@ -416,14 +436,15 @@
   function openRoom(code, quick) {
     Sfx.unlock();
     crowd = -1; waitWas = -1;
-    if (Net.usesServer()) Net.connect(code, myName, quick); else if (code) Net.join(code, myName); else Net.host(myName);
     ui.showLobby();
+    if (Net.usesServer()) Net.connect(code, myName, quick); else if (code) Net.join(code, myName); else Net.host(myName);
   }
   // Someone coming into the room or leaving it is heard, and so are the last three
   // seconds before a public room starts. Not during a match: a leaver there has a
   // banner and a sound of their own, and a newcomer is waiting for the next one.
   let crowd = -1, waitWas = -1;
   Net.on.lobby = () => {
+    if (Net.ready) onlineFromStart = false;
     const n = Net.ready ? Net.members.length : -1, playing = G.mode === 'match' && !ui.coverOpen();
     if (!playing && crowd > 0 && n > 0 && n !== crowd) Sfx.play(n > crowd ? 'join' : 'leave');
     if (!playing && Net.open && Net.wait !== waitWas && Net.wait >= 1 && Net.wait <= 3) Sfx.play('soon');
@@ -579,7 +600,7 @@
   // Rotation changes the thumb's coordinates. Release the old hold before laying
   // out the new view so a finger from the previous orientation cannot keep moving.
   window.addEventListener('resize', () => { clearInput(); G.resize(); });
-  $('start').addEventListener('click', requestStart);
+  $('start').addEventListener('click', () => requestStart());
   $('install-continue').addEventListener('click', () => { $('install-guide').close(); startMatch(); });
   $('install-back').addEventListener('click', () => { Sfx.play('click'); $('install-guide').close(); });
   $('resume').addEventListener('click', () => { Sfx.play('click'); setPaused(false); });
@@ -588,7 +609,7 @@
   $('quit').addEventListener('click', () => { Sfx.play('click'); quitToStart(); });
   $('friends').addEventListener('click', () => { Sfx.unlock(); Sfx.play('click'); openRoom(''); });
   $('leave').addEventListener('click', () => { Sfx.play('click'); quitToStart(); });
-  $('quick').addEventListener('click', () => { Sfx.unlock(); Sfx.play('click'); openRoom('', true); });
+  $('practice').addEventListener('click', () => requestStart(true));
   // a room code typed in: the fifth character is the go-ahead
   $('code').addEventListener('input', () => {
     const typed = $('code').value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);

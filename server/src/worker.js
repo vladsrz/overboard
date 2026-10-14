@@ -5,7 +5,7 @@
 //
 //   GET /new          (WebSocket)  open a room; the first message back carries its code
 //   GET /join/CODE    (WebSocket)  join that room, if it is open
-//   GET /quick        (WebSocket)  join whichever public room has space, or open one
+//   GET /quick        (WebSocket)  join a gathering public room, or open one
 //   POST /stat                     a browser reporting a visit or a finished solo match
 //   GET /admin/stats, /admin/export   the play statistics, for whoever holds the key
 //   GET /board                     this week's leaderboard
@@ -169,9 +169,17 @@ export default {
       return new Response('No free room', { status: 503 });
     }
     if (url.pathname === '/quick') {
-      const pick = await env.DESK.get(env.DESK.idFromName('quick')).fetch('https://desk/pick');
-      const code = (await pick.text()).trim();
-      return CODE.test(code) ? room(code, 'quick') : new Response('No free room', { status: 503 });
+      const desk = env.DESK.get(env.DESK.idFromName('quick'));
+      let skip = '';
+      for (let tries = 0; tries < 3; tries++) {
+        const pick = await desk.fetch('https://desk/pick' + (skip ? '?skip=' + skip : ''));
+        const code = (await pick.text()).trim();
+        if (!CODE.test(code)) break;
+        const res = await room(code, 'quick');
+        if (res.status !== 409) return res;
+        skip = code; // it started between the desk's pick and the room's answer
+      }
+      return new Response('No free room', { status: 503 });
     }
     const m = /^\/join\/([A-Za-z0-9]{5})$/.exec(url.pathname);
     if (m && CODE.test(m[1].toUpperCase())) return room(m[1].toUpperCase(), 'join');
@@ -188,7 +196,7 @@ export default {
 // good if a room or the desk restarts: a connection whose room never reports
 // stops counting after HOLD_NEW, and one whose room stops reporting after HOLD_OLD.
 export class Desk {
-  constructor() { this.code = ''; this.n = 0; this.at = 0; this.conns = new Map(); }
+  constructor() { this.code = ''; this.n = 0; this.at = 0; this.playing = false; this.conns = new Map(); }
   async fetch(request) {
     const url = new URL(request.url), now = Date.now();
     for (const [id, c] of this.conns) if (now - c.at > (c.room ? HOLD_OLD : HOLD_NEW)) this.conns.delete(id);
@@ -204,15 +212,18 @@ export class Desk {
       const d = await request.json();
       for (const [id, c] of this.conns) if (c.room === d.code) this.conns.delete(id);
       for (const [id, who] of d.held.slice(0, SEATS)) this.conns.set(id, { who: who, room: d.code, at: now });
-      if (d.open && d.code === this.code) { this.n = d.held.length; this.at = now; if (this.n <= 0) this.code = ''; }
+      if (d.open && d.code === this.code) {
+        this.n = d.held.length; this.playing = !!d.playing; this.at = now;
+        if (this.n <= 0) this.code = '';
+      }
       return new Response('ok');
     }
     if (url.pathname === '/pick') {
       // a room that has not reported for a while may have gone without saying so
-      if (!this.code || this.n >= SEATS || Date.now() - this.at > 60e3) {
+      if (!this.code || this.n >= SEATS || this.playing || url.searchParams.get('skip') === this.code || Date.now() - this.at > 60e3) {
         const pick = crypto.getRandomValues(new Uint8Array(5));
         this.code = Array.from(pick, (v) => LETTERS[v % 32]).join('');
-        this.n = 0;
+        this.n = 0; this.playing = false;
       }
       this.n++; this.at = Date.now();
       return new Response(this.code);
@@ -239,6 +250,7 @@ export class Room {
   async fetch(request) {
     const [, how, code, where, who, id] = new URL(request.url).pathname.split('/');
     if (how === 'new' && this.members.length) return new Response('Taken', { status: 409 });
+    if (how === 'quick' && this.playing) return new Response('Already playing', { status: 409 });
     const pair = new WebSocketPair();
     const ws = pair[1];
     ws.accept();
@@ -291,7 +303,7 @@ export class Room {
     this.reported = Date.now();
     const held = this.members.filter((m) => m.id).map((m) => [m.id, m.who]);
     this.env.DESK.get(this.env.DESK.idFromName('quick')).fetch('https://desk/room', {
-      method: 'POST', body: JSON.stringify({ code: this.code, open: this.open, held: held }),
+      method: 'POST', body: JSON.stringify({ code: this.code, open: this.open, playing: this.playing, held: held }),
     }).catch(() => {});
   }
 
@@ -375,6 +387,7 @@ export class Room {
     this.state = Sim.createMatch({ seed: seed, players: roster });
     this.matchN++; this.snapN = 0; this.sendN = 0; this.outbox = [];
     this.playing = true;
+    this.report();
     // the record of this match, for the statistics
     this.rec = { seats: roster.map((p) => p.type || 'person'), rounds: [], winner: -1, left: 0 };
     this.round = null;
@@ -456,6 +469,7 @@ export class Room {
     }
     if (over) {
       this.playing = false;
+      this.report();
       clearInterval(this.timer); this.timer = 0;
       this.file();
       this.credit(state.matchWinner);

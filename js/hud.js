@@ -134,15 +134,13 @@
     $('cover-how').hidden = $('cover-fine').hidden = $('cover-links').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
     if (to !== 'end') { boardN++; $('board-ask').hidden = $('board-line').hidden = true; }
     $('board-mini').hidden = to !== 'start' || !miniRows;
-    // playing strangers needs the game server to put you together
-    $('quick').hidden = !Net.usesServer();
     $('room').hidden = to !== 'room';
     $('results').hidden = to !== 'end';
     $('cover-lede').hidden = to === 'end' && !$('cover-lede').textContent;
     $('leave').hidden = !net;
     $('leave').textContent = host ? 'Close room' : 'Leave room';
     $('start').hidden = net && !lead;
-    $('start').textContent = Net.open ? 'Start now' : to === 'end' ? 'Play again' : 'Start match';
+    $('start').textContent = Net.open ? 'Start now' : to === 'end' ? 'Play again' : to === 'start' ? 'Play online' : 'Start match';
     // One line of words per screen. In the room it is the line under the title;
     // on the other two it is a small note under the buttons, and only when there
     // is something to say (a room that closed on you, or waiting for the host).

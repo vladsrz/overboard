@@ -154,6 +154,7 @@
     try { return id ? new root.Peer(id) : new root.Peer(); } catch (e) { return null; }
   }
   const OFFLINE = 'Could not open a room. Check your connection and try again.';
+  Net.OFFLINE = OFFLINE;
 
   // ── host ──
 
