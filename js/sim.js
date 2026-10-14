@@ -14,9 +14,8 @@
     RESTITUTION: 0.7, HIT_REF: 200, HIT_POW: 0.8, HIT_MIN: 0.35, HIT_MAX: 780,
     // how long you can hang off the edge and still steer back on
     TEETER_T: 0.22,
-    // You are standing as long as any plank is within FOOT of your centre, so you only
-    // go in once most of your disc is over the gap, not the moment your centre crosses
-    // the line between a plank and a hole.
+    // A normal disc only has a small support footprint; Big reaches nearly to
+    // its visible edge, so it can bridge narrow gaps.
     FOOT: 7,
     WARN_T: 1.0, GONE_T: 0.25,
     DROP_CD: 1.1, WAVE_CD: 6, WAVE_SPEED: 330, WAVE_PUSH: 360,
@@ -97,9 +96,10 @@
     return s === SOLID || s === WARN;
   }
   const FEET = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.71, 0.71], [-0.71, 0.71], [0.71, -0.71], [-0.71, -0.71]];
-  function standing(state, x, y) {
+  function standing(state, x, y, p) {
     if (supported(state, x, y)) return true;
-    for (const f of FEET) if (supported(state, x + f[0] * C.FOOT, y + f[1] * C.FOOT)) return true;
+    const foot = p && p.bigT > 0 ? radius(p) - 5 : C.FOOT;
+    for (const f of FEET) if (supported(state, x + f[0] * foot, y + f[1] * foot)) return true;
     return false;
   }
   function tileX(i) { return ((i % C.GRID) - C.HALF) * C.TILE; }
@@ -320,7 +320,7 @@
       const ox = p.x, oy = p.y;
       p.x += p.vx * dt; p.y += p.vy * dt;
       // once the round is called, whoever is still aboard stays aboard
-      if (!live && p.state === 'alive' && !standing(state, p.x, p.y)) { p.x = ox; p.y = oy; p.vx = 0; p.vy = 0; }
+      if (!live && p.state === 'alive' && !standing(state, p.x, p.y, p)) { p.x = ox; p.y = oy; p.vx = 0; p.vy = 0; }
     }
 
     // bumps
@@ -472,7 +472,7 @@
           state.events.push({ type: 'ghost', id: p.id, x: p.x, y: p.y });
         }
       } else if (live && p.state === 'alive') {
-        if (standing(state, p.x, p.y)) { p.offT = 0; continue; }
+        if (standing(state, p.x, p.y, p)) { p.offT = 0; continue; }
         p.offT += dt;
         if (p.offT < C.TEETER_T) continue;
         let by = -1, how = 'slip';
@@ -525,6 +525,15 @@
     state.events.push({ type: 'slam', id: p.id, x: p.x, y: p.y });
   }
 
+  function canPickup(p, kind) {
+    if (kind === 'big') return p.bigT <= 0;
+    if (kind === 'power') return p.powerT <= 0;
+    if (kind === 'hide') return p.hideT <= 0;
+    if (kind === 'thorns') return p.thornT <= 0;
+    if (kind === 'charge') return p.ult < 1 || p.dashCd > 0;
+    return true; // Bomb and Meteors take effect immediately.
+  }
+
   function pickups(state, dt) {
     const ps = state.players;
     for (let n = state.pickups.length - 1; n >= 0; n--) {
@@ -532,7 +541,7 @@
       u.age += dt;
       if (state.tiles[u.tile] === GONE) { state.pickups.splice(n, 1); continue; }
       for (const p of ps) {
-        if (p.state !== 'alive') continue;
+        if (p.state !== 'alive' || !canPickup(p, u.kind)) continue;
         const reach = radius(p) + C.PICKUP_R;
         if ((p.x - u.x) * (p.x - u.x) + (p.y - u.y) * (p.y - u.y) > reach * reach) continue;
         state.pickups.splice(n, 1);
@@ -585,7 +594,7 @@
     C, NONE, SOLID, WARN, GONE, KINDS,
     createMatch, step, rand,
     tileIndexAt, tileStateAt, supported, standing, tileX, tileY,
-    radius, mass, visible,
+    radius, mass, visible, canPickup,
   };
   root.Sim = Sim;
   if (typeof module !== 'undefined' && module.exports) module.exports = Sim;

@@ -202,6 +202,7 @@
   function nearestPickup(state, p) {
     let best = null;
     for (const u of state.pickups) {
+      if (!Sim.canPickup(p, u.kind)) continue;
       const d = Math.hypot(u.x - p.x, u.y - p.y) || 1;
       if (!best || d < best.d) best = { x: u.x, y: u.y, d: d };
     }

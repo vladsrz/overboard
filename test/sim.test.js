@@ -117,6 +117,36 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   assert(Sim.radius(a) === Sim.C.P_R && a.powerT === 0 && a.thornT === 0 && Sim.visible(a), 'effects wear off');
 }
 
+// An active effect cannot be refreshed by walking over its duplicate; another
+// player can still take it. Charge stays useful while a dash is recharging.
+{
+  const s = Sim.createMatch({ seed: 17 });
+  const still = () => s.players.map(() => ({ mx: 0, my: 0 }));
+  while (s.phase !== 'play') Sim.step(s, still(), DT);
+  const [a, b] = s.players;
+  a.x = 0; a.y = 0; a.vx = 0; a.vy = 0;
+  b.x = 200; b.y = 0;
+  s.players[2].x = -200; s.players[3].x = -240;
+  a.thornT = 3;
+  s.pickups.push({ kind: 'thorns', tile: Sim.tileIndexAt(0, 0), x: 0, y: 0, age: 0 });
+  s.pickupT = 99;
+  Sim.step(s, still(), DT);
+  assert(s.pickups.length === 1 && a.thornT < 3 && !s.events.some((e) => e.type === 'pickup'), 'active Thorns were refreshed');
+  a.x = -120; b.x = 0; b.y = 0; b.vx = 0; b.vy = 0;
+  Sim.step(s, still(), DT);
+  assert(!s.pickups.length && b.thornT > 0, 'another player could not take the Thorns');
+  for (const [kind, timer] of [['big', 'bigT'], ['power', 'powerT'], ['hide', 'hideT']]) {
+    a[timer] = 2;
+    assert(!Sim.canPickup(a, kind), kind + ' could be taken while active');
+    a[timer] = 0;
+    assert(Sim.canPickup(a, kind), kind + ' stayed blocked after wearing off');
+  }
+  a.ult = 1; a.dashCd = 0;
+  assert(!Sim.canPickup(a, 'charge') && Sim.canPickup(a, 'bomb') && Sim.canPickup(a, 'meteor'));
+  a.dashCd = 0.5;
+  assert(Sim.canPickup(a, 'charge'), 'Charge should still reset dash cooldown');
+}
+
 // Gaps: quick enough and you cross them. A run clears one missing plank, a dash
 // clears three, nothing clears four, and dawdling over even one drops you.
 {
@@ -158,6 +188,26 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
   assert.strictEqual(lean(Sim.C.FOOT - 2), 'alive', 'leaning a little over a hole should not drop you');
   assert.notStrictEqual(lean(Sim.C.FOOT + 3), 'alive', 'standing well over a hole should');
   assert.notStrictEqual(lean(20), 'alive', 'standing in the middle of a hole should');
+}
+
+// Big's visible body reaches the planks beside a narrow gap; a 2x2 hole is
+// wider than that body and still drops it.
+{
+  const over = (holes) => {
+    const s = Sim.createMatch({ seed: 23 });
+    const still = () => s.players.map(() => ({ mx: 0, my: 0 }));
+    while (s.phase !== 'play') Sim.step(s, still(), DT);
+    const a = s.players[0];
+    s.players.slice(1).forEach((p, i) => { p.x = -240 + i * 80; p.y = 200; });
+    for (const [x, y] of holes) s.tiles[Sim.tileIndexAt(x, y)] = Sim.GONE;
+    a.x = holes.length === 1 ? 0 : 20; a.y = holes.length === 4 ? 20 : 0;
+    a.vx = 0; a.vy = 0; a.bigT = 3;
+    for (let t = 0; t < 20; t++) { s.pickupT = 99; Sim.step(s, still(), DT); }
+    return a.state;
+  };
+  assert.strictEqual(over([[0, 0]]), 'alive', 'Big fell through one missing plank');
+  assert.strictEqual(over([[0, 0], [40, 0]]), 'alive', 'Big fell through a narrow two-plank gap');
+  assert.notStrictEqual(over([[0, 0], [40, 0], [0, 40], [40, 40]]), 'alive', 'Big stayed over a wide 2x2 hole');
 }
 
 // no direction held, no dash: nothing moves and nothing is used up
