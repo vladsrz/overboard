@@ -11,8 +11,9 @@ mkdirSync(new URL('./dev/', out), { recursive: true });
 for (const name of ['css', 'js', 'vendor', 'favicon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'manifest.webmanifest', 'og.png', 'privacy.html']) {
   cpSync(new URL(name, root), new URL(name, out), { recursive: true });
 }
-cpSync(new URL('dev/stats.html', root), new URL('dev/stats.html', out));
-cpSync(new URL('dev/players.html', root), new URL('dev/players.html', out));
+for (const name of ['dev/stats.html', 'dev/stats.js', 'dev/players.html', 'dev/players.js']) {
+  cpSync(new URL(name, root), new URL(name, out));
+}
 
 const page = readFileSync(new URL('index.html', root), 'utf8')
   .replace(/(<meta property="og:url" content=")[^"]*/, '$1' + SITE)

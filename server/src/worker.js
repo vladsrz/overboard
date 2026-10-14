@@ -9,6 +9,9 @@
 //   POST /stat                     a browser reporting a visit or a finished solo match
 //   GET /admin/stats, /admin/export   the play statistics, for whoever holds the key
 //
+// Connecting and reporting are each limited per caller (see `over`), and a report
+// longer than 16 KB is refused unread.
+//
 // A room opened with /new is private: its code is the only way in, and whoever has
 // been in it longest starts each match. A public room (from /quick) has no leader:
 // it starts on its own a few seconds after someone arrives, so a player who finds
@@ -18,7 +21,7 @@ import Bots from '../../js/bots.js';
 import Cast from '../../js/cast.js';
 import Net from '../../js/net.js';
 import { rude } from './names.js';
-import { Stats, clean, device, country } from './stats.js';
+import { Stats, clean, device, country, subnet, text, BODY_MAX } from './stats.js';
 
 export { Stats };
 
@@ -41,11 +44,20 @@ function allowed(request, env) {
   return String(env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean).indexOf(origin) >= 0;
 }
 
-// who a report is from, for rate limiting only: a scrambled form of the address, never stored
+// who a request is from, for rate limiting only: a scrambled form of the address
+// (of its /64 for IPv6, see subnet), never stored
 async function source(request) {
-  const ip = request.headers.get('CF-Connecting-IP') || '';
+  const ip = subnet(request.headers.get('CF-Connecting-IP'));
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('overboard:' + ip));
   return Array.from(new Uint8Array(hash).slice(0, 8), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+// True once a source has used up its minute; the numbers are in wrangler.toml.
+// Cloudflare keeps the count, so turning someone away wakes no room and writes
+// nothing. Where the limiter is missing (an older deploy, a test) or fails,
+// everyone is let in: unguarded for a while is better than closed to all.
+async function over(limiter, who) {
+  if (!limiter) return false;
+  try { return !(await limiter.limit({ key: who })).success; } catch (e) { return false; }
 }
 // lets a page on another allowed address (the GitHub one) call this one
 function cors(request, env, res) {
@@ -64,11 +76,14 @@ async function api(request, env, url) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
   if (url.pathname === '/stat' && request.method === 'POST') {
     if (!allowed(request, env)) return new Response('Not from here', { status: 403 });
+    const from = await source(request);
+    if (await over(env.REPORTS, from)) return new Response('Slow down', { status: 429 });
+    const raw = await text(request, BODY_MAX);
+    if (raw === null) return new Response('Too big', { status: 413 });
     let d = null;
-    try { d = JSON.parse((await request.text()).slice(0, 60000)); } catch (e) { return new Response('bad', { status: 400 }); }
+    try { d = JSON.parse(raw); } catch (e) { return new Response('bad', { status: 400 }); }
     if (!d || typeof d !== 'object') return new Response('bad', { status: 400 });
     const player = { device: device(d.device), country: country(request.cf && request.cf.country), touch: !!d.touch };
-    const from = await source(request);
     if (d.t === 'visit') return stats.fetch('https://stats/visit', { method: 'POST', body: JSON.stringify({ from: from, player: player }) });
     // only solo matches come from a browser; the rooms report their own
     const rec = d.t === 'match' ? clean(d.rec) : null;
@@ -91,6 +106,8 @@ export default {
     if (!/^\/(new|quick|join\/[A-Za-z0-9]{5})$/.test(url.pathname)) return new Response('Not found', { status: 404 });
     if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
     if (!allowed(request, env)) return new Response('Not from here', { status: 403 });
+    // opening rooms, or guessing at their codes, without end
+    if (await over(env.CONNECTS, await source(request))) return new Response('Slow down', { status: 429 });
     // the room is told which country each player is in, for the statistics; it never sees their address
     const where = country(request.cf && request.cf.country);
     const room = (code, how) => env.ROOMS.get(env.ROOMS.idFromName(code)).fetch('https://room/' + how + '/' + code + '/' + where, request);
@@ -241,7 +258,8 @@ export class Room {
     const now = Date.now();
     if (now - m.countAt > 1000) { m.countAt = now; m.count = 0; }
     if (++m.count > MAX_RATE) { this.drop(m); return; }
-    if (typeof raw !== 'string' || raw.length > MAX_MSG) return;
+    // no honest player sends anything but a short line of text
+    if (typeof raw !== 'string' || raw.length > MAX_MSG) { this.drop(m); return; }
     let d;
     try { d = JSON.parse(raw); } catch (e) { return; }
     if (!d || typeof d !== 'object') return;
@@ -256,6 +274,8 @@ export class Room {
       m.active = now;
       if (name !== m.name) { m.name = name; this.tellLobby(); }
     } else if (d.t === 'i') {
+      // the counter has to be a plain number: [5] and 1e999 both pass a bare ">"
+      if (!Number.isFinite(d.n)) return;
       if (d.d) m.dash = true;
       if (!(d.n > m.n)) return;
       m.n = d.n;

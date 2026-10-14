@@ -32,6 +32,19 @@ class_name = "Stats"
 tag = "v3"
 new_sqlite_classes = ["Stats"]
 
+# How many times a minute one source (a caller's scrambled address) may ask.
+# Cloudflare keeps these counts itself, so a refusal wakes no room. namespace_id
+# is any number no other limiter on the account uses; nothing is created first.
+[[ratelimits]]
+name = "CONNECTS" # opening or joining a room: /new, /join and /quick together
+namespace_id = "7301"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "REPORTS" # POST /stat
+namespace_id = "7302"
+simple = { limit = 20, period = 60 }
+
 [vars]
 # Pages allowed to connect, by the start of their address. Anything on your own
 # machine or home network is always allowed, for testing.
