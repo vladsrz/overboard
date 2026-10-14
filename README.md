@@ -6,7 +6,7 @@ Bumper sumo on a raft. Knock the others off. If you fall in, you are not out: yo
 
 Four on the raft. Bots fill the empty seats, drawn each match from a cast of seventeen with their own habits; play alone and it is you against three of them. First to win 3 rounds.
 
-**Play online** is the big button. It puts you in a public room that is still gathering players, with bots filling empty seats. If you are alone, press **Start now** to skip the countdown. If the server cannot connect, it starts an unranked local match instead. **Practice (unranked)** always starts that local solo match. To play with friends, press **Create room**, copy the invite link or share the five-character code. Up to four people share the raft; bots fill the rest. Room matches run on a Cloudflare Worker in `server/`.
+**Play online** is the big button. It puts you in a public room that is still gathering players, with bots filling empty seats. If you are alone, press **Start now** to skip the countdown. If the server cannot connect, it starts an unranked local match instead. **Play solo (unranked)** always starts that local solo match. To play with friends, press **Create room**, copy the invite link or share the five-character code. Up to four people share the raft; bots fill the rest. Room matches run on a Cloudflare Worker in `server/`.
 
 ## Controls
 

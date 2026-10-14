@@ -140,7 +140,7 @@ kbd {
   position: fixed; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left)); text-align: center;
-  background: rgba(18, 80, 76, 0.88);
+  background: rgba(18, 80, 76, 0.93);
 }
 .cover h1 {
   margin: 0;
@@ -151,7 +151,7 @@ kbd {
 .lede { max-width: 30em; margin: 22px 0 0; font-size: 18px; font-weight: 500; }
 .cover.end .lede { margin-top: 12px; }
 /* the only instructions on the start screen; everything else is taught as it comes up */
-.how { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 26px; margin: 26px 0 0; }
+.how { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 26px; margin: 44px 0 0; }
 .how span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .cover button {
   margin-top: 34px; padding: 15px 30px 16px;
@@ -163,7 +163,8 @@ kbd {
 .cover button:hover { background: #fff; }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
-.privacy { margin-top: 10px; font: 500 12px/1.2 var(--ui); color: inherit; text-decoration: underline; text-underline-offset: 3px; opacity: 0.55; }
+#cover-fine { opacity: 0.9; }
+.privacy { margin-top: 10px; font: 500 13px/1.2 var(--ui); color: inherit; text-decoration: underline; text-underline-offset: 3px; opacity: 0.82; }
 .privacy:hover { opacity: 0.9; }
 .cover.menu .privacy { margin-top: 4px; }
 .links { display: flex; gap: 18px; margin: 0; }
@@ -223,7 +224,7 @@ kbd {
 .more { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
 .cover .more button { margin-top: 0; }
 /* a room code typed on the start screen: five characters and you are in */
-.code-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 13px; opacity: 0.85; }
+.code-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 14px; opacity: 1; }
 #code {
   width: 6.2em; height: 28px; padding: 0 2px;
   border: 0; border-bottom: 1.5px solid var(--plank); border-radius: 0;
@@ -386,7 +387,7 @@ body.touch .banner { max-width: calc(100vw - 120px); }
   .cover.room { justify-content: flex-start; }
   .seats .disc { width: 34px; height: 34px; font-size: 15px; }
   .seats li { gap: 4px; }
-  .how { margin-top: 14px; font-size: 13px; }
+  .how { margin-top: 22px; font-size: 13px; }
   .fine { margin-top: 10px; }
   .cover.menu { justify-content: flex-start; gap: 6px; }
   .cover.menu h2 { font-size: 32px; margin: 0 0 4px; }
