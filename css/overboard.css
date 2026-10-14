@@ -183,6 +183,8 @@ kbd {
   cursor: pointer;
 }
 .cover button:hover { background: #fff; }
+.cover #start:disabled { cursor: not-allowed; opacity: 0.48; }
+.cover #start:disabled:hover { background: var(--plank); }
 .cover button:focus-visible { outline: 3px solid var(--foam); outline-offset: 4px; }
 .fine { margin: 16px 0 0; font-size: 13px; opacity: 0.75; }
 #cover-fine { opacity: 0.9; }
@@ -401,6 +403,7 @@ kbd {
 body.touch .emotes .key { display: none; }
 .cover .actions > button { margin-top: 0; }
 .cover.room .actions { margin-top: 22px; }
+.cover.room #net-note { max-width: 26em; margin-top: 10px; font-size: 13px; font-weight: 600; opacity: 0.9; }
 body.touch .cover.room { touch-action: pan-y; overflow-y: auto; }
 @media (max-width: 470px) { .seats { gap: 2px; } .seats li { width: 82px; } .seats .name, #my-name { font-size: 12px; } }
 .rotate-hint { display: none; margin: 18px 0 0; color: var(--foam); font-size: 13px; }

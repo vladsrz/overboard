@@ -137,6 +137,7 @@
   function cover(to, why) {
     face = to;
     const net = !!Net.role, host = Net.role === 'host', lead = Net.lead();
+    let readyBlock = false;
     $('cover').classList.toggle('end', to === 'end');
     $('cover').classList.toggle('room', to === 'room');
     $('cover-how').hidden = $('cover-fine').hidden = $('cover-links').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
@@ -148,6 +149,8 @@
     $('leave').hidden = !net;
     $('leave').textContent = host ? 'Close room' : 'Leave room';
     $('start').hidden = net && !lead;
+    $('start').disabled = false;
+    $('start').removeAttribute('aria-describedby');
     $('start').textContent = Net.open ? 'Start now' : to === 'end' ? 'Play again' : to === 'start' ? 'Play online' : 'Start match';
     // One line of words per screen. In the room it is the line under the title;
     // on the other two it is a small note under the buttons, and only when there
@@ -164,17 +167,21 @@
     if (Net.party() && to !== 'start') {
       const t = partyFace(to);
       $('start').hidden = !t.label; $('start').textContent = t.label || '';
+      $('start').disabled = !!t.disabled;
+      readyBlock = !!t.disabled;
       $('sit').hidden = !t.sit; $('sit').textContent = t.sit || '';
       say = why || t.say;
     }
+    const buttonStatus = readyBlock || (Net.party() && Net.you === 0 && to === 'room' && Net.auto && Net.wait >= 0);
+    if (buttonStatus) $('start').setAttribute('aria-describedby', 'net-note');
     $('auto-start').hidden = !(Net.party() && (to === 'room' || to === 'end'));
     $('auto-start').disabled = Net.you !== 0;
     $('auto-start').textContent = 'Auto-start later matches: ' + (Net.auto ? 'on' : 'off');
     $('auto-start').setAttribute('aria-pressed', Net.auto ? 'true' : 'false');
     $('react').hidden = !(net && Net.ready && to !== 'start');
     if ($('react').hidden) roomEmotes(false);
-    if (to === 'room') $('cover-lede').textContent = say;
-    $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
+    if (to === 'room') $('cover-lede').textContent = Net.party() && Net.you === 0 ? 'Invite friends with the code or link; open seats become bots.' : say;
+    $('net-note').textContent = say; $('net-note').hidden = !say || (to === 'room' && !buttonStatus);
     $('cover').hidden = false;
     placeMini();
   }
@@ -185,7 +192,8 @@
     const me = Net.members[Net.you], host = Net.members[0];
     if (Net.playing) return { say: 'A match is on. You are in the next one.' };
     const answering = Net.members.find((m) => m.hold);
-    if (answering) return { sit: Net.you !== 0 ? 'Sit out' : '',
+    if (answering) return { label: Net.you === 0 ? (to === 'end' ? 'Play again' : 'Start match') : '', disabled: Net.you === 0,
+      sit: Net.you !== 0 ? 'Sit out' : '',
       say: answering === me ? 'Finish your leaderboard name to start the next match.' : 'Waiting for ' + answering.name + ' to finish the leaderboard.' };
     if (Net.auto && Net.wait >= 0) return {
       label: Net.you === 0 ? (to === 'end' ? 'Play again' : 'Start match') : '',
@@ -195,7 +203,7 @@
     if (Net.you === 0) {
       const out = Net.members.filter((m) => m.sit).map((m) => m.name);
       const who = out.length < 2 ? out.join('') : out.slice(0, -1).join(', ') + ' and ' + out[out.length - 1];
-      return { label: out.length ? '' : to === 'end' ? 'Play again' : 'Start match',
+      return { label: to === 'end' ? 'Play again' : 'Start match', disabled: out.length > 0,
         say: out.length ? 'Waiting for ' + who + ' to press I’m in.' : Net.members.length > 1 ? 'Everyone is ready.' : to === 'room' ? 'Invite friends with the code or link; open seats become bots.' : '' };
     }
     const sitting = !!me && me.sit;
