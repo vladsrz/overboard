@@ -291,13 +291,19 @@ kbd {
 .face { display: block; width: 22px; height: 22px; }
 .say .face { width: 26px; height: 26px; }
 .face .f-disc { fill: var(--plank); stroke: var(--ink); stroke-width: 1.5; }
+/* each its own colour, from the cast: Otter's lavender, Wildcard's yellow, Viper's green, Heron's blue, Ram's red */
+.face-yes .f-disc { fill: #b9a3e8; }
+.face-happy .f-disc { fill: #f3b81f; }
+.face-laughing .f-disc { fill: #9bc53d; }
+.face-shocked .f-disc { fill: #79bfe6; }
+.face-angry .f-disc { fill: #d7335f; }
 .face .f-ink { fill: var(--ink); }
 .face .f-line { fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .say.on { opacity: 1; transform: translate(-50%, 0); }
 .seats .say { bottom: calc(100% + 4px); }
 .crew li { position: relative; }
 .crew .say { top: calc(100% + 6px); left: 11px; }
-/* the reactions to pick from, once the small button opens them: a row of outlined tags, keys 1 to 8 */
+/* the reactions to pick from, once the small button opens them: a row of outlined tags, keys 1 to 9 */
 .emotes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 92vw; margin-top: 12px; }
 .cover .emotes button, .emotes button {
   margin: 0; padding: 9px 12px 10px; border: 1.5px solid var(--plank); border-radius: 999px;
@@ -338,6 +344,14 @@ kbd {
 .emotes.pop button { opacity: 1; }
 .cover .emotes button.has-face, .emotes button.has-face { padding: 3px 6px; }
 .emotes .face { width: 28px; height: 28px; }
+/* the key that sends it, on its corner */
+.emotes button { position: relative; }
+.emotes .key {
+  position: absolute; top: -6px; left: -5px; min-width: 15px; height: 15px; padding: 0 3px;
+  border-radius: 4px; background: var(--plank); color: var(--ink);
+  font: 800 10px/15px var(--ui); text-align: center;
+}
+body.touch .emotes .key { display: none; }
 .cover .actions > button { margin-top: 0; }
 .cover.room .actions { margin-top: 22px; }
 body.touch .cover.room { touch-action: pan-y; overflow-y: auto; }

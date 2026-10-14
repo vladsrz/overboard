@@ -186,12 +186,14 @@
   }
   $('sit').addEventListener('click', () => { const me = Net.members[Net.you]; Sfx.play('click'); if (me) Net.sit(!me.sit); });
 
-  // The face reactions are the game's own, drawn like the players' discs: a plank-coloured
-  // disc with an ink outline and ink features, all at one size and line weight. Emoji looked
-  // like any other app and differed from phone to phone.
+  // The face reactions are the game's own, drawn like the players' discs: a coloured disc
+  // (each its own colour from the cast) with an ink outline and ink features, all at one
+  // size and line weight. Emoji looked like any other app and differed from phone to phone.
   const DISC = '<circle cx="12" cy="12" r="10.4" class="f-disc"/>';
   const EYES = (y) => '<circle cx="8.7" cy="' + y + '" r="1.4" class="f-ink"/><circle cx="15.3" cy="' + y + '" r="1.4" class="f-ink"/>';
   const FACES = {
+    // a thumbs up: the fist and its cuff, the thumb raised
+    yes: DISC + '<rect x="6.2" y="11.2" width="2.4" height="6.4" rx="0.7" class="f-ink"/><path d="M9.6 11.6h1.3l1.5-4.4a1.45 1.45 0 0 1 2.8.7l-.6 3.4h2.4a1.3 1.3 0 0 1 1.3 1.5l-.7 3.6a1.6 1.6 0 0 1-1.6 1.3H9.6z" class="f-ink"/>',
     happy: DISC + EYES(10) + '<path d="M7.6 13.9q4.4 4.8 8.8 0" class="f-line"/>',
     laughing: DISC + '<path d="M6.9 8.3l2.8 1.6-2.8 1.6M17.1 8.3l-2.8 1.6 2.8 1.6" class="f-line"/><path d="M7.1 13.2h9.8a4.9 4.9 0 0 1-9.8 0z" class="f-ink"/>',
     shocked: DISC + '<path d="M6.9 7.4q1.8-1.5 3.6 0M13.5 7.4q1.8-1.5 3.6 0" class="f-line"/>' + EYES(10.4) + '<ellipse cx="12" cy="15.7" rx="2.1" ry="2.7" class="f-ink"/>',
@@ -202,7 +204,7 @@
     const name = Net.EMOTES[k];
     el.textContent = '';
     el.classList.toggle('has-face', !!FACES[name]);
-    if (FACES[name]) el.insertAdjacentHTML('beforeend', '<svg class="face" viewBox="0 0 24 24" role="img" aria-label="' + name + '">' + FACES[name] + '</svg>');
+    if (FACES[name]) el.insertAdjacentHTML('beforeend', '<svg class="face face-' + name + '" viewBox="0 0 24 24" role="img" aria-label="' + name + '">' + FACES[name] + '</svg>');
     else el.textContent = name;
   }
 
@@ -212,6 +214,8 @@
     Net.EMOTES.forEach((text, k) => {
       const b = document.createElement('button');
       b.type = 'button'; putEmote(b, k); b.title = (FACES[text] ? text[0].toUpperCase() + text.slice(1) + ', key ' : 'Key ') + (k + 1);
+      // its key, in the corner (not on a phone, which has none)
+      if (box === $('emotes')) b.insertAdjacentHTML('beforeend', '<span class="key" aria-hidden="true">' + (k + 1) + '</span>');
       b.addEventListener('click', () => { Net.emote(k); if (box === $('emotes-pad')) padEmotes(false); else roomEmotes(false); b.blur(); });
       box.appendChild(b);
     });

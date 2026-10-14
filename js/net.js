@@ -127,10 +127,10 @@
     members: [],
     on: { lobby() {}, start() {}, left() {}, closed() {}, emote() {} },
     pack, unpack, cleanName, SEATS,
-    // The reactions anyone in a room can send, on keys 1 to 8. Only these: nothing typed
-    // goes to strangers. The server checks the number against this list. The first four
-    // are faces drawn by the game (FACES in hud.js), not emoji.
-    EMOTES: ['happy', 'laughing', 'shocked', 'angry', 'gg', 'nice one', 'oops', 'one more?'],
+    // The reactions anyone in a room can send, on keys 1 to 9. Only these: nothing typed
+    // goes to strangers. The server checks the number against this list. The first five
+    // are drawn by the game (FACES in hud.js), not emoji.
+    EMOTES: ['yes', 'happy', 'laughing', 'shocked', 'angry', 'gg', 'nice one', 'oops', 'one more?'],
     codeFrom: (hash) => { const c = String(hash || '').replace(/^#/, '').toUpperCase(); return CODE.test(c) ? c : ''; },
   };
 

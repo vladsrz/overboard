@@ -519,7 +519,7 @@
     if (e.code === 'Escape' && inMatch()) { e.preventDefault(); Sfx.play('click'); setPaused(!paused); return; }
     if (e.code === 'KeyM' && inMatch() && !e.repeat) { toggleSound(); return; }
     // a reaction, in a room, from the room screen, the result or the match itself
-    if (Net.role && /^Digit[1-8]$/.test(e.code) && !e.repeat) { Net.emote(+e.code.slice(5) - 1); return; }
+    if (Net.role && /^Digit[1-9]$/.test(e.code) && !e.repeat) { Net.emote(+e.code.slice(5) - 1); return; }
     if (paused) return;
     if (!inMatch()) {
       if (e.code === 'Enter') { e.preventDefault(); requestStart(); }
