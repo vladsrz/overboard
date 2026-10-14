@@ -57,6 +57,14 @@
     // this long on the raft without touching the controls and bots take you for an easy target
     AFK_T: 3,
   };
+  // Half-tile coordinates: each spot is a four-plank corner. Four seats share
+  // the same radius and rotate around the raft in quarter turns.
+  const START_CORNERS = [null,
+    [[1, 7]],
+    [[1, 7], [-1, -7]],
+    [[1, 7], [-7, -3], [7, -3]],
+    [[1, 7], [-7, 1], [-1, -7], [7, -1]],
+  ];
   const NONE = 0, SOLID = 1, WARN = 2, GONE = 3;
   const N = C.GRID * C.GRID;
   const KINDS = ['bomb', 'big', 'power', 'hide', 'thorns', 'charge', 'meteor'];
@@ -160,12 +168,11 @@
     }
     const n = state.players.length;
     state.players.forEach((p, i) => {
-      const a = Math.PI / 2 + (i * Math.PI * 2) / n;
-      // Half-tile steps put each disc on the seam between two planks.
-      p.x = (Math.trunc(Math.cos(a) * 7) || 0) * C.TILE / 2;
-      p.y = (Math.trunc(Math.sin(a) * 7) || 0) * C.TILE / 2;
+      const [sx, sy] = START_CORNERS[n][i];
+      p.x = sx * C.TILE / 2; p.y = sy * C.TILE / 2;
       p.vx = 0; p.vy = 0;
-      p.faceX = -Math.cos(a); p.faceY = -Math.sin(a);
+      const distance = Math.hypot(p.x, p.y);
+      p.faceX = -p.x / distance; p.faceY = -p.y / distance;
       p.state = 'alive'; p.fallT = 0; p.offT = 0; p.idleT = 0;
       p.dashCd = 0; p.dashT = 0;
       p.bigT = 0; p.powerT = 0; p.hideT = 0; p.seenT = 0; p.thornT = 0; p.ult = C.ULT_START; p.slam = false;

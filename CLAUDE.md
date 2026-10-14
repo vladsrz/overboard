@@ -29,7 +29,7 @@ These are decisions the owner has already made, mostly by trying something and r
 - **The room has one big button and one line of words.** Start match is the only full-size button; Copy invite link is a small outlined one, and leaving is plain underlined text. Your name is typed on your own seat, not in a separate field. The first version had a name row, two full-size buttons, a boxed Close room and a two-line instruction under them, and read as too many equal choices.
 - **Match point is called.** When a round begins with anyone one round from winning the match, a banner says so and names them ("You" for the player), with its own sound (a short drum roll into one hit; three square notes were replaced, and the other candidates are on `dev/sounds.html`), while the round counts in.
 - **Crowns mark the match threat.** The sole round leader wears gold; when two or more players tie at match point, each wears blue. Ties below match point get no crown. Crowns sit on top of discs, clear of charge bars, and never reveal hidden opponents.
-- **Spawn discs on seams between two planks.** A disc centered on one 40-unit tile touched all four edges; half-tile spawn steps straddle two planks instead.
+- **Spawn discs at four-plank corners.** A disc centered on one 40-unit tile touched all four edges, and a two-plank seam still looked wedged in a grid line. The four seats sit at equal distance from the raft center.
 - **Mute lives in the pause menu** (a speaker icon) and on `M`. There is no mute button on the play screen.
 
 ## How the rules work
