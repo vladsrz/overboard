@@ -109,6 +109,17 @@ kbd {
 .cover button.quiet { background: transparent; color: var(--plank); border: 2px solid var(--plank); padding: 13px 28px 14px; }
 .cover button.quiet:hover { background: var(--plank); color: var(--ink); }
 .side .esc { white-space: nowrap; font-size: 12px; }
+/* in a match: each reaction beside its key, quiet like the other key hints, and clickable.
+   It has its own line just above the bottom-right corner: in the row itself it squeezed the
+   longer water hints on the left onto a third line, off the bottom of the screen. */
+.react-strip { position: absolute; right: calc(20px + env(safe-area-inset-right)); bottom: 100%; display: flex; align-items: center; gap: 12px; }
+.side .react-strip button.mini {
+  display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none;
+  color: var(--plank); font: 500 12px/1 var(--ui); white-space: nowrap;
+}
+.side .react-strip button.mini:hover { background: none; color: #fff; }
+.react-strip kbd { margin-right: 0; }
+.react-strip .face { width: 20px; height: 20px; }
 
 /* controls */
 .keys {

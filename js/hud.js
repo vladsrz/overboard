@@ -222,6 +222,16 @@
       box.appendChild(b);
     });
   }
+  // In a match, by the key hints: every reaction beside its key, so nobody has to guess
+  // which number is which, and each one clickable. "1-9 react" alone said neither.
+  Net.EMOTES.forEach((text, k) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'mini'; putEmote(b, k);
+    b.title = (FACES[text] ? text[0].toUpperCase() + text.slice(1) : text) + ', key ' + (k + 1);
+    b.insertAdjacentHTML('afterbegin', '<kbd>' + (k + 1) + '</kbd>');
+    b.addEventListener('click', () => { G.react(k); b.blur(); });
+    $('react-key').appendChild(b);
+  });
   function padEmotes(on) { $('emotes-pad').hidden = !on; $('emote-open').setAttribute('aria-expanded', on ? 'true' : 'false'); }
   $('emote-open').addEventListener('click', () => padEmotes($('emotes-pad').hidden));
   // on the room and result screens they stay closed until asked for: the least important
