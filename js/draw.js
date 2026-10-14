@@ -243,7 +243,31 @@
     ctx.globalAlpha = 1;
   }
 
+  // The lone score leader wears a small crown beside their disc. A tie has no leader.
+  function leaderId(state) {
+    let id = -1, high = 0;
+    for (const p of state.players) {
+      if (p.wins > high) { high = p.wins; id = p.id; }
+      else if (p.wins === high) id = -1;
+    }
+    return id;
+  }
+
+  function drawCrown(x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = PLANK; ctx.strokeStyle = WATER;
+    ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-11, -5); ctx.lineTo(-6, -1); ctx.lineTo(0, -9);
+    ctx.lineTo(6, -1); ctx.lineTo(11, -5); ctx.lineTo(9, 6);
+    ctx.lineTo(-9, 6); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
   function drawPlayers(state, me) {
+    const leader = leaderId(state);
     for (const p of state.players) {
       if (p.state === 'ghost') continue;
       const col = G.colors[p.id];
@@ -276,6 +300,16 @@
       ctx.fillStyle = col.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = '700 ' + Math.round(r * 0.8) + 'px ' + FONT;
       ctx.fillText(p.name[0], p.x, p.y + 1);
+
+      // Keep the crown off the charge bar and do not reveal a hidden opponent.
+      if (G.mode === 'match' && p.id === leader && p.state === 'alive' && alpha === 1) {
+        const size = view.scale < 0.8 ? 0.8 / view.scale : 1;
+        ctx.save();
+        ctx.translate(p.x + r + 8, p.y - r - 4);
+        ctx.scale(size, size);
+        drawCrown(0, 0);
+        ctx.restore();
+      }
 
       // meters only for players you can see properly
       if (p !== me && alpha < 1) continue;
