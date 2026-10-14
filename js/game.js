@@ -119,8 +119,10 @@
   // falls, round results) only ever come from their copy, never from the guess.
   // Without `ack` (an older server) it only runs on a step or two, as it used to.
   const PREDICT_MAX = 18; // steps played on at most: 0.3 s
-  // ?predict=0 turns it off, to compare (with ?lag=MS on a local page, see net.js)
-  const PREDICT = !/[?&]predict=0\b/.test(location.search);
+  // Prediction is opt-in for comparison: ?predict=1 enables it. By default, guests
+  // render the latest server copy without replaying local or stale inputs.
+  // ?lag=MS on a local page simulates delay (see net.js).
+  const PREDICT = /[?&]predict=1\b/.test(location.search);
   let base = null, baseStep = 0, stepN = 0, rtt = 0, lastAck = 0;
   const history = [];
   G.lag = () => Math.round(rtt); // the round trip the prediction allows for, in ms (for testing)
@@ -149,7 +151,7 @@
         baseStep = stepN;
         if (!base) Net.unpack(state, got.snap.s);
       }
-      if (base && steer && steer.length === state.players.length) {
+      if (PREDICT && base && steer && steer.length === state.players.length) {
         Net.unpack(state, base);
         // From their copy to now: the steps since it arrived, plus a round trip, because
         // it was made half a trip ago and what you press now reaches them half a trip on.
@@ -161,7 +163,7 @@
           Sim.step(state, steer.map((s, i) => (i === G.me ? h.inp : s)), DT);
           state.events.length = 0;
         }
-      } else if (!base && steer && steer.length === state.players.length && ahead < 4) {
+      } else if (PREDICT && !base && steer && steer.length === state.players.length && ahead < 4) {
         Sim.step(state, steer, DT);
         state.events.length = 0;
         ahead++;
