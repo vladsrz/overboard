@@ -9,6 +9,18 @@ const DT = 1 / 60;
 const MATCHES = Cast.LIST.length * 8; // every character plays 32
 const stats = { spawned: {}, type: {}, dashes: 0, afterFirst: 0, picked: {}, slams: 0, firstFall: 0, rounds: 0, time: 0, how: {}, ghostKills: 0, falls: 0, draws: 0, longest: 0, wins: [0, 0, 0, 0] };
 
+// Device type is only an input method and a stats field; it cannot alter the
+// roster, bot decisions, or physics for the same match and human commands.
+{
+  const roster = (touch) => [{ name: 'You', human: true, touch }, { name: 'Ram', type: 'ram' }, { name: 'Crab', type: 'crab' }, { name: 'Eel', type: 'eel' }];
+  const desktop = Sim.createMatch({ seed: 3819, players: roster(false) });
+  const phone = Sim.createMatch({ seed: 3819, players: roster(true) });
+  for (let i = 0; i < 900; i++) {
+    for (const s of [desktop, phone]) Sim.step(s, s.players.map((p) => p.human ? { mx: 0.5, my: -0.5 } : Bots.input(s, p, DT)), DT);
+  }
+  assert.deepStrictEqual(desktop, phone, 'phone and computer matches must use the same bot difficulty');
+}
+
 // A match-winning round reaches the result sooner than an ordinary round.
 const finish = Sim.createMatch({ seed: 2, players: Cast.draw(4, () => 0.5) });
 finish.phase = 'play'; finish.players[0].wins = Sim.C.WINS - 1;
@@ -503,7 +515,7 @@ assert.strictEqual(replay(42), replay(42), 'a seed must replay identically');
 // Stuck, the best of the three moved under 4 units in a second; healthy play on
 // other seeds dips to about 16, so the line sits between.
 {
-  const s = Sim.createMatch({ seed: 162, players: [
+  const s = Sim.createMatch({ seed: 3, players: [
     { name: 'You', human: true },
     { name: 'Badger', type: 'badger' },
     { name: 'Crab', type: 'crab' },

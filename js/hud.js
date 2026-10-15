@@ -137,6 +137,7 @@
   function cover(to, why) {
     face = to;
     const net = !!Net.role, host = Net.role === 'host', lead = Net.lead();
+    let readyBlock = false;
     $('cover').classList.toggle('end', to === 'end');
     $('cover').classList.toggle('room', to === 'room');
     $('cover-how').hidden = $('cover-fine').hidden = $('cover-links').hidden = $('more').hidden = $('code-row').hidden = to !== 'start';
@@ -148,6 +149,8 @@
     $('leave').hidden = !net;
     $('leave').textContent = host ? 'Close room' : 'Leave room';
     $('start').hidden = net && !lead;
+    $('start').disabled = false;
+    $('start').removeAttribute('aria-describedby');
     $('start').textContent = Net.open ? 'Start now' : to === 'end' ? 'Play again' : to === 'start' ? 'Play online' : 'Start match';
     // One line of words per screen. In the room it is the line under the title;
     // on the other two it is a small note under the buttons, and only when there
@@ -164,17 +167,21 @@
     if (Net.party() && to !== 'start') {
       const t = partyFace(to);
       $('start').hidden = !t.label; $('start').textContent = t.label || '';
+      $('start').disabled = !!t.disabled;
+      readyBlock = !!t.disabled;
       $('sit').hidden = !t.sit; $('sit').textContent = t.sit || '';
       say = why || t.say;
     }
+    const buttonStatus = readyBlock || (Net.party() && Net.you === 0 && to === 'room' && Net.auto && Net.wait >= 0);
+    if (buttonStatus) $('start').setAttribute('aria-describedby', 'net-note');
     $('auto-start').hidden = !(Net.party() && (to === 'room' || to === 'end'));
     $('auto-start').disabled = Net.you !== 0;
     $('auto-start').textContent = 'Auto-start later matches: ' + (Net.auto ? 'on' : 'off');
     $('auto-start').setAttribute('aria-pressed', Net.auto ? 'true' : 'false');
     $('react').hidden = !(net && Net.ready && to !== 'start');
     if ($('react').hidden) roomEmotes(false);
-    if (to === 'room') $('cover-lede').textContent = say;
-    $('net-note').textContent = say; $('net-note').hidden = !say || to === 'room';
+    if (to === 'room') $('cover-lede').textContent = Net.party() && Net.you === 0 ? 'Invite friends with the code or link; open seats become bots.' : say;
+    $('net-note').textContent = say; $('net-note').hidden = !say || (to === 'room' && !buttonStatus);
     $('cover').hidden = false;
     placeMini();
   }
@@ -185,7 +192,8 @@
     const me = Net.members[Net.you], host = Net.members[0];
     if (Net.playing) return { say: 'A match is on. You are in the next one.' };
     const answering = Net.members.find((m) => m.hold);
-    if (answering) return { sit: Net.you !== 0 ? 'Sit out' : '',
+    if (answering) return { label: Net.you === 0 ? (to === 'end' ? 'Play again' : 'Start match') : '', disabled: Net.you === 0,
+      sit: Net.you !== 0 ? 'Sit out' : '',
       say: answering === me ? 'Finish your leaderboard name to start the next match.' : 'Waiting for ' + answering.name + ' to finish the leaderboard.' };
     if (Net.auto && Net.wait >= 0) return {
       label: Net.you === 0 ? (to === 'end' ? 'Play again' : 'Start match') : '',
@@ -195,8 +203,8 @@
     if (Net.you === 0) {
       const out = Net.members.filter((m) => m.sit).map((m) => m.name);
       const who = out.length < 2 ? out.join('') : out.slice(0, -1).join(', ') + ' and ' + out[out.length - 1];
-      return { label: to === 'end' ? 'Play again' : 'Start match',
-        say: out.length ? who + (out.length > 1 ? ' are' : ' is') + ' sitting out.' : Net.members.length > 1 ? 'Everyone is ready.' : to === 'room' ? 'Invite friends with the code or link; open seats become bots.' : '' };
+      return { label: to === 'end' ? 'Play again' : 'Start match', disabled: out.length > 0,
+        say: out.length ? 'Waiting for ' + who + ' to press I’m in.' : Net.members.length > 1 ? 'Everyone is ready.' : to === 'room' ? 'Invite friends with the code or link; open seats become bots.' : '' };
     }
     const sitting = !!me && me.sit;
     return { sit: sitting ? 'I’m in' : 'Sit out',
@@ -216,7 +224,7 @@
     // a thumbs up: the fist and its cuff, the thumb raised
     yes: DISC + '<rect x="6.2" y="11.2" width="2.4" height="6.4" rx="0.7" class="f-ink"/><path d="M9.6 11.6h1.3l1.5-4.4a1.45 1.45 0 0 1 2.8.7l-.6 3.4h2.4a1.3 1.3 0 0 1 1.3 1.5l-.7 3.6a1.6 1.6 0 0 1-1.6 1.3H9.6z" class="f-ink"/>',
     happy: DISC + EYES(10) + '<path d="M7.6 13.9q4.4 4.8 8.8 0" class="f-line"/>',
-    laughing: DISC + '<path d="M6.9 8.3l2.8 1.6-2.8 1.6M17.1 8.3l-2.8 1.6 2.8 1.6" class="f-line"/><path d="M7.1 13.2h9.8a4.9 4.9 0 0 1-9.8 0z" class="f-ink"/>',
+    laughing: DISC + '<path d="M6.4 8.4l3.1 1.7-3.1 1.7M17.6 8.4l-3.1 1.7 3.1 1.7" class="f-line"/><path d="M7 13h10a5 5 0 0 1-10 0z" class="f-ink"/><path d="M5.1 11.7c-1.9 2.3-2.1 3.7-.5 4.1 1.5.3 2-1 .5-2.2zM18.9 11.7c1.9 2.3 2.1 3.7.5 4.1-1.5.3-2-1-.5-2.2z" class="f-tear"/>',
     shocked: DISC + '<path d="M6.9 7.4q1.8-1.5 3.6 0M13.5 7.4q1.8-1.5 3.6 0" class="f-line"/>' + EYES(10.4) + '<ellipse cx="12" cy="15.7" rx="2.1" ry="2.7" class="f-ink"/>',
     angry: DISC + '<path d="M6.6 7.5l3.7 1.9M17.4 7.5l-3.7 1.9" class="f-line"/>' + EYES(11.3) + '<path d="M8.2 16.8q3.8-3.3 7.6 0" class="f-line"/>',
   };
@@ -268,6 +276,7 @@
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' + FACES[name]
       .replace(/class="f-disc"/g, 'fill="' + FACE_COLOR[name] + '" stroke="' + INK + '" stroke-width="1.5"')
       .replace(/class="f-ink"/g, 'fill="' + INK + '"')
+      .replace(/class="f-tear"/g, 'fill="#79bfe6" stroke="' + INK + '" stroke-width="0.6"')
       .replace(/class="f-line"/g, 'fill="none" stroke="' + INK + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"') + '</svg>';
     const img = new Image();
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
@@ -448,7 +457,8 @@
       const ol = $('results');
       ol.textContent = '';
       for (const p of G.state.players.slice().sort((a, b) => b.wins - a.wins || a.id - b.id)) {
-        const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span'), wins = document.createElement('span');
+        const li = document.createElement('li'), disc = document.createElement('span'), name = document.createElement('span'), wins = document.createElement('span'), say = document.createElement('span');
+        li.dataset.seat = p.id;
         disc.className = 'disc'; disc.textContent = p.name[0];
         disc.style.background = G.colors[p.id].fill; disc.style.color = G.colors[p.id].text;
         name.className = 'name'; name.textContent = p.name + (Net.role && p.id === G.me ? ' (you)' : G.gone(p) ? ' (left)' : '');
@@ -458,7 +468,8 @@
         li.setAttribute('aria-label', p.name + ', ' + p.wins + ' of ' + C.WINS + ' rounds');
         const n = document.createElement('span');
         n.className = 'n'; n.textContent = p.wins;
-        li.append(disc, name, wins, n);
+        say.className = 'say'; say.setAttribute('aria-live', 'polite');
+        li.append(disc, name, wins, n, say);
         ol.appendChild(li);
       }
       cover('end');
@@ -496,6 +507,7 @@
     // i: their place in the room; seat: theirs in the match, or -1
     emote(i, seat, k) {
       if (!$('cover').hidden && face === 'room') showSay($('seats').children[i] && $('seats').children[i].querySelector('.say'), k);
+      if (!$('cover').hidden && face === 'end' && Number.isInteger(seat) && seat >= 0) showSay($('results').querySelector('li[data-seat="' + seat + '"] .say'), k);
       if (seat >= 0 && !$('top').hidden && G.state && G.state.players[seat]) showSay($('crew').children[seat] && $('crew').children[seat].querySelector('.say'), k);
       if (seat >= 0 && G.mode === 'match' && G.state && G.state.players[seat]) G.says[seat] = { name: Net.EMOTES[k], at: performance.now() };
     },

@@ -413,7 +413,8 @@ export class Room {
       // Only whoever has been in the room longest may start a match. A public room
       // starts on its own, but someone alone in it need not sit through the wait:
       // there is nobody else to wait for, and a second player who arrives first wins.
-      if (!this.playing && !this.members.some((x) => x.boardHold) && (this.open ? this.members.length === 1 : m === this.members[0])) this.start();
+      const waiting = !this.open && this.members.some((x, i) => x.boardHold || (i > 0 && x.sit));
+      if (!this.playing && !waiting && (this.open ? this.members.length === 1 : m === this.members[0])) this.start();
     } else if (d.t === 'board') {
       // Only the winning browser can release its own result prompt.
       if (!this.playing && m.boardHold && d.done === true) {
@@ -451,8 +452,16 @@ export class Room {
   }
 
   start() {
-    // everyone plays, apart from anyone in a private room sitting this one out
-    const seated = this.members.filter((m, i) => this.open || i === 0 || !m.sit);
+    // A player who pressed Sit out is not ready for the next match. Keep the
+    // same gate here as in the manual start message, so a queued countdown or
+    // another internal caller cannot start around them.
+    if (!this.open && this.members.some((m, i) => m.boardHold || (i > 0 && m.sit))) {
+      this.goAt = 0;
+      this.tellLobby();
+      return;
+    }
+    // The start gate above requires every private-room player to be ready.
+    const seated = this.members.slice();
     const people = seated.map((m) => ({ name: m.name, human: true }));
     const n = SEATS - people.length;
     // bots in none of the players' colours and, if the draw allows it, none with a letter one of them has

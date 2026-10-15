@@ -79,8 +79,13 @@ for (const bad of ['', ' Ann', 'Ann ', 'x'.repeat(13), '<b>Ann</b>', 'fuck', 'sh
   r.hear(C, '{"t":"sit","on":true}');
   assert.deepStrictEqual(last(a, 'lobby').sit, [false, false, true], 'the room did not say who is sitting out');
   r.hear(A, '{"t":"go"}');
-  assert(r.playing && A.seat === 0 && B.seat === 1 && C.seat === -1, 'the one sitting out was seated, or someone in was not');
-  assert(last(a, 'start') && last(b, 'start') && !last(c, 'start'), 'the start went to the wrong people');
+  assert(!r.playing, 'the host started while a real player was not ready');
+  r.start();
+  assert(!r.playing, 'the room start routine bypassed a player who was not ready');
+  r.hear(C, '{"t":"sit","on":false}');
+  r.hear(A, '{"t":"go"}');
+  assert(r.playing && A.seat === 0 && B.seat === 1 && C.seat === 2, 'the host could not start when every real player was ready');
+  assert(last(a, 'start') && last(b, 'start') && last(c, 'start'), 'the ready players did not all join the match');
 
   // reactions: to everyone, with the seat they play in; nothing outside the list, and not too fast
   r.hear(B, '{"t":"emote","k":4}');
