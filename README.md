@@ -4,7 +4,7 @@ Bumper sumo on a raft. Knock everyone else into the water. If you fall in, you c
 
 **[Play Overboard](https://overboard-game.vercel.app/)** on a computer or phone.
 
-![You, the orange player, facing three bots as a meteor shower breaks the raft apart](docs/gameplay.png)
+![Gameplay: the orange player fights bots while the raft breaks apart](docs/gameplay.gif)
 
 ## Play
 
