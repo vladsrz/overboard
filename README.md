@@ -4,6 +4,8 @@ Bumper sumo on a raft. Knock everyone else into the water. If you fall in, you c
 
 **[Play Overboard](https://overboard-game.vercel.app/)** on a computer or phone.
 
+![A solo round with the raft breaking apart while the remaining players fight](docs/gameplay.png)
+
 ## Play
 
 Four players share the raft; bots fill empty seats. First to win three rounds wins the match.
