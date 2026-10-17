@@ -23,14 +23,14 @@
     magpie: { skill: 0.5, care: 0.8, loot: 1, dash: 0.6, rest: [0.4, 0.8], pick: 'spread', water: 'planks' },
     limpet: { skill: 0.4, care: 0.7, loot: 0.4, dash: 0.6, rest: [0.9, 1.6], pick: 'edge', shy: true, water: 'tilt' },
     shark: { skill: 0.6, care: 0.8, loot: 0.35, dash: 0.85, rest: [0.3, 0.6], pick: 'edge', water: 'planks' },
-    grudge: { skill: 0.5, care: 0.65, loot: 0.3, dash: 0.85, rest: [0.2, 0.5], pick: 'grudge', water: 'all' },
+    grudge: { skill: 0.5, care: 0.65, loot: 0.3, dash: 0.85, rest: [0.2, 0.5], pick: 'grudge', stubborn: true, water: 'all' },
     heron: { skill: 0.6, care: 0.8, loot: 0.6, dash: 0.5, rest: [0.6, 1.1], pick: 'spread', patient: true, water: 'wave' },
     wildcard: { skill: 0.45, care: 0.75, loot: 0.5, dash: 1, rest: [0.1, 0.3], pick: 'random', wild: true, water: 'all' },
-    tyrant: { skill: 0.55, care: 0.75, loot: 0.35, dash: 0.85, rest: [0.3, 0.6], pick: 'leader', water: 'tilt' },
+    tyrant: { skill: 0.55, care: 0.75, loot: 0.35, dash: 0.85, rest: [0.3, 0.6], pick: 'leader', stubborn: true, water: 'tilt' },
     // these four mix two habits each
     viper: { skill: 0.6, care: 0.8, loot: 0.3, dash: 1, rest: [0.5, 1], pick: 'edge', patient: true, water: 'wave' },
     badger: { skill: 0.5, care: 0.55, loot: 0.2, dash: 1, rest: [0.15, 0.4], pick: 'grudge near', water: 'planks' },
-    pirate: { skill: 0.55, care: 0.75, loot: 1, dash: 0.8, rest: [0.3, 0.7], pick: 'leader', water: 'all' },
+    pirate: { skill: 0.55, care: 0.75, loot: 1, dash: 0.8, rest: [0.3, 0.7], pick: 'leader', stubborn: true, water: 'all' },
     otter: { skill: 0.45, care: 0.7, loot: 0.8, dash: 0.9, rest: [0.1, 0.3], pick: 'random edge', water: 'tilt' },
     // these five each have a habit of their own
     jackal: { skill: 0.55, care: 0.75, loot: 0.3, dash: 0.9, rest: [0.2, 0.5], pick: 'pile', water: 'planks' },
@@ -111,6 +111,15 @@
     return !!o && o.human && (o.wins < 2 || state.players.some((q) => q.id !== o.id && q.wins >= o.wins));
   }
 
+  // The leader hunters keep the newbie cushion while the human is tied or
+  // behind, but notice when that player becomes the sole match leader.
+  function easyTarget(state, t, T) {
+    const o = t && state.players[t.id];
+    const soleLead = !!o && o.human && o.wins > 0
+      && state.players.every((q) => q.id === o.id || q.wins < o.wins);
+    return easy(state, t) && !(soleLead && has(T, 'leader'));
+  }
+
   function pickTarget(state, p, b, preferred) {
     const T = b.T, fighting = p.state === 'alive';
     const finale = state.players.some((o) => o.human) && !state.players.some((o) => o.human && o.state === 'alive');
@@ -135,9 +144,10 @@
       return pick;
     }
     if (cur && b.retargetT > 0) return cur;
-    b.retargetT = T.wild ? 0.8 + Sim.rand(state) : 2.5 + Sim.rand(state) * 2.5;
+    b.retargetT = T.stubborn ? 5 + Sim.rand(state) * 3
+      : T.wild ? 0.8 + Sim.rand(state) : 2.5 + Sim.rand(state) * 2.5;
     let want = preferred, sure = 0.6;
-    if (easy(state, state.players[want])) sure = 0.15;
+    if (easyTarget(state, state.players[want], T)) sure = 0.15;
     if (has(T, 'grudge') && fighting && p.lastHitBy >= 0) { want = p.lastHitBy; sure = 0.9; }
     let pick = Sim.rand(state) < sure ? others.find((o) => o.id === want) : null;
     if (!pick) {
@@ -148,7 +158,7 @@
         // most spread out over the targets; the one that piles on wants whoever is
         // already under attack, or has just been hit
         let v = has(T, 'pile') ? (1 + 3 * crowd) * (state.time - o.lastHitT < 1.2 ? 2.5 : 1) : 1 / (1 + 2 * crowd);
-        v *= !o.human ? 1 : (has(T, 'people') ? 4 : 0.85) * (easy(state, o) ? 0.18 : 1);
+        v *= !o.human ? 1 : (has(T, 'people') ? 4 : 0.85) * (easyTarget(state, o, T) ? 0.18 : 1);
         // easy prey draws attention: standing still, or sitting near the edge
         if (Math.hypot(o.vx, o.vy) < 40) v *= 2.2;
         const edge = voidDir(state, o.x, o.y, tmp);
@@ -392,7 +402,7 @@
           b.mode = 'hunt';
           b.wantsLoot = Sim.rand(state) < T.loot;
           b.wait = !!T.patient && Sim.rand(state) < 0.6;
-          if (Sim.rand(state) < 0.5) b.retargetT = 0;
+          if (!T.stubborn && Sim.rand(state) < 0.5) b.retargetT = 0;
         } else { mx = (b.roamX - p.x) / rd; my = (b.roamY - p.y) / rd; }
       }
 
