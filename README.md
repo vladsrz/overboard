@@ -32,7 +32,7 @@ A few things worth knowing:
 
 ## Run it locally
 
-Open `index.html` in a browser to play solo. There is no build step. To try rooms locally, run `npm run dev` in `server/` and serve the game folder over `http://localhost`; the deployed game uses the Cloudflare room server. [PeerJS](https://peerjs.com) is included in `vendor/` for the browser-hosted room fallback. Fonts come from Google Fonts and fall back if you are offline; every sound is synthesised, so there are no audio files.
+Open `index.html` in a browser to play solo. There is no build step. To try rooms locally, run `npm run dev` in `server/` and serve the game folder over `http://localhost`; the deployed game uses the Cloudflare room server. [PeerJS](https://peerjs.com) is included in `vendor/` for the browser-hosted room fallback. Fonts are served from `fonts/`; every sound is synthesised, so there are no audio files.
 
 ```
 node test/sim.test.js
@@ -54,6 +54,6 @@ Plain scripts, loaded in this order by `index.html`:
 - `js/hud.js` — the words around the raft and the start, end and pause screens.
 - `js/game.js` — keys, mouse and the loop.
 
-`CLAUDE.md` holds the design rules and the reasoning behind the numbers.
+`CLAUDE.md` and `AGENTS.md` point to the same contributor notes.
 
 `manifest.webmanifest` configures the Home Screen app at the Vercel root. The PNG app icons are rendered from `favicon.svg`; no service worker or offline cache is installed.
