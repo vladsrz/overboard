@@ -7,3 +7,4 @@ server/.stats-key
 .vercel/
 .vercel
 .env*
+.playwright-cli/
